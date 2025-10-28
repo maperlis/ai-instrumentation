@@ -1,0 +1,226 @@
+import { useState } from "react";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
+import { Card } from "@/components/ui/card";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Label } from "@/components/ui/label";
+import { Upload, Link2, Loader2 } from "lucide-react";
+import { useToast } from "@/hooks/use-toast";
+import { supabase } from "@/integrations/supabase/client";
+import { TaxonomyEvent } from "@/types/taxonomy";
+
+interface InputSectionProps {
+  onResults: (results: TaxonomyEvent[]) => void;
+  isLoading: boolean;
+  setIsLoading: (loading: boolean) => void;
+}
+
+export const InputSection = ({ onResults, isLoading, setIsLoading }: InputSectionProps) => {
+  const [url, setUrl] = useState("");
+  const [productDetails, setProductDetails] = useState("");
+  const [selectedImage, setSelectedImage] = useState<File | null>(null);
+  const [imagePreview, setImagePreview] = useState<string>("");
+  const { toast } = useToast();
+
+  const handleImageSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      if (file.size > 5 * 1024 * 1024) {
+        toast({
+          title: "File too large",
+          description: "Please select an image under 5MB",
+          variant: "destructive",
+        });
+        return;
+      }
+      setSelectedImage(file);
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        setImagePreview(reader.result as string);
+      };
+      reader.readAsDataURL(file);
+    }
+  };
+
+  const handleGenerate = async (inputType: "url" | "image") => {
+    if (inputType === "url" && !url.trim()) {
+      toast({
+        title: "URL required",
+        description: "Please enter a URL to analyze",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    if (inputType === "image" && !selectedImage) {
+      toast({
+        title: "Image required",
+        description: "Please select an image to analyze",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setIsLoading(true);
+
+    try {
+      const requestData: any = {
+        productDetails: productDetails || undefined,
+      };
+
+      if (inputType === "url") {
+        requestData.url = url;
+      } else if (imagePreview) {
+        requestData.imageData = imagePreview;
+      }
+
+      const { data, error } = await supabase.functions.invoke("generate-taxonomy", {
+        body: requestData,
+      });
+
+      if (error) throw error;
+
+      if (data?.events) {
+        onResults(data.events);
+        toast({
+          title: "Taxonomy generated!",
+          description: `Successfully generated ${data.events.length} events`,
+        });
+      }
+    } catch (error: any) {
+      console.error("Generation error:", error);
+      toast({
+        title: "Generation failed",
+        description: error.message || "Failed to generate taxonomy",
+        variant: "destructive",
+      });
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  return (
+    <div className="container mx-auto px-4 pb-20">
+      <Card className="max-w-3xl mx-auto p-8 shadow-lg">
+        <Tabs defaultValue="url" className="w-full">
+          <TabsList className="grid w-full grid-cols-2 mb-6">
+            <TabsTrigger value="url" className="gap-2">
+              <Link2 className="w-4 h-4" />
+              URL
+            </TabsTrigger>
+            <TabsTrigger value="image" className="gap-2">
+              <Upload className="w-4 h-4" />
+              Design Image
+            </TabsTrigger>
+          </TabsList>
+
+          <TabsContent value="url" className="space-y-4">
+            <div className="space-y-2">
+              <Label htmlFor="url">Product URL</Label>
+              <Input
+                id="url"
+                type="url"
+                placeholder="https://yourproduct.com"
+                value={url}
+                onChange={(e) => setUrl(e.target.value)}
+                disabled={isLoading}
+              />
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="details-url">Product Details (Optional)</Label>
+              <Textarea
+                id="details-url"
+                placeholder="Describe your product, main features, or user journey goals..."
+                value={productDetails}
+                onChange={(e) => setProductDetails(e.target.value)}
+                disabled={isLoading}
+                rows={3}
+              />
+            </div>
+
+            <Button
+              onClick={() => handleGenerate("url")}
+              disabled={isLoading}
+              className="w-full"
+              size="lg"
+            >
+              {isLoading ? (
+                <>
+                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                  Analyzing...
+                </>
+              ) : (
+                "Generate Taxonomy"
+              )}
+            </Button>
+          </TabsContent>
+
+          <TabsContent value="image" className="space-y-4">
+            <div className="space-y-2">
+              <Label htmlFor="image">Design Image</Label>
+              <div className="border-2 border-dashed border-border rounded-lg p-8 text-center hover:border-primary transition-colors cursor-pointer">
+                <input
+                  id="image"
+                  type="file"
+                  accept="image/*"
+                  onChange={handleImageSelect}
+                  className="hidden"
+                  disabled={isLoading}
+                />
+                <label htmlFor="image" className="cursor-pointer">
+                  {imagePreview ? (
+                    <img
+                      src={imagePreview}
+                      alt="Preview"
+                      className="max-h-64 mx-auto rounded-lg"
+                    />
+                  ) : (
+                    <div className="space-y-2">
+                      <Upload className="w-12 h-12 mx-auto text-muted-foreground" />
+                      <p className="text-sm text-muted-foreground">
+                        Click to upload or drag and drop
+                      </p>
+                      <p className="text-xs text-muted-foreground">
+                        PNG, JPG up to 5MB
+                      </p>
+                    </div>
+                  )}
+                </label>
+              </div>
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="details-image">Product Details (Optional)</Label>
+              <Textarea
+                id="details-image"
+                placeholder="Describe your product, main features, or user journey goals..."
+                value={productDetails}
+                onChange={(e) => setProductDetails(e.target.value)}
+                disabled={isLoading}
+                rows={3}
+              />
+            </div>
+
+            <Button
+              onClick={() => handleGenerate("image")}
+              disabled={isLoading || !selectedImage}
+              className="w-full"
+              size="lg"
+            >
+              {isLoading ? (
+                <>
+                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                  Analyzing...
+                </>
+              ) : (
+                "Generate Taxonomy"
+              )}
+            </Button>
+          </TabsContent>
+        </Tabs>
+      </Card>
+    </div>
+  );
+};
