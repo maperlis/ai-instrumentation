@@ -49,9 +49,9 @@ export const EventTable = ({ events, onEventsChange }: EventTableProps) => {
   const getConfidenceBadge = (confidence?: number) => {
     if (!confidence) return <Badge variant="secondary">N/A</Badge>;
     if (confidence >= 0.8)
-      return <Badge className="bg-success">High ({(confidence * 100).toFixed(0)}%)</Badge>;
+      return <Badge className="bg-success text-success-foreground">High ({(confidence * 100).toFixed(0)}%)</Badge>;
     if (confidence >= 0.5)
-      return <Badge className="bg-warning">Medium ({(confidence * 100).toFixed(0)}%)</Badge>;
+      return <Badge className="bg-warning text-warning-foreground">Medium ({(confidence * 100).toFixed(0)}%)</Badge>;
     return <Badge variant="destructive">Low ({(confidence * 100).toFixed(0)}%)</Badge>;
   };
 
