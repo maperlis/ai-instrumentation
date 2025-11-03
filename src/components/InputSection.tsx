@@ -11,12 +11,22 @@ import { supabase } from "@/integrations/supabase/client";
 import { TaxonomyEvent } from "@/types/taxonomy";
 
 interface InputSectionProps {
-  onResults: (results: TaxonomyEvent[]) => void;
+  onMetricsGenerated: (metrics: any[], data: any) => void;
+  onTaxonomyGenerated: (results: TaxonomyEvent[]) => void;
   isLoading: boolean;
   setIsLoading: (loading: boolean) => void;
+  inputData?: { url?: string; imageData?: string; productDetails?: string } | null;
+  selectedMetrics?: string[];
 }
 
-export const InputSection = ({ onResults, isLoading, setIsLoading }: InputSectionProps) => {
+export const InputSection = ({ 
+  onMetricsGenerated, 
+  onTaxonomyGenerated, 
+  isLoading, 
+  setIsLoading,
+  inputData: savedInputData,
+  selectedMetrics 
+}: InputSectionProps) => {
   const [url, setUrl] = useState("");
   const [productDetails, setProductDetails] = useState("");
   const [selectedImage, setSelectedImage] = useState<File | null>(null);
@@ -75,24 +85,48 @@ export const InputSection = ({ onResults, isLoading, setIsLoading }: InputSectio
         requestData.imageData = imagePreview;
       }
 
-      const { data, error } = await supabase.functions.invoke("generate-taxonomy", {
-        body: requestData,
-      });
+      // Check if we're coming from metrics selection
+      if (selectedMetrics && selectedMetrics.length > 0) {
+        // Generate taxonomy based on selected metrics
+        requestData.mode = 'taxonomy';
+        requestData.selectedMetrics = selectedMetrics;
 
-      if (error) throw error;
-
-      if (data?.events) {
-        onResults(data.events);
-        toast({
-          title: "Taxonomy generated!",
-          description: `Successfully generated ${data.events.length} events`,
+        const { data, error } = await supabase.functions.invoke("generate-taxonomy", {
+          body: requestData,
         });
+
+        if (error) throw error;
+
+        if (data?.events) {
+          onTaxonomyGenerated(data.events);
+          toast({
+            title: "Taxonomy generated!",
+            description: `Successfully generated ${data.events.length} events`,
+          });
+        }
+      } else {
+        // First step: generate metrics recommendations
+        requestData.mode = 'metrics';
+
+        const { data, error } = await supabase.functions.invoke("generate-taxonomy", {
+          body: requestData,
+        });
+
+        if (error) throw error;
+
+        if (data?.metrics) {
+          onMetricsGenerated(data.metrics, requestData);
+          toast({
+            title: "Metrics identified!",
+            description: `Found ${data.metrics.length} relevant metrics`,
+          });
+        }
       }
     } catch (error: any) {
       console.error("Generation error:", error);
       toast({
         title: "Generation failed",
-        description: error.message || "Failed to generate taxonomy",
+        description: error.message || "Failed to generate",
         variant: "destructive",
       });
     } finally {

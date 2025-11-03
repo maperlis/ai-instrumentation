@@ -12,23 +12,43 @@ serve(async (req) => {
   }
 
   try {
-    const { url, imageData, productDetails } = await req.json();
-    console.log("Generating taxonomy for:", { hasUrl: !!url, hasImage: !!imageData });
+    const { url, imageData, productDetails, mode = 'metrics', selectedMetrics } = await req.json();
+    console.log("Mode:", mode, "hasUrl:", !!url, "hasImage:", !!imageData);
 
     const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
     if (!LOVABLE_API_KEY) {
       throw new Error("LOVABLE_API_KEY not configured");
     }
 
-    const systemPrompt = `You are an expert product analytics instrumentation specialist. Your task is to analyze products (via URL or design images) and generate standardized event tracking taxonomies.
+    let systemPrompt: string;
+    
+    if (mode === 'metrics') {
+      systemPrompt = `You are a product analytics specialist. Analyze the product and recommend 5-8 key metrics that should be measured.
+
+Group metrics by category (Acquisition, Engagement, Retention, Monetization, Product Usage).
+
+Return ONLY a valid JSON object with this exact structure:
+{
+  "metrics": [
+    {
+      "id": "conversion_rate",
+      "name": "Conversion Rate",
+      "description": "Percentage of users who complete key actions like signup or purchase",
+      "category": "Acquisition",
+      "example_events": ["signup_completed", "purchase_completed", "trial_started"]
+    }
+  ]
+}`;
+    } else {
+      systemPrompt = `You are an expert product analytics instrumentation specialist. Generate a comprehensive event taxonomy optimized for measuring these metrics: ${selectedMetrics?.join(', ')}.
 
 Follow these principles:
 - Use snake_case for all event names
-- Follow the pattern: product_area_action_object (e.g., homepage_view, signup_button_click)
-- Identify all key user interactions: clicks, views, form submissions, navigation
-- Generate appropriate event properties for context (e.g., device_type, source, referrer)
+- Follow the pattern: product_area_action_object
+- Focus on events that directly support the selected metrics
+- Generate appropriate event properties for context
 - Assign confidence scores based on clarity of the UI element
-- Assign owners based on product area (e.g., PM_Acquisition, PM_Engagement)
+- Assign owners based on product area
 
 Return ONLY a valid JSON object with this exact structure:
 {
@@ -45,22 +65,31 @@ Return ONLY a valid JSON object with this exact structure:
     }
   ]
 }`;
+    }
 
     const userContent = [];
 
     if (url) {
       userContent.push({
         type: "text",
-        text: `Analyze this product URL and generate an instrumentation taxonomy:\n\nURL: ${url}${
-          productDetails ? `\n\nProduct Context: ${productDetails}` : ""
-        }\n\nIdentify all key user interactions and generate events.`,
+        text: mode === 'metrics'
+          ? `Analyze this product URL and recommend key metrics:\n\nURL: ${url}${
+              productDetails ? `\n\nProduct Context: ${productDetails}` : ""
+            }`
+          : `Generate an instrumentation taxonomy for this product URL:\n\nURL: ${url}${
+              productDetails ? `\n\nProduct Context: ${productDetails}` : ""
+            }\n\nFocus on events for: ${selectedMetrics?.join(', ')}`,
       });
     } else if (imageData) {
       userContent.push({
         type: "text",
-        text: `Analyze this product design image and generate an instrumentation taxonomy.${
-          productDetails ? `\n\nProduct Context: ${productDetails}` : ""
-        }\n\nIdentify all UI elements and user interactions visible in the design.`,
+        text: mode === 'metrics'
+          ? `Analyze this product design and recommend key metrics.${
+              productDetails ? `\n\nProduct Context: ${productDetails}` : ""
+            }`
+          : `Generate an instrumentation taxonomy for this product design.${
+              productDetails ? `\n\nProduct Context: ${productDetails}` : ""
+            }\n\nFocus on events for: ${selectedMetrics?.join(', ')}`,
       });
       userContent.push({
         type: "image_url",

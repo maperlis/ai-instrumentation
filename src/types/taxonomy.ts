@@ -9,10 +9,20 @@ export interface TaxonomyEvent {
   confidence?: number;
 }
 
+export interface Metric {
+  id: string;
+  name: string;
+  description: string;
+  category: string;
+  example_events: string[];
+}
+
 export interface GenerateRequest {
   url?: string;
   imageData?: string;
   productDetails?: string;
+  mode?: 'metrics' | 'taxonomy';
+  selectedMetrics?: string[];
 }
 
 export interface GenerateResponse {
@@ -22,4 +32,8 @@ export interface GenerateResponse {
     naming_convention: string;
     key_metrics: string[];
   };
+}
+
+export interface MetricsResponse {
+  metrics: Metric[];
 }
