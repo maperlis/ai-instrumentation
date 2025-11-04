@@ -180,7 +180,10 @@ async function createJiraTicket(
 ) {
   const auth = btoa(`${email}:${apiToken}`);
   
-  const response = await fetch(`https://${domain}/rest/api/3/issue`, {
+  // Remove protocol and trailing slashes from domain if present
+  const cleanDomain = domain.replace(/^https?:\/\//, '').replace(/\/+$/, '');
+  
+  const response = await fetch(`https://${cleanDomain}/rest/api/3/issue`, {
     method: 'POST',
     headers: {
       'Authorization': `Basic ${auth}`,
