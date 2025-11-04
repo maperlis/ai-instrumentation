@@ -85,7 +85,10 @@ const Index = () => {
       )}
       
       {currentStep === 'results' && results && !isLoading && (
-        <ResultsSection results={results} />
+        <ResultsSection 
+          results={results} 
+          selectedMetrics={metrics?.map(m => m.name) || []} 
+        />
       )}
     </div>
   );

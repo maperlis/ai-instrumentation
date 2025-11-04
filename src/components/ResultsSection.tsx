@@ -2,17 +2,29 @@ import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { TaxonomyEvent } from "@/types/taxonomy";
-import { Download, FileJson, FileSpreadsheet, CheckCircle2 } from "lucide-react";
+import { Download, FileJson, FileSpreadsheet, CheckCircle2, Send, Copy, ExternalLink } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { EventTable } from "@/components/EventTable";
+import { supabase } from "@/integrations/supabase/client";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 
 interface ResultsSectionProps {
   results: TaxonomyEvent[];
+  selectedMetrics?: string[];
 }
 
-export const ResultsSection = ({ results }: ResultsSectionProps) => {
+export const ResultsSection = ({ results, selectedMetrics = [] }: ResultsSectionProps) => {
   const { toast } = useToast();
   const [events, setEvents] = useState<TaxonomyEvent[]>(results);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [showTicketDialog, setShowTicketDialog] = useState(false);
+  const [ticketData, setTicketData] = useState<any>(null);
 
   const downloadJSON = () => {
     const dataStr = JSON.stringify(events, null, 2);
@@ -68,6 +80,55 @@ export const ResultsSection = ({ results }: ResultsSectionProps) => {
     });
   };
 
+  const handleSubmit = async () => {
+    setIsSubmitting(true);
+    try {
+      const { data, error } = await supabase.functions.invoke("create-ticket", {
+        body: {
+          events,
+          selectedMetrics,
+        },
+      });
+
+      if (error) throw error;
+
+      setTicketData(data);
+      setShowTicketDialog(true);
+
+      if (data.jiraTicket) {
+        toast({
+          title: "JIRA Ticket Created",
+          description: `Ticket ${data.jiraTicket.key} has been created successfully.`,
+        });
+      } else {
+        toast({
+          title: "Ticket Generated",
+          description: "Copy the ticket details to your issue tracking platform.",
+        });
+      }
+    } catch (error) {
+      console.error("Error creating ticket:", error);
+      toast({
+        title: "Error",
+        description: "Failed to create ticket. Please try again.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  const copyTicketToClipboard = () => {
+    if (!ticketData?.ticketContent) return;
+    
+    const content = `${ticketData.ticketContent.title}\n\n${ticketData.ticketContent.description}`;
+    navigator.clipboard.writeText(content);
+    toast({
+      title: "Copied",
+      description: "Ticket content copied to clipboard",
+    });
+  };
+
   const avgConfidence = events.reduce((acc, e) => acc + (e.confidence || 0), 0) / events.length;
 
   return (
@@ -91,6 +152,10 @@ export const ResultsSection = ({ results }: ResultsSectionProps) => {
               <FileSpreadsheet className="w-4 h-4" />
               Export CSV
             </Button>
+            <Button onClick={handleSubmit} disabled={isSubmitting} className="gap-2">
+              <Send className="w-4 h-4" />
+              {isSubmitting ? "Creating..." : "Submit Taxonomy"}
+            </Button>
           </div>
         </div>
 
@@ -110,6 +175,69 @@ export const ResultsSection = ({ results }: ResultsSectionProps) => {
 
         <EventTable events={events} onEventsChange={setEvents} />
       </div>
+
+      <Dialog open={showTicketDialog} onOpenChange={setShowTicketDialog}>
+        <DialogContent className="max-w-4xl max-h-[80vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>
+              {ticketData?.jiraTicket ? "JIRA Ticket Created" : "Implementation Ticket"}
+            </DialogTitle>
+            <DialogDescription>
+              {ticketData?.jiraTicket 
+                ? "Your JIRA ticket has been created successfully." 
+                : "Copy this ticket to your issue tracking platform."}
+            </DialogDescription>
+          </DialogHeader>
+
+          {ticketData?.jiraTicket && (
+            <div className="flex items-center gap-2 p-4 bg-accent/10 rounded-lg">
+              <CheckCircle2 className="w-5 h-5 text-success" />
+              <div className="flex-1">
+                <p className="font-medium">{ticketData.jiraTicket.key}</p>
+                <p className="text-sm text-muted-foreground">
+                  Ticket created in JIRA
+                </p>
+              </div>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => window.open(ticketData.jiraTicket.url, '_blank')}
+              >
+                <ExternalLink className="w-4 h-4 mr-2" />
+                View in JIRA
+              </Button>
+            </div>
+          )}
+
+          <div className="space-y-4">
+            <div className="flex justify-between items-center">
+              <h3 className="font-semibold">Ticket Details</h3>
+              <Button variant="outline" size="sm" onClick={copyTicketToClipboard}>
+                <Copy className="w-4 h-4 mr-2" />
+                Copy All
+              </Button>
+            </div>
+
+            <Card className="p-4">
+              <h4 className="font-semibold mb-2">{ticketData?.ticketContent?.title}</h4>
+              <div className="prose prose-sm max-w-none">
+                <pre className="whitespace-pre-wrap text-sm bg-muted p-4 rounded-lg overflow-x-auto">
+                  {ticketData?.ticketContent?.description}
+                </pre>
+              </div>
+            </Card>
+
+            {!ticketData?.jiraTicket && (
+              <div className="p-4 bg-accent/10 rounded-lg">
+                <p className="text-sm text-muted-foreground">
+                  <strong>Note:</strong> JIRA is not configured. To enable automatic ticket creation,
+                  configure your JIRA credentials in the settings.
+                </p>
+              </div>
+            )}
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };
