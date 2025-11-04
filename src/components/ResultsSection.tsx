@@ -12,7 +12,11 @@ import {
   DialogDescription,
   DialogHeader,
   DialogTitle,
+  DialogFooter,
 } from "@/components/ui/dialog";
+import { Textarea } from "@/components/ui/textarea";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 
 interface ResultsSectionProps {
   results: TaxonomyEvent[];
@@ -23,8 +27,20 @@ export const ResultsSection = ({ results, selectedMetrics = [] }: ResultsSection
   const { toast } = useToast();
   const [events, setEvents] = useState<TaxonomyEvent[]>(results);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [showEditDialog, setShowEditDialog] = useState(false);
   const [showTicketDialog, setShowTicketDialog] = useState(false);
   const [ticketData, setTicketData] = useState<any>(null);
+  const [editableTicket, setEditableTicket] = useState<{
+    title: string;
+    description: string;
+    labels: string;
+    priority: string;
+  }>({
+    title: "",
+    description: "",
+    labels: "",
+    priority: "Medium",
+  });
 
   const downloadJSON = () => {
     const dataStr = JSON.stringify(events, null, 2);
@@ -80,7 +96,7 @@ export const ResultsSection = ({ results, selectedMetrics = [] }: ResultsSection
     });
   };
 
-  const handleSubmit = async () => {
+  const handlePrepareTicket = async () => {
     setIsSubmitting(true);
     try {
       const { data, error } = await supabase.functions.invoke("create-ticket", {
@@ -92,6 +108,46 @@ export const ResultsSection = ({ results, selectedMetrics = [] }: ResultsSection
 
       if (error) throw error;
 
+      // Set editable ticket data
+      setEditableTicket({
+        title: data.ticketContent.title,
+        description: data.ticketContent.description,
+        labels: data.ticketContent.labels.join(", "),
+        priority: data.ticketContent.priority,
+      });
+      setTicketData(data);
+      setShowEditDialog(true);
+    } catch (error) {
+      console.error("Error preparing ticket:", error);
+      toast({
+        title: "Error",
+        description: "Failed to prepare ticket. Please try again.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  const handleSubmitToJira = async () => {
+    setIsSubmitting(true);
+    try {
+      const { data, error } = await supabase.functions.invoke("create-ticket", {
+        body: {
+          events,
+          selectedMetrics,
+          customTicket: {
+            title: editableTicket.title,
+            description: editableTicket.description,
+            labels: editableTicket.labels.split(",").map(l => l.trim()).filter(Boolean),
+            priority: editableTicket.priority,
+          },
+        },
+      });
+
+      if (error) throw error;
+
+      setShowEditDialog(false);
       setTicketData(data);
       setShowTicketDialog(true);
 
@@ -107,10 +163,10 @@ export const ResultsSection = ({ results, selectedMetrics = [] }: ResultsSection
         });
       }
     } catch (error) {
-      console.error("Error creating ticket:", error);
+      console.error("Error submitting to JIRA:", error);
       toast({
         title: "Error",
-        description: "Failed to create ticket. Please try again.",
+        description: "Failed to submit ticket. Please try again.",
         variant: "destructive",
       });
     } finally {
@@ -152,9 +208,9 @@ export const ResultsSection = ({ results, selectedMetrics = [] }: ResultsSection
               <FileSpreadsheet className="w-4 h-4" />
               Export CSV
             </Button>
-            <Button onClick={handleSubmit} disabled={isSubmitting} className="gap-2">
+            <Button onClick={handlePrepareTicket} disabled={isSubmitting} className="gap-2">
               <Send className="w-4 h-4" />
-              {isSubmitting ? "Creating..." : "Submit Taxonomy"}
+              {isSubmitting ? "Preparing..." : "Submit Taxonomy"}
             </Button>
           </div>
         </div>
@@ -175,6 +231,70 @@ export const ResultsSection = ({ results, selectedMetrics = [] }: ResultsSection
 
         <EventTable events={events} onEventsChange={setEvents} />
       </div>
+
+      <Dialog open={showEditDialog} onOpenChange={setShowEditDialog}>
+        <DialogContent className="max-w-4xl max-h-[80vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Edit Ticket Details</DialogTitle>
+            <DialogDescription>
+              Review and edit the ticket details before submitting to JIRA.
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-4">
+            <div className="space-y-2">
+              <Label htmlFor="title">Title</Label>
+              <Input
+                id="title"
+                value={editableTicket.title}
+                onChange={(e) => setEditableTicket({ ...editableTicket, title: e.target.value })}
+              />
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="description">Description</Label>
+              <Textarea
+                id="description"
+                value={editableTicket.description}
+                onChange={(e) => setEditableTicket({ ...editableTicket, description: e.target.value })}
+                rows={20}
+                className="font-mono text-sm"
+              />
+            </div>
+
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label htmlFor="labels">Labels (comma-separated)</Label>
+                <Input
+                  id="labels"
+                  value={editableTicket.labels}
+                  onChange={(e) => setEditableTicket({ ...editableTicket, labels: e.target.value })}
+                  placeholder="analytics, instrumentation, tracking"
+                />
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="priority">Priority</Label>
+                <Input
+                  id="priority"
+                  value={editableTicket.priority}
+                  onChange={(e) => setEditableTicket({ ...editableTicket, priority: e.target.value })}
+                />
+              </div>
+            </div>
+          </div>
+
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowEditDialog(false)}>
+              Cancel
+            </Button>
+            <Button onClick={handleSubmitToJira} disabled={isSubmitting}>
+              <Send className="w-4 h-4 mr-2" />
+              {isSubmitting ? "Submitting..." : "Submit to JIRA"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       <Dialog open={showTicketDialog} onOpenChange={setShowTicketDialog}>
         <DialogContent className="max-w-4xl max-h-[80vh] overflow-y-auto">

@@ -12,7 +12,7 @@ serve(async (req) => {
   }
 
   try {
-    const { events, selectedMetrics } = await req.json();
+    const { events, selectedMetrics, customTicket } = await req.json();
 
     // Check if JIRA credentials are configured
     const jiraEmail = Deno.env.get('JIRA_EMAIL');
@@ -25,8 +25,8 @@ serve(async (req) => {
     // Generate implementation code
     const implementationCode = generateImplementationCode(events);
     
-    // Generate ticket content
-    const ticketContent = generateTicketContent(events, selectedMetrics, implementationCode);
+    // Generate ticket content (or use custom if provided)
+    const ticketContent = customTicket || generateTicketContent(events, selectedMetrics, implementationCode);
 
     if (hasJiraConfig) {
       // Create JIRA ticket
