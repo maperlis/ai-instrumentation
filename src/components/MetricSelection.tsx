@@ -2,8 +2,12 @@ import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Checkbox } from "@/components/ui/checkbox";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
 import { Metric } from "@/types/taxonomy";
-import { ArrowLeft, ArrowRight, Target } from "lucide-react";
+import { ArrowLeft, ArrowRight, Target, Plus } from "lucide-react";
 
 interface MetricSelectionProps {
   metrics: Metric[];
@@ -14,6 +18,10 @@ interface MetricSelectionProps {
 
 export const MetricSelection = ({ metrics, onBack, onContinue, isLoading }: MetricSelectionProps) => {
   const [selectedMetrics, setSelectedMetrics] = useState<string[]>([]);
+  const [customMetrics, setCustomMetrics] = useState<Metric[]>([]);
+  const [showAddMetric, setShowAddMetric] = useState(false);
+  const [newMetricName, setNewMetricName] = useState("");
+  const [newMetricDescription, setNewMetricDescription] = useState("");
 
   const toggleMetric = (metricId: string) => {
     setSelectedMetrics(prev =>
@@ -29,7 +37,24 @@ export const MetricSelection = ({ metrics, onBack, onContinue, isLoading }: Metr
     }
   };
 
-  const groupedMetrics = metrics.reduce((acc, metric) => {
+  const handleAddMetric = () => {
+    if (newMetricName.trim() && newMetricDescription.trim()) {
+      const newMetric: Metric = {
+        id: `custom-${Date.now()}`,
+        name: newMetricName,
+        description: newMetricDescription,
+        category: "Custom Metrics",
+        example_events: []
+      };
+      setCustomMetrics([...customMetrics, newMetric]);
+      setNewMetricName("");
+      setNewMetricDescription("");
+      setShowAddMetric(false);
+    }
+  };
+
+  const allMetrics = [...metrics, ...customMetrics];
+  const groupedMetrics = allMetrics.reduce((acc, metric) => {
     if (!acc[metric.category]) {
       acc[metric.category] = [];
     }
@@ -50,6 +75,13 @@ export const MetricSelection = ({ metrics, onBack, onContinue, isLoading }: Metr
           <p className="text-muted-foreground max-w-2xl mx-auto">
             Choose the metrics you want to measure. Your taxonomy will be optimized to capture the data needed for these metrics.
           </p>
+        </div>
+
+        <div className="flex justify-end">
+          <Button onClick={() => setShowAddMetric(true)} variant="outline" className="gap-2">
+            <Plus className="w-4 h-4" />
+            Add Custom Metric
+          </Button>
         </div>
 
         <div className="space-y-6">
@@ -101,6 +133,46 @@ export const MetricSelection = ({ metrics, onBack, onContinue, isLoading }: Metr
           {selectedMetrics.length} metric{selectedMetrics.length !== 1 ? 's' : ''} selected
         </div>
       </div>
+
+      <Dialog open={showAddMetric} onOpenChange={setShowAddMetric}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Add Custom Metric</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div>
+              <Label htmlFor="metric-name">Metric Name</Label>
+              <Input
+                id="metric-name"
+                placeholder="e.g., Customer Satisfaction Rate"
+                value={newMetricName}
+                onChange={(e) => setNewMetricName(e.target.value)}
+              />
+            </div>
+            <div>
+              <Label htmlFor="metric-description">Why is this important to customers?</Label>
+              <Textarea
+                id="metric-description"
+                placeholder="Describe why this metric matters from a customer's perspective..."
+                value={newMetricDescription}
+                onChange={(e) => setNewMetricDescription(e.target.value)}
+                rows={4}
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowAddMetric(false)}>
+              Cancel
+            </Button>
+            <Button 
+              onClick={handleAddMetric}
+              disabled={!newMetricName.trim() || !newMetricDescription.trim()}
+            >
+              Add Metric
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };
