@@ -78,7 +78,7 @@ export const MetricSelection = ({ metrics, onBack, onContinue, isLoading }: Metr
         </div>
 
         <div className="flex justify-end">
-          <Button onClick={() => setShowAddMetric(true)} variant="outline" className="gap-2">
+          <Button onClick={() => setShowAddMetric(true)} className="gap-2 bg-green-600 hover:bg-green-700 text-white">
             <Plus className="w-4 h-4" />
             Add Custom Metric
           </Button>
