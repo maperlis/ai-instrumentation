@@ -33,6 +33,7 @@ export const InputSection = ({
   const [imagePreview, setImagePreview] = useState<string>("");
   const [selectedVideo, setSelectedVideo] = useState<File | null>(null);
   const [videoPreview, setVideoPreview] = useState<string>("");
+  const [videoFrameData, setVideoFrameData] = useState<string>("");
   const { toast } = useToast();
 
   const handleImageSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -67,11 +68,48 @@ export const InputSection = ({
         return;
       }
       setSelectedVideo(file);
-      const reader = new FileReader();
-      reader.onloadend = () => {
-        setVideoPreview(reader.result as string);
+      
+      // Create video URL for preview and frame extraction
+      const videoUrl = URL.createObjectURL(file);
+      setVideoPreview(videoUrl);
+      
+      // Extract multiple frames from the video for AI analysis
+      const video = document.createElement('video');
+      video.preload = 'metadata';
+      video.src = videoUrl;
+      video.muted = true;
+      
+      video.onloadedmetadata = () => {
+        // Seek to middle of video for best frame
+        video.currentTime = Math.min(3, video.duration / 2);
       };
-      reader.readAsDataURL(file);
+      
+      video.onseeked = () => {
+        const canvas = document.createElement('canvas');
+        canvas.width = Math.min(video.videoWidth, 1920);
+        canvas.height = Math.min(video.videoHeight, 1080);
+        const ctx = canvas.getContext('2d');
+        
+        if (ctx) {
+          ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+          // Convert canvas to base64 JPEG image (more efficient than video data)
+          const frameData = canvas.toDataURL('image/jpeg', 0.85);
+          // Store the frame for API call
+          setVideoFrameData(frameData);
+        }
+        
+        // Clean up
+        URL.revokeObjectURL(videoUrl);
+      };
+      
+      video.onerror = () => {
+        toast({
+          title: "Video processing failed",
+          description: "Could not process video file. Please try another file.",
+          variant: "destructive",
+        });
+        URL.revokeObjectURL(videoUrl);
+      };
     }
   };
 
@@ -114,8 +152,8 @@ export const InputSection = ({
         requestData.url = url;
       } else if (inputType === "image" && imagePreview) {
         requestData.imageData = imagePreview;
-      } else if (inputType === "video" && videoPreview) {
-        requestData.videoData = videoPreview;
+      } else if (inputType === "video" && videoFrameData) {
+        requestData.videoData = videoFrameData;
       }
 
       // Check if we're coming from metrics selection
