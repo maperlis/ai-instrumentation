@@ -12,8 +12,8 @@ serve(async (req) => {
   }
 
   try {
-    const { url, imageData, productDetails, mode = 'metrics', selectedMetrics } = await req.json();
-    console.log("Mode:", mode, "hasUrl:", !!url, "hasImage:", !!imageData);
+    const { url, imageData, videoData, productDetails, mode = 'metrics', selectedMetrics } = await req.json();
+    console.log("Mode:", mode, "hasUrl:", !!url, "hasImage:", !!imageData, "hasVideo:", !!videoData);
 
     const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
     if (!LOVABLE_API_KEY) {
@@ -95,6 +95,23 @@ Return ONLY a valid JSON object with this exact structure:
         type: "image_url",
         image_url: {
           url: imageData,
+        },
+      });
+    } else if (videoData) {
+      userContent.push({
+        type: "text",
+        text: mode === 'metrics'
+          ? `Analyze this product demo video and recommend key metrics based on the features shown.${
+              productDetails ? `\n\nProduct Context: ${productDetails}` : ""
+            }`
+          : `Generate an instrumentation taxonomy for this product demo video. Focus on user interactions and workflows shown in the video.${
+              productDetails ? `\n\nProduct Context: ${productDetails}` : ""
+            }\n\nFocus on events for: ${selectedMetrics?.join(', ')}`,
+      });
+      userContent.push({
+        type: "image_url",
+        image_url: {
+          url: videoData,
         },
       });
     }

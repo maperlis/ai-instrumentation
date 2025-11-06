@@ -5,7 +5,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Card } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Label } from "@/components/ui/label";
-import { Upload, Link2, Loader2 } from "lucide-react";
+import { Upload, Link2, Loader2, Video } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { TaxonomyEvent } from "@/types/taxonomy";
@@ -15,7 +15,7 @@ interface InputSectionProps {
   onTaxonomyGenerated: (results: TaxonomyEvent[]) => void;
   isLoading: boolean;
   setIsLoading: (loading: boolean) => void;
-  inputData?: { url?: string; imageData?: string; productDetails?: string } | null;
+  inputData?: { url?: string; imageData?: string; videoData?: string; productDetails?: string } | null;
   selectedMetrics?: string[];
 }
 
@@ -31,6 +31,8 @@ export const InputSection = ({
   const [productDetails, setProductDetails] = useState("");
   const [selectedImage, setSelectedImage] = useState<File | null>(null);
   const [imagePreview, setImagePreview] = useState<string>("");
+  const [selectedVideo, setSelectedVideo] = useState<File | null>(null);
+  const [videoPreview, setVideoPreview] = useState<string>("");
   const { toast } = useToast();
 
   const handleImageSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -53,7 +55,27 @@ export const InputSection = ({
     }
   };
 
-  const handleGenerate = async (inputType: "url" | "image") => {
+  const handleVideoSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      if (file.size > 50 * 1024 * 1024) {
+        toast({
+          title: "File too large",
+          description: "Please select a video under 50MB",
+          variant: "destructive",
+        });
+        return;
+      }
+      setSelectedVideo(file);
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        setVideoPreview(reader.result as string);
+      };
+      reader.readAsDataURL(file);
+    }
+  };
+
+  const handleGenerate = async (inputType: "url" | "image" | "video") => {
     if (inputType === "url" && !url.trim()) {
       toast({
         title: "URL required",
@@ -72,6 +94,15 @@ export const InputSection = ({
       return;
     }
 
+    if (inputType === "video" && !selectedVideo) {
+      toast({
+        title: "Video required",
+        description: "Please select a video to analyze",
+        variant: "destructive",
+      });
+      return;
+    }
+
     setIsLoading(true);
 
     try {
@@ -81,8 +112,10 @@ export const InputSection = ({
 
       if (inputType === "url") {
         requestData.url = url;
-      } else if (imagePreview) {
+      } else if (inputType === "image" && imagePreview) {
         requestData.imageData = imagePreview;
+      } else if (inputType === "video" && videoPreview) {
+        requestData.videoData = videoPreview;
       }
 
       // Check if we're coming from metrics selection
@@ -138,14 +171,18 @@ export const InputSection = ({
     <div className="container mx-auto px-4 pb-20">
       <Card className="max-w-3xl mx-auto p-8 shadow-lg">
         <Tabs defaultValue="url" className="w-full">
-          <TabsList className="grid w-full grid-cols-2 mb-6">
+          <TabsList className="grid w-full grid-cols-3 mb-6">
             <TabsTrigger value="url" className="gap-2">
               <Link2 className="w-4 h-4" />
               URL
             </TabsTrigger>
             <TabsTrigger value="image" className="gap-2">
               <Upload className="w-4 h-4" />
-              Design Image
+              Image
+            </TabsTrigger>
+            <TabsTrigger value="video" className="gap-2">
+              <Video className="w-4 h-4" />
+              Video
             </TabsTrigger>
           </TabsList>
 
@@ -240,6 +277,69 @@ export const InputSection = ({
             <Button
               onClick={() => handleGenerate("image")}
               disabled={isLoading || !selectedImage}
+              className="w-full"
+              size="lg"
+            >
+              {isLoading ? (
+                <>
+                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                  Analyzing...
+                </>
+              ) : (
+                "Generate Taxonomy"
+              )}
+            </Button>
+          </TabsContent>
+
+          <TabsContent value="video" className="space-y-4">
+            <div className="space-y-2">
+              <Label htmlFor="video">Feature Demo Video</Label>
+              <div className="border-2 border-dashed border-border rounded-lg p-8 text-center hover:border-primary transition-colors cursor-pointer">
+                <input
+                  id="video"
+                  type="file"
+                  accept="video/*"
+                  onChange={handleVideoSelect}
+                  className="hidden"
+                  disabled={isLoading}
+                />
+                <label htmlFor="video" className="cursor-pointer">
+                  {videoPreview ? (
+                    <video
+                      src={videoPreview}
+                      controls
+                      className="max-h-64 mx-auto rounded-lg"
+                    />
+                  ) : (
+                    <div className="space-y-2">
+                      <Video className="w-12 h-12 mx-auto text-muted-foreground" />
+                      <p className="text-sm text-muted-foreground">
+                        Click to upload or drag and drop
+                      </p>
+                      <p className="text-xs text-muted-foreground">
+                        MP4, MOV, WebM up to 50MB
+                      </p>
+                    </div>
+                  )}
+                </label>
+              </div>
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="details-video">Product Details (Optional)</Label>
+              <Textarea
+                id="details-video"
+                placeholder="Describe your product, main features, or user journey goals..."
+                value={productDetails}
+                onChange={(e) => setProductDetails(e.target.value)}
+                disabled={isLoading}
+                rows={3}
+              />
+            </div>
+
+            <Button
+              onClick={() => handleGenerate("video")}
+              disabled={isLoading || !selectedVideo}
               className="w-full"
               size="lg"
             >
