@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { TaxonomyEvent } from "@/types/taxonomy";
+import { TaxonomyEvent, TaxonomyField, DEFAULT_TAXONOMY_FIELDS } from "@/types/taxonomy";
 import {
   Table,
   TableBody,
@@ -15,12 +15,15 @@ import { Input } from "@/components/ui/input";
 
 interface EventTableProps {
   events: TaxonomyEvent[];
+  fields?: TaxonomyField[];
   onEventsChange: (events: TaxonomyEvent[]) => void;
 }
 
-export const EventTable = ({ events, onEventsChange }: EventTableProps) => {
+export const EventTable = ({ events, fields = DEFAULT_TAXONOMY_FIELDS, onEventsChange }: EventTableProps) => {
   const [editingIndex, setEditingIndex] = useState<number | null>(null);
   const [editedEvent, setEditedEvent] = useState<TaxonomyEvent | null>(null);
+
+  const displayFields = fields.filter(f => f.id !== 'confidence');
 
   const startEdit = (index: number) => {
     setEditingIndex(index);
@@ -55,17 +58,72 @@ export const EventTable = ({ events, onEventsChange }: EventTableProps) => {
     return <Badge variant="destructive">Low ({(confidence * 100).toFixed(0)}%)</Badge>;
   };
 
+  const renderCell = (event: TaxonomyEvent, field: TaxonomyField, isEditing: boolean) => {
+    const value = event[field.id];
+
+    if (isEditing) {
+      if (field.type === 'array') {
+        return (
+          <Input
+            value={Array.isArray(value) ? value.join(", ") : ""}
+            onChange={(e) =>
+              setEditedEvent({
+                ...editedEvent!,
+                [field.id]: e.target.value.split(",").map((s) => s.trim()),
+              })
+            }
+            className="min-w-[150px]"
+          />
+        );
+      }
+      return (
+        <Input
+          value={value || ""}
+          onChange={(e) =>
+            setEditedEvent({ ...editedEvent!, [field.id]: e.target.value })
+          }
+          className="min-w-[150px]"
+        />
+      );
+    }
+
+    // Display mode
+    if (field.type === 'array' && Array.isArray(value)) {
+      return (
+        <div className="flex flex-wrap gap-1">
+          {value.slice(0, 2).map((item, i) => (
+            <Badge key={i} variant="secondary" className="text-xs">
+              {item}
+            </Badge>
+          ))}
+          {value.length > 2 && (
+            <Badge variant="secondary" className="text-xs">
+              +{value.length - 2}
+            </Badge>
+          )}
+        </div>
+      );
+    }
+
+    if (field.id === 'trigger_action') {
+      return <Badge variant="outline">{value}</Badge>;
+    }
+
+    if (field.id === 'event_name') {
+      return <span className="font-mono text-sm">{value}</span>;
+    }
+
+    return <span className={field.id === 'owner' ? 'text-sm text-muted-foreground' : ''}>{value}</span>;
+  };
+
   return (
-    <div className="rounded-lg border bg-card">
+    <div className="rounded-lg border bg-card overflow-x-auto">
       <Table>
         <TableHeader>
           <TableRow>
-            <TableHead>Event Name</TableHead>
-            <TableHead>Description</TableHead>
-            <TableHead>Trigger</TableHead>
-            <TableHead>Screen</TableHead>
-            <TableHead>Properties</TableHead>
-            <TableHead>Owner</TableHead>
+            {displayFields.map(field => (
+              <TableHead key={field.id}>{field.name}</TableHead>
+            ))}
             <TableHead>Confidence</TableHead>
             <TableHead className="text-right">Actions</TableHead>
           </TableRow>
@@ -75,60 +133,11 @@ export const EventTable = ({ events, onEventsChange }: EventTableProps) => {
             <TableRow key={index}>
               {editingIndex === index ? (
                 <>
-                  <TableCell>
-                    <Input
-                      value={editedEvent?.event_name || ""}
-                      onChange={(e) =>
-                        setEditedEvent({ ...editedEvent!, event_name: e.target.value })
-                      }
-                      className="min-w-[150px]"
-                    />
-                  </TableCell>
-                  <TableCell>
-                    <Input
-                      value={editedEvent?.description || ""}
-                      onChange={(e) =>
-                        setEditedEvent({ ...editedEvent!, description: e.target.value })
-                      }
-                      className="min-w-[200px]"
-                    />
-                  </TableCell>
-                  <TableCell>
-                    <Input
-                      value={editedEvent?.trigger_action || ""}
-                      onChange={(e) =>
-                        setEditedEvent({ ...editedEvent!, trigger_action: e.target.value })
-                      }
-                    />
-                  </TableCell>
-                  <TableCell>
-                    <Input
-                      value={editedEvent?.screen || ""}
-                      onChange={(e) =>
-                        setEditedEvent({ ...editedEvent!, screen: e.target.value })
-                      }
-                    />
-                  </TableCell>
-                  <TableCell>
-                    <Input
-                      value={editedEvent?.event_properties.join(", ") || ""}
-                      onChange={(e) =>
-                        setEditedEvent({
-                          ...editedEvent!,
-                          event_properties: e.target.value.split(",").map((s) => s.trim()),
-                        })
-                      }
-                      className="min-w-[150px]"
-                    />
-                  </TableCell>
-                  <TableCell>
-                    <Input
-                      value={editedEvent?.owner || ""}
-                      onChange={(e) =>
-                        setEditedEvent({ ...editedEvent!, owner: e.target.value })
-                      }
-                    />
-                  </TableCell>
+                  {displayFields.map(field => (
+                    <TableCell key={field.id}>
+                      {renderCell(editedEvent!, field, true)}
+                    </TableCell>
+                  ))}
                   <TableCell>{getConfidenceBadge(event.confidence)}</TableCell>
                   <TableCell>
                     <div className="flex justify-end gap-2">
@@ -143,27 +152,11 @@ export const EventTable = ({ events, onEventsChange }: EventTableProps) => {
                 </>
               ) : (
                 <>
-                  <TableCell className="font-mono text-sm">{event.event_name}</TableCell>
-                  <TableCell className="max-w-[250px]">{event.description}</TableCell>
-                  <TableCell>
-                    <Badge variant="outline">{event.trigger_action}</Badge>
-                  </TableCell>
-                  <TableCell>{event.screen}</TableCell>
-                  <TableCell>
-                    <div className="flex flex-wrap gap-1">
-                      {event.event_properties.slice(0, 2).map((prop, i) => (
-                        <Badge key={i} variant="secondary" className="text-xs">
-                          {prop}
-                        </Badge>
-                      ))}
-                      {event.event_properties.length > 2 && (
-                        <Badge variant="secondary" className="text-xs">
-                          +{event.event_properties.length - 2}
-                        </Badge>
-                      )}
-                    </div>
-                  </TableCell>
-                  <TableCell className="text-sm text-muted-foreground">{event.owner}</TableCell>
+                  {displayFields.map(field => (
+                    <TableCell key={field.id} className={field.id === 'description' ? 'max-w-[250px]' : ''}>
+                      {renderCell(event, field, false)}
+                    </TableCell>
+                  ))}
                   <TableCell>{getConfidenceBadge(event.confidence)}</TableCell>
                   <TableCell>
                     <div className="flex justify-end gap-2">

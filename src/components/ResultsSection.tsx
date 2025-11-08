@@ -1,10 +1,11 @@
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
-import { TaxonomyEvent } from "@/types/taxonomy";
-import { Download, FileJson, FileSpreadsheet, CheckCircle2, Send, Copy, ExternalLink } from "lucide-react";
+import { TaxonomyEvent, TaxonomyField, DEFAULT_TAXONOMY_FIELDS } from "@/types/taxonomy";
+import { Download, FileJson, FileSpreadsheet, CheckCircle2, Send, Copy, ExternalLink, RefreshCw } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { EventTable } from "@/components/EventTable";
+import { FieldManager } from "@/components/FieldManager";
 import { supabase } from "@/integrations/supabase/client";
 import {
   Dialog,
@@ -21,12 +22,20 @@ import { Label } from "@/components/ui/label";
 interface ResultsSectionProps {
   results: TaxonomyEvent[];
   selectedMetrics?: string[];
+  inputData?: {
+    url?: string;
+    imageData?: string;
+    videoData?: string;
+    productDetails?: string;
+  };
 }
 
-export const ResultsSection = ({ results, selectedMetrics = [] }: ResultsSectionProps) => {
+export const ResultsSection = ({ results, selectedMetrics = [], inputData }: ResultsSectionProps) => {
   const { toast } = useToast();
   const [events, setEvents] = useState<TaxonomyEvent[]>(results);
+  const [fields, setFields] = useState<TaxonomyField[]>(DEFAULT_TAXONOMY_FIELDS);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isRegenerating, setIsRegenerating] = useState(false);
   const [showEditDialog, setShowEditDialog] = useState(false);
   const [showTicketDialog, setShowTicketDialog] = useState(false);
   const [ticketData, setTicketData] = useState<any>(null);
@@ -57,27 +66,20 @@ export const ResultsSection = ({ results, selectedMetrics = [] }: ResultsSection
   };
 
   const downloadCSV = () => {
-    const headers = [
-      "Event Name",
-      "Description",
-      "Trigger Action",
-      "Screen",
-      "Event Properties",
-      "Owner",
-      "Notes",
-      "Confidence",
-    ];
+    const headers = fields.map(f => f.name);
 
-    const rows = events.map((event) => [
-      event.event_name,
-      event.description,
-      event.trigger_action,
-      event.screen,
-      event.event_properties.join("; "),
-      event.owner,
-      event.notes,
-      event.confidence?.toFixed(2) || "N/A",
-    ]);
+    const rows = events.map((event) => 
+      fields.map(field => {
+        const value = event[field.id];
+        if (Array.isArray(value)) {
+          return value.join("; ");
+        }
+        if (field.id === 'confidence' && typeof value === 'number') {
+          return value.toFixed(2);
+        }
+        return value || "N/A";
+      })
+    );
 
     const csvContent = [
       headers.join(","),
@@ -185,6 +187,48 @@ export const ResultsSection = ({ results, selectedMetrics = [] }: ResultsSection
     });
   };
 
+  const handleRegenerateTaxonomy = async () => {
+    if (!inputData) {
+      toast({
+        title: "Error",
+        description: "No input data available for regeneration",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setIsRegenerating(true);
+    try {
+      const { data, error } = await supabase.functions.invoke('generate-taxonomy', {
+        body: {
+          ...inputData,
+          mode: 'taxonomy',
+          selectedMetrics,
+          customFields: fields,
+        },
+      });
+
+      if (error) throw error;
+
+      if (data?.events) {
+        setEvents(data.events);
+        toast({
+          title: "Taxonomy Regenerated",
+          description: `Generated ${data.events.length} events with custom fields`,
+        });
+      }
+    } catch (error) {
+      console.error("Error regenerating taxonomy:", error);
+      toast({
+        title: "Regeneration Failed",
+        description: "Failed to regenerate taxonomy. Please try again.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsRegenerating(false);
+    }
+  };
+
   const avgConfidence = events.reduce((acc, e) => acc + (e.confidence || 0), 0) / events.length;
 
   return (
@@ -229,7 +273,21 @@ export const ResultsSection = ({ results, selectedMetrics = [] }: ResultsSection
           </div>
         </Card>
 
-        <EventTable events={events} onEventsChange={setEvents} />
+        <FieldManager fields={fields} onFieldsChange={setFields} />
+
+        <div className="flex justify-end">
+          <Button
+            onClick={handleRegenerateTaxonomy}
+            disabled={isRegenerating}
+            variant="outline"
+            className="gap-2"
+          >
+            <RefreshCw className={`w-4 h-4 ${isRegenerating ? 'animate-spin' : ''}`} />
+            {isRegenerating ? 'Regenerating...' : 'Regenerate with Custom Fields'}
+          </Button>
+        </div>
+
+        <EventTable events={events} fields={fields} onEventsChange={setEvents} />
       </div>
 
       <Dialog open={showEditDialog} onOpenChange={setShowEditDialog}>

@@ -13,7 +13,7 @@ const Index = () => {
   const [metrics, setMetrics] = useState<Metric[] | null>(null);
   const [results, setResults] = useState<TaxonomyEvent[] | null>(null);
   const [isLoading, setIsLoading] = useState(false);
-  const [inputData, setInputData] = useState<{ url?: string; imageData?: string; productDetails?: string } | null>(null);
+  const [inputData, setInputData] = useState<{ url?: string; imageData?: string; videoData?: string; productDetails?: string } | null>(null);
 
   const handleMetricsGenerated = (generatedMetrics: Metric[], data: any) => {
     setMetrics(generatedMetrics);
@@ -87,7 +87,8 @@ const Index = () => {
       {currentStep === 'results' && results && !isLoading && (
         <ResultsSection 
           results={results} 
-          selectedMetrics={metrics?.map(m => m.name) || []} 
+          selectedMetrics={metrics?.map(m => m.name) || []}
+          inputData={inputData || undefined}
         />
       )}
     </div>

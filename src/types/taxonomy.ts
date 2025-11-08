@@ -1,3 +1,11 @@
+export interface TaxonomyField {
+  id: string;
+  name: string;
+  type: 'text' | 'array' | 'number';
+  required: boolean;
+  description?: string;
+}
+
 export interface TaxonomyEvent {
   event_name: string;
   description: string;
@@ -7,6 +15,7 @@ export interface TaxonomyEvent {
   owner: string;
   notes: string;
   confidence?: number;
+  [key: string]: any; // Allow custom fields
 }
 
 export interface Metric {
@@ -23,6 +32,7 @@ export interface GenerateRequest {
   productDetails?: string;
   mode?: 'metrics' | 'taxonomy';
   selectedMetrics?: string[];
+  customFields?: TaxonomyField[];
 }
 
 export interface GenerateResponse {
@@ -37,3 +47,13 @@ export interface GenerateResponse {
 export interface MetricsResponse {
   metrics: Metric[];
 }
+
+export const DEFAULT_TAXONOMY_FIELDS: TaxonomyField[] = [
+  { id: 'event_name', name: 'Event Name', type: 'text', required: true },
+  { id: 'description', name: 'Description', type: 'text', required: true },
+  { id: 'trigger_action', name: 'Trigger Action', type: 'text', required: true },
+  { id: 'screen', name: 'Screen', type: 'text', required: true },
+  { id: 'event_properties', name: 'Event Properties', type: 'array', required: true },
+  { id: 'owner', name: 'Owner', type: 'text', required: true },
+  { id: 'notes', name: 'Notes', type: 'text', required: false },
+];

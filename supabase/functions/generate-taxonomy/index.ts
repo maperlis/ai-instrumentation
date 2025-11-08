@@ -12,8 +12,8 @@ serve(async (req) => {
   }
 
   try {
-    const { url, imageData, videoData, productDetails, mode = 'metrics', selectedMetrics } = await req.json();
-    console.log("Mode:", mode, "hasUrl:", !!url, "hasImage:", !!imageData, "hasVideo:", !!videoData);
+    const { url, imageData, videoData, productDetails, mode = 'metrics', selectedMetrics, customFields } = await req.json();
+    console.log("Mode:", mode, "hasUrl:", !!url, "hasImage:", !!imageData, "hasVideo:", !!videoData, "customFields:", !!customFields);
 
     const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
     if (!LOVABLE_API_KEY) {
@@ -40,6 +40,27 @@ Return ONLY a valid JSON object with this exact structure:
   ]
 }`;
     } else {
+      let fieldDefinitions = `
+      "event_name": "string",
+      "description": "string",
+      "trigger_action": "click|view|submit|scroll|etc",
+      "screen": "string",
+      "event_properties": ["array", "of", "strings"],
+      "owner": "string",
+      "notes": "string",
+      "confidence": 0.0-1.0`;
+
+      if (customFields && customFields.length > 0) {
+        const customFieldDefs = customFields
+          .map((field: any) => {
+            const type = field.type === 'array' ? '["array", "of", "values"]' : 
+                        field.type === 'number' ? 'number' : '"string"';
+            return `      "${field.id}": ${type}`;
+          })
+          .join(',\n');
+        fieldDefinitions += ',\n' + customFieldDefs;
+      }
+
       systemPrompt = `You are an expert product analytics instrumentation specialist. Generate a comprehensive event taxonomy optimized for measuring these metrics: ${selectedMetrics?.join(', ')}.
 
 Follow these principles:
@@ -49,19 +70,13 @@ Follow these principles:
 - Generate appropriate event properties for context
 - Assign confidence scores based on clarity of the UI element
 - Assign owners based on product area
+${customFields && customFields.length > 0 ? `- Include these custom fields in each event: ${customFields.map((f: any) => f.name).join(', ')}` : ''}
 
 Return ONLY a valid JSON object with this exact structure:
 {
   "events": [
     {
-      "event_name": "string",
-      "description": "string",
-      "trigger_action": "click|view|submit|scroll|etc",
-      "screen": "string",
-      "event_properties": ["array", "of", "strings"],
-      "owner": "string",
-      "notes": "string",
-      "confidence": 0.0-1.0
+${fieldDefinitions}
     }
   ]
 }`;
