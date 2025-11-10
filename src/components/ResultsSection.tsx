@@ -60,9 +60,8 @@ export const ResultsSection = ({ results, selectedMetrics = [], inputData }: Res
   });
   const [showAmplitudeDialog, setShowAmplitudeDialog] = useState(false);
   const [amplitudeCredentials, setAmplitudeCredentials] = useState({
-    apiKey: "",
-    secretKey: "",
-    region: "US" as "US" | "EU",
+    mcpToken: "",
+    projectId: "",
   });
   const [amplitudeDryRun, setAmplitudeDryRun] = useState(false);
   const [amplitudeResult, setAmplitudeResult] = useState<any>(null);
@@ -247,10 +246,10 @@ export const ResultsSection = ({ results, selectedMetrics = [], inputData }: Res
   };
 
   const handlePushToAmplitude = async () => {
-    if (!amplitudeCredentials.apiKey || !amplitudeCredentials.secretKey) {
+    if (!amplitudeCredentials.mcpToken || !amplitudeCredentials.projectId) {
       toast({
         title: "Error",
-        description: "Please provide both API Key and Secret Key",
+        description: "Please provide both MCP Token and Project ID",
         variant: "destructive",
       });
       return;
@@ -268,6 +267,10 @@ export const ResultsSection = ({ results, selectedMetrics = [], inputData }: Res
 
       if (error) throw error;
 
+      if (!data.success) {
+        throw new Error(data.error || "Failed to sync with Amplitude MCP");
+      }
+
       setAmplitudeResult(data.result);
       setShowAmplitudeDialog(false);
       setShowAmplitudeResultDialog(true);
@@ -276,13 +279,13 @@ export const ResultsSection = ({ results, selectedMetrics = [], inputData }: Res
         title: amplitudeDryRun ? "Dry Run Complete" : "Sync Complete",
         description: amplitudeDryRun 
           ? "Preview shows what would be synced"
-          : `Successfully synced taxonomy to Amplitude`,
+          : `Successfully synced taxonomy to Amplitude MCP`,
       });
-    } catch (error) {
-      console.error("Error pushing to Amplitude:", error);
+    } catch (error: any) {
+      console.error("Error pushing to Amplitude MCP:", error);
       toast({
         title: "Sync Failed",
-        description: error.message || "Failed to sync with Amplitude. Please check your credentials.",
+        description: error.message || "Failed to sync with Amplitude MCP. Please check your credentials.",
         variant: "destructive",
       });
     } finally {
@@ -489,57 +492,44 @@ export const ResultsSection = ({ results, selectedMetrics = [], inputData }: Res
       <Dialog open={showAmplitudeDialog} onOpenChange={setShowAmplitudeDialog}>
         <DialogContent className="max-w-2xl">
           <DialogHeader>
-            <DialogTitle>Push Taxonomy to Amplitude</DialogTitle>
+            <DialogTitle>Push Taxonomy to Amplitude MCP</DialogTitle>
             <DialogDescription>
-              Enter your Amplitude API credentials to sync this taxonomy with your Amplitude project.
+              Enter your Amplitude MCP credentials to sync this taxonomy with your Amplitude project.
             </DialogDescription>
           </DialogHeader>
 
           <div className="space-y-4">
             <div className="space-y-2">
-              <Label htmlFor="amplitude-api-key">API Key</Label>
+              <Label htmlFor="mcp-token">MCP API Token</Label>
               <Input
-                id="amplitude-api-key"
+                id="mcp-token"
                 type="password"
-                value={amplitudeCredentials.apiKey}
+                value={amplitudeCredentials.mcpToken}
                 onChange={(e) => setAmplitudeCredentials({ 
                   ...amplitudeCredentials, 
-                  apiKey: e.target.value 
+                  mcpToken: e.target.value 
                 })}
-                placeholder="Enter your Amplitude API key"
+                placeholder="Enter your Amplitude MCP token"
               />
+              <p className="text-xs text-muted-foreground">
+                Available on all Amplitude plans including free
+              </p>
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="amplitude-secret-key">Secret Key</Label>
+              <Label htmlFor="project-id">Project ID</Label>
               <Input
-                id="amplitude-secret-key"
-                type="password"
-                value={amplitudeCredentials.secretKey}
+                id="project-id"
+                value={amplitudeCredentials.projectId}
                 onChange={(e) => setAmplitudeCredentials({ 
                   ...amplitudeCredentials, 
-                  secretKey: e.target.value 
+                  projectId: e.target.value 
                 })}
-                placeholder="Enter your Amplitude secret key"
+                placeholder="Enter your Amplitude Project ID"
               />
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="amplitude-region">Region</Label>
-              <Select
-                value={amplitudeCredentials.region}
-                onValueChange={(value: "US" | "EU") => 
-                  setAmplitudeCredentials({ ...amplitudeCredentials, region: value })
-                }
-              >
-                <SelectTrigger id="amplitude-region">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="US">US</SelectItem>
-                  <SelectItem value="EU">EU</SelectItem>
-                </SelectContent>
-              </Select>
+              <p className="text-xs text-muted-foreground">
+                Find this in your Amplitude project settings
+              </p>
             </div>
 
             <div className="flex items-center space-x-2">
@@ -555,8 +545,8 @@ export const ResultsSection = ({ results, selectedMetrics = [], inputData }: Res
 
             <div className="p-4 bg-accent/10 rounded-lg">
               <p className="text-sm text-muted-foreground">
-                <strong>Note:</strong> This will sync {events.length} events to your Amplitude project.
-                Existing events will be updated if their metadata differs.
+                <strong>Note:</strong> This will batch upload {events.length} events to your Amplitude MCP project.
+                The credentials will be validated before syncing.
               </p>
             </div>
           </div>
@@ -576,7 +566,7 @@ export const ResultsSection = ({ results, selectedMetrics = [], inputData }: Res
       <Dialog open={showAmplitudeResultDialog} onOpenChange={setShowAmplitudeResultDialog}>
         <DialogContent className="max-w-3xl max-h-[80vh] overflow-y-auto">
           <DialogHeader>
-            <DialogTitle>Amplitude Sync Results</DialogTitle>
+            <DialogTitle>Amplitude MCP Sync Results</DialogTitle>
             <DialogDescription>
               Summary of the taxonomy sync operation
             </DialogDescription>
@@ -585,49 +575,38 @@ export const ResultsSection = ({ results, selectedMetrics = [], inputData }: Res
           {amplitudeResult && (
             <div className="space-y-4">
               <div className="grid grid-cols-2 gap-4">
-                <Card className="p-4">
-                  <h4 className="font-semibold mb-2 text-sm">Categories</h4>
-                  <div className="space-y-1 text-sm">
-                    <p className="text-green-600">Created: {amplitudeResult.categories_created}</p>
-                    <p className="text-muted-foreground">Skipped: {amplitudeResult.categories_skipped}</p>
-                  </div>
+                <Card className="p-4 bg-green-50 dark:bg-green-950">
+                  <h4 className="font-semibold mb-2 text-sm">Events Created</h4>
+                  <p className="text-3xl font-bold text-green-600 dark:text-green-400">
+                    {amplitudeResult.events_created || 0}
+                  </p>
                 </Card>
 
-                <Card className="p-4">
-                  <h4 className="font-semibold mb-2 text-sm">Events</h4>
-                  <div className="space-y-1 text-sm">
-                    <p className="text-green-600">Created: {amplitudeResult.events_created}</p>
-                    <p className="text-blue-600">Updated: {amplitudeResult.events_updated}</p>
-                    <p className="text-muted-foreground">Skipped: {amplitudeResult.events_skipped}</p>
-                  </div>
-                </Card>
-
-                <Card className="p-4">
-                  <h4 className="font-semibold mb-2 text-sm">Properties</h4>
-                  <div className="space-y-1 text-sm">
-                    <p className="text-green-600">Created: {amplitudeResult.properties_created}</p>
-                    <p className="text-muted-foreground">Skipped: {amplitudeResult.properties_skipped}</p>
-                  </div>
-                </Card>
-
-                <Card className="p-4">
-                  <h4 className="font-semibold mb-2 text-sm">Status</h4>
-                  <div className="space-y-1 text-sm">
-                    {amplitudeResult.errors.length === 0 ? (
-                      <p className="text-green-600 flex items-center gap-2">
-                        <CheckCircle2 className="w-4 h-4" />
-                        All operations successful
-                      </p>
-                    ) : (
-                      <p className="text-red-600">
-                        {amplitudeResult.errors.length} error(s) occurred
-                      </p>
-                    )}
-                  </div>
+                <Card className="p-4 bg-red-50 dark:bg-red-950">
+                  <h4 className="font-semibold mb-2 text-sm">Events Failed</h4>
+                  <p className="text-3xl font-bold text-red-600 dark:text-red-400">
+                    {amplitudeResult.events_failed || 0}
+                  </p>
                 </Card>
               </div>
 
-              {amplitudeResult.errors.length > 0 && (
+              <Card className="p-4">
+                <h4 className="font-semibold mb-2 text-sm">Status</h4>
+                <div className="space-y-1 text-sm">
+                  {amplitudeResult.errors && amplitudeResult.errors.length === 0 ? (
+                    <p className="text-green-600 flex items-center gap-2">
+                      <CheckCircle2 className="w-4 h-4" />
+                      All events synced successfully
+                    </p>
+                  ) : (
+                    <p className="text-red-600">
+                      {amplitudeResult.errors?.length || 0} error(s) occurred
+                    </p>
+                  )}
+                </div>
+              </Card>
+
+              {amplitudeResult.errors && amplitudeResult.errors.length > 0 && (
                 <Card className="p-4 bg-destructive/10">
                   <h4 className="font-semibold mb-2 text-sm">Errors</h4>
                   <div className="space-y-1 text-sm max-h-48 overflow-y-auto">
