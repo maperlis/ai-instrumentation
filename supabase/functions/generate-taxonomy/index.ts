@@ -163,7 +163,16 @@ ${fieldDefinitions}
       throw new Error("No content in AI response");
     }
 
-    const result = JSON.parse(content);
+    // Strip markdown code fences if present
+    let cleanedContent = content.trim();
+    if (cleanedContent.startsWith('```')) {
+      // Remove opening code fence (```json or just ```)
+      cleanedContent = cleanedContent.replace(/^```(?:json)?\s*\n/, '');
+      // Remove closing code fence
+      cleanedContent = cleanedContent.replace(/\n```\s*$/, '');
+    }
+
+    const result = JSON.parse(cleanedContent);
 
     return new Response(JSON.stringify(result), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
