@@ -2,7 +2,7 @@ import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { TaxonomyEvent, TaxonomyField, DEFAULT_TAXONOMY_FIELDS } from "@/types/taxonomy";
-import { Download, FileJson, FileSpreadsheet, CheckCircle2, Send, Copy, ExternalLink, RefreshCw } from "lucide-react";
+import { Download, FileJson, FileSpreadsheet, CheckCircle2, Send, Copy, ExternalLink, RefreshCw, Upload } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { EventTable } from "@/components/EventTable";
 import { FieldManager } from "@/components/FieldManager";
@@ -18,6 +18,14 @@ import {
 import { Textarea } from "@/components/ui/textarea";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { Checkbox } from "@/components/ui/checkbox";
 
 interface ResultsSectionProps {
   results: TaxonomyEvent[];
@@ -50,6 +58,15 @@ export const ResultsSection = ({ results, selectedMetrics = [], inputData }: Res
     labels: "",
     priority: "Medium",
   });
+  const [showAmplitudeDialog, setShowAmplitudeDialog] = useState(false);
+  const [amplitudeCredentials, setAmplitudeCredentials] = useState({
+    apiKey: "",
+    secretKey: "",
+    region: "US" as "US" | "EU",
+  });
+  const [amplitudeDryRun, setAmplitudeDryRun] = useState(false);
+  const [amplitudeResult, setAmplitudeResult] = useState<any>(null);
+  const [showAmplitudeResultDialog, setShowAmplitudeResultDialog] = useState(false);
 
   const downloadJSON = () => {
     const dataStr = JSON.stringify(events, null, 2);
@@ -229,6 +246,50 @@ export const ResultsSection = ({ results, selectedMetrics = [], inputData }: Res
     }
   };
 
+  const handlePushToAmplitude = async () => {
+    if (!amplitudeCredentials.apiKey || !amplitudeCredentials.secretKey) {
+      toast({
+        title: "Error",
+        description: "Please provide both API Key and Secret Key",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setIsSubmitting(true);
+    try {
+      const { data, error } = await supabase.functions.invoke('push-taxonomy-to-amplitude', {
+        body: {
+          credentials: amplitudeCredentials,
+          taxonomy: events,
+          dryRun: amplitudeDryRun,
+        },
+      });
+
+      if (error) throw error;
+
+      setAmplitudeResult(data.result);
+      setShowAmplitudeDialog(false);
+      setShowAmplitudeResultDialog(true);
+
+      toast({
+        title: amplitudeDryRun ? "Dry Run Complete" : "Sync Complete",
+        description: amplitudeDryRun 
+          ? "Preview shows what would be synced"
+          : `Successfully synced taxonomy to Amplitude`,
+      });
+    } catch (error) {
+      console.error("Error pushing to Amplitude:", error);
+      toast({
+        title: "Sync Failed",
+        description: error.message || "Failed to sync with Amplitude. Please check your credentials.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
   const avgConfidence = events.reduce((acc, e) => acc + (e.confidence || 0), 0) / events.length;
 
   return (
@@ -243,7 +304,7 @@ export const ResultsSection = ({ results, selectedMetrics = [], inputData }: Res
             </p>
           </div>
 
-          <div className="flex gap-2">
+          <div className="flex gap-2 flex-wrap">
             <Button onClick={downloadJSON} variant="outline" className="gap-2">
               <FileJson className="w-4 h-4" />
               Export JSON
@@ -251,6 +312,14 @@ export const ResultsSection = ({ results, selectedMetrics = [], inputData }: Res
             <Button onClick={downloadCSV} variant="outline" className="gap-2">
               <FileSpreadsheet className="w-4 h-4" />
               Export CSV
+            </Button>
+            <Button 
+              onClick={() => setShowAmplitudeDialog(true)} 
+              variant="outline" 
+              className="gap-2"
+            >
+              <Upload className="w-4 h-4" />
+              Push to Amplitude
             </Button>
             <Button onClick={handlePrepareTicket} disabled={isSubmitting} className="gap-2">
               <Send className="w-4 h-4" />
@@ -414,6 +483,168 @@ export const ResultsSection = ({ results, selectedMetrics = [], inputData }: Res
               </div>
             )}
           </div>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={showAmplitudeDialog} onOpenChange={setShowAmplitudeDialog}>
+        <DialogContent className="max-w-2xl">
+          <DialogHeader>
+            <DialogTitle>Push Taxonomy to Amplitude</DialogTitle>
+            <DialogDescription>
+              Enter your Amplitude API credentials to sync this taxonomy with your Amplitude project.
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-4">
+            <div className="space-y-2">
+              <Label htmlFor="amplitude-api-key">API Key</Label>
+              <Input
+                id="amplitude-api-key"
+                type="password"
+                value={amplitudeCredentials.apiKey}
+                onChange={(e) => setAmplitudeCredentials({ 
+                  ...amplitudeCredentials, 
+                  apiKey: e.target.value 
+                })}
+                placeholder="Enter your Amplitude API key"
+              />
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="amplitude-secret-key">Secret Key</Label>
+              <Input
+                id="amplitude-secret-key"
+                type="password"
+                value={amplitudeCredentials.secretKey}
+                onChange={(e) => setAmplitudeCredentials({ 
+                  ...amplitudeCredentials, 
+                  secretKey: e.target.value 
+                })}
+                placeholder="Enter your Amplitude secret key"
+              />
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="amplitude-region">Region</Label>
+              <Select
+                value={amplitudeCredentials.region}
+                onValueChange={(value: "US" | "EU") => 
+                  setAmplitudeCredentials({ ...amplitudeCredentials, region: value })
+                }
+              >
+                <SelectTrigger id="amplitude-region">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="US">US</SelectItem>
+                  <SelectItem value="EU">EU</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div className="flex items-center space-x-2">
+              <Checkbox 
+                id="dry-run"
+                checked={amplitudeDryRun}
+                onCheckedChange={(checked) => setAmplitudeDryRun(checked === true)}
+              />
+              <Label htmlFor="dry-run" className="text-sm cursor-pointer">
+                Dry Run (preview changes without applying them)
+              </Label>
+            </div>
+
+            <div className="p-4 bg-accent/10 rounded-lg">
+              <p className="text-sm text-muted-foreground">
+                <strong>Note:</strong> This will sync {events.length} events to your Amplitude project.
+                Existing events will be updated if their metadata differs.
+              </p>
+            </div>
+          </div>
+
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowAmplitudeDialog(false)}>
+              Cancel
+            </Button>
+            <Button onClick={handlePushToAmplitude} disabled={isSubmitting}>
+              <Upload className="w-4 h-4 mr-2" />
+              {isSubmitting ? "Syncing..." : amplitudeDryRun ? "Preview" : "Push to Amplitude"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={showAmplitudeResultDialog} onOpenChange={setShowAmplitudeResultDialog}>
+        <DialogContent className="max-w-3xl max-h-[80vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Amplitude Sync Results</DialogTitle>
+            <DialogDescription>
+              Summary of the taxonomy sync operation
+            </DialogDescription>
+          </DialogHeader>
+
+          {amplitudeResult && (
+            <div className="space-y-4">
+              <div className="grid grid-cols-2 gap-4">
+                <Card className="p-4">
+                  <h4 className="font-semibold mb-2 text-sm">Categories</h4>
+                  <div className="space-y-1 text-sm">
+                    <p className="text-green-600">Created: {amplitudeResult.categories_created}</p>
+                    <p className="text-muted-foreground">Skipped: {amplitudeResult.categories_skipped}</p>
+                  </div>
+                </Card>
+
+                <Card className="p-4">
+                  <h4 className="font-semibold mb-2 text-sm">Events</h4>
+                  <div className="space-y-1 text-sm">
+                    <p className="text-green-600">Created: {amplitudeResult.events_created}</p>
+                    <p className="text-blue-600">Updated: {amplitudeResult.events_updated}</p>
+                    <p className="text-muted-foreground">Skipped: {amplitudeResult.events_skipped}</p>
+                  </div>
+                </Card>
+
+                <Card className="p-4">
+                  <h4 className="font-semibold mb-2 text-sm">Properties</h4>
+                  <div className="space-y-1 text-sm">
+                    <p className="text-green-600">Created: {amplitudeResult.properties_created}</p>
+                    <p className="text-muted-foreground">Skipped: {amplitudeResult.properties_skipped}</p>
+                  </div>
+                </Card>
+
+                <Card className="p-4">
+                  <h4 className="font-semibold mb-2 text-sm">Status</h4>
+                  <div className="space-y-1 text-sm">
+                    {amplitudeResult.errors.length === 0 ? (
+                      <p className="text-green-600 flex items-center gap-2">
+                        <CheckCircle2 className="w-4 h-4" />
+                        All operations successful
+                      </p>
+                    ) : (
+                      <p className="text-red-600">
+                        {amplitudeResult.errors.length} error(s) occurred
+                      </p>
+                    )}
+                  </div>
+                </Card>
+              </div>
+
+              {amplitudeResult.errors.length > 0 && (
+                <Card className="p-4 bg-destructive/10">
+                  <h4 className="font-semibold mb-2 text-sm">Errors</h4>
+                  <div className="space-y-1 text-sm max-h-48 overflow-y-auto">
+                    {amplitudeResult.errors.map((error: string, index: number) => (
+                      <p key={index} className="text-destructive">{error}</p>
+                    ))}
+                  </div>
+                </Card>
+              )}
+            </div>
+          )}
+
+          <DialogFooter>
+            <Button onClick={() => setShowAmplitudeResultDialog(false)}>
+              Close
+            </Button>
+          </DialogFooter>
         </DialogContent>
       </Dialog>
     </div>
