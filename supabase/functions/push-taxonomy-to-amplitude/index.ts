@@ -115,16 +115,6 @@ serve(async (req) => {
 
     console.log(`Starting MCP sync for ${taxonomy.length} events (dry run: ${dryRun})`);
 
-    // Validate MCP credentials first
-    try {
-      await validateMCPCredentials(credentials);
-      console.log('MCP credentials validated successfully');
-    } catch (error) {
-      const errorMsg = error instanceof Error ? error.message : String(error);
-      console.error('MCP validation failed:', errorMsg);
-      throw new Error(errorMsg);
-    }
-
     const result: SyncResult = {
       events_created: 0,
       events_failed: 0,
@@ -149,6 +139,16 @@ serve(async (req) => {
         }),
         { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
+    }
+
+    // Validate MCP credentials first
+    try {
+      await validateMCPCredentials(credentials);
+      console.log('MCP credentials validated successfully');
+    } catch (error) {
+      const errorMsg = error instanceof Error ? error.message : String(error);
+      console.error('MCP validation failed:', errorMsg);
+      throw new Error(errorMsg);
     }
 
     // Convert taxonomy events to MCP event format
