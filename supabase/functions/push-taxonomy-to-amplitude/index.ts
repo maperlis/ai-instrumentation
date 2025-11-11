@@ -32,33 +32,6 @@ interface SyncResult {
   errors: string[];
 }
 
-async function validateMCPCredentials(credentials: AmplitudeMCPCredentials) {
-  const response = await fetch(
-    `https://mcp.amplitude.com/api/v1/projects/${credentials.projectId}`,
-    {
-      method: 'GET',
-      headers: {
-        'Authorization': `Bearer ${credentials.mcpToken}`,
-        'Content-Type': 'application/json',
-      },
-    }
-  );
-
-  if (response.status === 404) {
-    throw new Error('Invalid project ID or MCP not enabled for this account');
-  }
-  
-  if (response.status === 401) {
-    throw new Error('Invalid MCP token');
-  }
-
-  if (!response.ok) {
-    const errorText = await response.text();
-    throw new Error(`Failed to validate MCP credentials: ${errorText}`);
-  }
-
-  return await response.json();
-}
 
 async function pushEventsToMCP(
   credentials: AmplitudeMCPCredentials,
@@ -139,16 +112,6 @@ serve(async (req) => {
         }),
         { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
-    }
-
-    // Validate MCP credentials first
-    try {
-      await validateMCPCredentials(credentials);
-      console.log('MCP credentials validated successfully');
-    } catch (error) {
-      const errorMsg = error instanceof Error ? error.message : String(error);
-      console.error('MCP validation failed:', errorMsg);
-      throw new Error(errorMsg);
     }
 
     // Convert taxonomy events to MCP event format
