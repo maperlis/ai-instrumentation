@@ -6,9 +6,11 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
+type AmplitudeRegion = "US" | "EU";
+
 interface AmplitudeCredentials {
   apiKey: string;
-  secretKey: string;
+  region: AmplitudeRegion;
 }
 
 interface TaxonomyEvent {
@@ -19,63 +21,117 @@ interface TaxonomyEvent {
   [key: string]: any;
 }
 
-interface TaxonomyEventType {
-  event_type: string;
-  description: string;
-  category?: string;
-  owner?: string;
-}
-
 interface SyncResult {
   events_created: number;
   events_failed: number;
   errors: string[];
 }
 
+function ingestionBase(region: AmplitudeRegion): string {
+  return region === "EU" 
+    ? "https://api.eu.amplitude.com" 
+    : "https://api2.amplitude.com";
+}
 
-async function pushEventToTaxonomy(
-  credentials: AmplitudeCredentials,
-  event: TaxonomyEventType,
-  region: 'us' | 'eu' = 'us'
-) {
-  const baseUrl = region === 'eu' 
-    ? 'https://analytics.eu.amplitude.com/api/2/taxonomy/event'
-    : 'https://amplitude.com/api/2/taxonomy/event';
+function sampleValue(propertyName?: string): any {
+  // Generate reasonable sample values based on property name hints
+  const name = (propertyName || "").toLowerCase();
+  
+  if (name.includes("id") || name.includes("key")) return "sample_id_123";
+  if (name.includes("name") || name.includes("title")) return "sample_name";
+  if (name.includes("url") || name.includes("link")) return "https://example.com";
+  if (name.includes("email")) return "sample@example.com";
+  if (name.includes("count") || name.includes("number")) return 1;
+  if (name.includes("enabled") || name.includes("is_")) return true;
+  if (name.includes("tags") || name.includes("list")) return ["sample"];
+  
+  return "sample_value";
+}
 
-  // Create Basic Auth header
-  const authString = `${credentials.apiKey}:${credentials.secretKey}`;
-  const base64Auth = btoa(authString);
+async function sendEvents(
+  apiKey: string,
+  region: AmplitudeRegion,
+  events: Array<Record<string, any>>
+): Promise<void> {
+  const url = `${ingestionBase(region)}/2/httpapi`;
+  const payload = { api_key: apiKey, events };
 
-  console.log(`Pushing event "${event.event_type}" to Amplitude Taxonomy API (${region})`);
+  console.log(`Sending ${events.length} events to ${url}`);
 
-  // Create form-encoded body
-  const formBody = new URLSearchParams();
-  formBody.append('event_type', event.event_type);
-  if (event.description) formBody.append('description', event.description);
-  if (event.category) formBody.append('category', event.category);
-  if (event.owner) formBody.append('owner', event.owner);
-
-  const response = await fetch(baseUrl, {
-    method: 'POST',
-    headers: {
-      'Authorization': `Basic ${base64Auth}`,
-      'Content-Type': 'application/x-www-form-urlencoded',
-    },
-    body: formBody.toString(),
+  const res = await fetch(url, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(payload),
   });
 
-  const responseText = await response.text();
-
-  if (response.status === 401) {
-    throw new Error('Invalid API credentials');
+  if (!res.ok) {
+    const text = await res.text();
+    throw new Error(`Amplitude HTTP API error ${res.status}: ${text}`);
   }
 
-  if (!response.ok) {
-    console.error(`Failed to push event "${event.event_type}": ${responseText}`);
-    throw new Error(`Taxonomy API error (${response.status}): ${responseText}`);
+  const result = await res.json();
+  console.log(`Successfully sent events:`, result);
+}
+
+async function publishTaxonomyViaIngestion(
+  taxonomy: TaxonomyEvent[],
+  credentials: AmplitudeCredentials,
+  dryRun: boolean = false
+): Promise<SyncResult> {
+  const result: SyncResult = {
+    events_created: 0,
+    events_failed: 0,
+    errors: [],
+  };
+
+  if (dryRun) {
+    console.log('[DRY RUN] Would send the following sample events:');
+    taxonomy.forEach((event: TaxonomyEvent) => {
+      console.log(`- ${event.event_name} with properties: ${event.event_properties?.join(', ') || 'none'}`);
+    });
+    result.events_created = taxonomy.length;
+    return result;
   }
 
-  return JSON.parse(responseText);
+  const seedUserId = "taxonomy-seeder";
+  const events = taxonomy.map((evt) => {
+    const props: Record<string, any> = {};
+    
+    if (evt.event_properties && Array.isArray(evt.event_properties)) {
+      evt.event_properties.forEach((propName) => {
+        props[propName] = sampleValue(propName);
+      });
+    }
+
+    return {
+      event_type: evt.event_name,
+      user_id: seedUserId,
+      event_properties: props,
+      device_id: "taxonomy-seeder-device",
+      platform: "Web",
+      time: Date.now(),
+    };
+  });
+
+  // Send in chunks of 500 (Amplitude's batch limit)
+  const chunkSize = 500;
+  for (let i = 0; i < events.length; i += chunkSize) {
+    const chunk = events.slice(i, i + chunkSize);
+    try {
+      await sendEvents(credentials.apiKey, credentials.region, chunk);
+      result.events_created += chunk.length;
+      console.log(`Successfully sent chunk ${Math.floor(i / chunkSize) + 1}: ${chunk.length} events`);
+    } catch (error) {
+      const errorMsg = error instanceof Error ? error.message : String(error);
+      console.error(`Failed to send chunk ${Math.floor(i / chunkSize) + 1}:`, errorMsg);
+      result.events_failed += chunk.length;
+      chunk.forEach((evt) => {
+        result.errors.push(`${evt.event_type}: ${errorMsg}`);
+      });
+    }
+  }
+
+  return result;
 }
 
 serve(async (req) => {
@@ -84,67 +140,23 @@ serve(async (req) => {
   }
 
   try {
-    const { credentials, taxonomy, dryRun = false, region = 'us' } = await req.json();
+    const { credentials, taxonomy, dryRun = false } = await req.json();
 
-    if (!credentials?.apiKey || !credentials?.secretKey) {
-      throw new Error('Missing required Amplitude credentials (API key and secret key)');
+    if (!credentials?.apiKey) {
+      throw new Error('Missing required Amplitude API key');
+    }
+
+    if (!credentials?.region || !['US', 'EU'].includes(credentials.region)) {
+      throw new Error('Missing or invalid region (must be US or EU)');
     }
 
     if (!taxonomy || !Array.isArray(taxonomy)) {
       throw new Error('Invalid taxonomy data');
     }
 
-    console.log(`Starting Amplitude Taxonomy sync for ${taxonomy.length} events (dry run: ${dryRun})`);
+    console.log(`Starting Amplitude ingestion-based taxonomy sync for ${taxonomy.length} events (dry run: ${dryRun}, region: ${credentials.region})`);
 
-    const result: SyncResult = {
-      events_created: 0,
-      events_failed: 0,
-      errors: [],
-    };
-
-    if (dryRun) {
-      console.log('[DRY RUN] Would create the following event types:');
-      taxonomy.forEach((event: TaxonomyEvent) => {
-        console.log(`- ${event.event_name} (${event.category || 'Uncategorized'})`);
-      });
-      
-      return new Response(
-        JSON.stringify({ 
-          success: true, 
-          result: {
-            ...result,
-            events_created: taxonomy.length,
-          },
-          dryRun: true,
-          message: `Would create ${taxonomy.length} event types`
-        }),
-        { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
-    }
-
-    // Convert taxonomy events to Taxonomy API format
-    const taxonomyEvents: TaxonomyEventType[] = taxonomy.map((event: TaxonomyEvent) => ({
-      event_type: event.event_name,
-      description: event.description || '',
-      category: event.category,
-      owner: event.owner,
-    }));
-
-    // Push events one by one (Taxonomy API doesn't support batch)
-    console.log(`Pushing ${taxonomyEvents.length} event types to Amplitude Taxonomy API...`);
-    
-    for (const event of taxonomyEvents) {
-      try {
-        await pushEventToTaxonomy(credentials, event, region as 'us' | 'eu');
-        result.events_created++;
-        console.log(`Successfully created event type: ${event.event_type}`);
-      } catch (error) {
-        const errorMsg = error instanceof Error ? error.message : String(error);
-        console.error(`Failed to create event type "${event.event_type}":`, errorMsg);
-        result.events_failed++;
-        result.errors.push(`${event.event_type}: ${errorMsg}`);
-      }
-    }
+    const result = await publishTaxonomyViaIngestion(taxonomy, credentials, dryRun);
 
     console.log('Taxonomy sync completed:', result);
 
@@ -152,7 +164,10 @@ serve(async (req) => {
       JSON.stringify({ 
         success: true, 
         result,
-        dryRun: false 
+        dryRun,
+        message: dryRun 
+          ? `Would send ${taxonomy.length} sample events` 
+          : `Sent ${result.events_created} sample events to register taxonomy`
       }),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );

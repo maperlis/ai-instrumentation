@@ -61,8 +61,7 @@ export const ResultsSection = ({ results, selectedMetrics = [], inputData }: Res
   const [showAmplitudeDialog, setShowAmplitudeDialog] = useState(false);
   const [amplitudeCredentials, setAmplitudeCredentials] = useState({
     apiKey: "",
-    secretKey: "",
-    region: "us" as "us" | "eu",
+    region: "US" as "US" | "EU",
   });
   const [amplitudeDryRun, setAmplitudeDryRun] = useState(false);
   const [amplitudeResult, setAmplitudeResult] = useState<any>(null);
@@ -247,10 +246,10 @@ export const ResultsSection = ({ results, selectedMetrics = [], inputData }: Res
   };
 
   const handlePushToAmplitude = async () => {
-    if (!amplitudeCredentials.apiKey || !amplitudeCredentials.secretKey) {
+    if (!amplitudeCredentials.apiKey) {
       toast({
         title: "Error",
-        description: "Please provide both API Key and Secret Key",
+        description: "Please provide your Amplitude API Key",
         variant: "destructive",
       });
       return;
@@ -279,8 +278,8 @@ export const ResultsSection = ({ results, selectedMetrics = [], inputData }: Res
       toast({
         title: amplitudeDryRun ? "Dry Run Complete" : "Sync Complete",
         description: amplitudeDryRun 
-          ? "Preview shows what would be synced"
-          : `Successfully synced taxonomy to Amplitude`,
+          ? "Preview shows what would be sent"
+          : `Successfully sent ${data.result.events_created} sample events to register taxonomy`,
       });
     } catch (error: any) {
       console.error("Error pushing to Amplitude:", error);
@@ -495,7 +494,7 @@ export const ResultsSection = ({ results, selectedMetrics = [], inputData }: Res
           <DialogHeader>
             <DialogTitle>Push Taxonomy to Amplitude</DialogTitle>
             <DialogDescription>
-              Enter your Amplitude API credentials to sync this taxonomy with your Amplitude project.
+              Send sample events to register this taxonomy in your Amplitude project via the HTTP API.
             </DialogDescription>
           </DialogHeader>
 
@@ -518,27 +517,10 @@ export const ResultsSection = ({ results, selectedMetrics = [], inputData }: Res
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="secret-key">Secret Key</Label>
-              <Input
-                id="secret-key"
-                type="password"
-                value={amplitudeCredentials.secretKey}
-                onChange={(e) => setAmplitudeCredentials({ 
-                  ...amplitudeCredentials, 
-                  secretKey: e.target.value 
-                })}
-                placeholder="Enter your Amplitude Secret Key"
-              />
-              <p className="text-xs text-muted-foreground">
-                Your project's secret key for authentication
-              </p>
-            </div>
-
-            <div className="space-y-2">
               <Label htmlFor="region">Region</Label>
               <Select
                 value={amplitudeCredentials.region}
-                onValueChange={(value: "us" | "eu") => setAmplitudeCredentials({ 
+                onValueChange={(value: "US" | "EU") => setAmplitudeCredentials({ 
                   ...amplitudeCredentials, 
                   region: value 
                 })}
@@ -547,8 +529,8 @@ export const ResultsSection = ({ results, selectedMetrics = [], inputData }: Res
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="us">US (Standard Server)</SelectItem>
-                  <SelectItem value="eu">EU (EU Residency Server)</SelectItem>
+                  <SelectItem value="US">US (Standard Server)</SelectItem>
+                  <SelectItem value="EU">EU (EU Residency Server)</SelectItem>
                 </SelectContent>
               </Select>
               <p className="text-xs text-muted-foreground">
@@ -569,8 +551,8 @@ export const ResultsSection = ({ results, selectedMetrics = [], inputData }: Res
 
             <div className="p-4 bg-accent/10 rounded-lg">
               <p className="text-sm text-muted-foreground">
-                <strong>Note:</strong> This will create {events.length} event types in your Amplitude project using the Taxonomy API.
-                The credentials will be validated before syncing.
+                <strong>Note:</strong> This will send {events.length} sample events via the HTTP API to register these event types in your Amplitude project.
+                One sample event will be sent per event type with sample values for all defined properties.
               </p>
             </div>
           </div>
@@ -590,9 +572,9 @@ export const ResultsSection = ({ results, selectedMetrics = [], inputData }: Res
       <Dialog open={showAmplitudeResultDialog} onOpenChange={setShowAmplitudeResultDialog}>
         <DialogContent className="max-w-3xl max-h-[80vh] overflow-y-auto">
           <DialogHeader>
-            <DialogTitle>Amplitude Taxonomy Sync Results</DialogTitle>
+            <DialogTitle>Amplitude Sync Results</DialogTitle>
             <DialogDescription>
-              Summary of the taxonomy sync operation
+              Summary of the sample event ingestion operation
             </DialogDescription>
           </DialogHeader>
 
@@ -600,14 +582,14 @@ export const ResultsSection = ({ results, selectedMetrics = [], inputData }: Res
             <div className="space-y-4">
               <div className="grid grid-cols-2 gap-4">
               <Card className="p-4 bg-green-50 dark:bg-green-950">
-                  <h4 className="font-semibold mb-2 text-sm">Event Types Created</h4>
+                  <h4 className="font-semibold mb-2 text-sm">Sample Events Sent</h4>
                   <p className="text-3xl font-bold text-green-600 dark:text-green-400">
                     {amplitudeResult.events_created || 0}
                   </p>
                 </Card>
 
                 <Card className="p-4 bg-red-50 dark:bg-red-950">
-                  <h4 className="font-semibold mb-2 text-sm">Event Types Failed</h4>
+                  <h4 className="font-semibold mb-2 text-sm">Events Failed</h4>
                   <p className="text-3xl font-bold text-red-600 dark:text-red-400">
                     {amplitudeResult.events_failed || 0}
                   </p>
@@ -620,7 +602,7 @@ export const ResultsSection = ({ results, selectedMetrics = [], inputData }: Res
                   {amplitudeResult.errors && amplitudeResult.errors.length === 0 ? (
                     <p className="text-green-600 flex items-center gap-2">
                       <CheckCircle2 className="w-4 h-4" />
-                      All event types synced successfully
+                      All sample events sent successfully
                     </p>
                   ) : (
                     <p className="text-red-600">
