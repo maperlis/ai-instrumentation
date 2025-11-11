@@ -37,37 +37,54 @@ async function pushEventsToMCP(
   credentials: AmplitudeMCPCredentials,
   events: MCPEvent[]
 ) {
-  const response = await fetch(
+  const urls = [
     `https://mcp.amplitude.com/api/v1/projects/${credentials.projectId}/events`,
-    {
+    `https://mcp.eu.amplitude.com/api/v1/projects/${credentials.projectId}/events`,
+  ];
+
+  let lastErrorText = '';
+
+  for (let i = 0; i < urls.length; i++) {
+    const url = urls[i];
+    console.log(`Pushing events to MCP endpoint: ${url}`);
+
+    const response = await fetch(url, {
       method: 'POST',
       headers: {
         'Authorization': `Bearer ${credentials.mcpToken}`,
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({ events }),
+    });
+
+    if (response.status === 401) {
+      throw new Error('Invalid MCP token');
     }
-  );
 
-  if (response.status === 401) {
-    throw new Error('Invalid MCP token');
+    if (response.status === 400) {
+      const errorText = await response.text();
+      throw new Error(`Invalid payload: ${errorText}`);
+    }
+
+    if (response.status === 404) {
+      // Try next region if available
+      lastErrorText = await response.text();
+      console.warn(`MCP endpoint 404 at ${url}. Trying next region if available...`);
+      if (i < urls.length - 1) continue;
+      throw new Error('Invalid project ID or endpoint');
+    }
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      throw new Error(`MCP API error (${response.status}): ${errorText}`);
+    }
+
+    // Success for this region
+    return await response.json();
   }
 
-  if (response.status === 404) {
-    throw new Error('Invalid project ID or endpoint');
-  }
-
-  if (response.status === 400) {
-    const errorText = await response.text();
-    throw new Error(`Invalid payload: ${errorText}`);
-  }
-
-  if (!response.ok) {
-    const errorText = await response.text();
-    throw new Error(`MCP API error (${response.status}): ${errorText}`);
-  }
-
-  return await response.json();
+  // Should not reach here
+  throw new Error(lastErrorText || 'Unknown MCP API error');
 }
 
 serve(async (req) => {
