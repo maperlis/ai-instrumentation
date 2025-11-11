@@ -9,6 +9,7 @@ const corsHeaders = {
 interface AmplitudeMCPCredentials {
   mcpToken: string;
   projectId: string;
+  secretKey: string;
 }
 
 interface TaxonomyEvent {
@@ -95,8 +96,8 @@ serve(async (req) => {
   try {
     const { credentials, taxonomy, dryRun = false } = await req.json();
 
-    if (!credentials?.mcpToken || !credentials?.projectId) {
-      throw new Error('Missing required MCP credentials (token and project ID)');
+    if (!credentials?.mcpToken || !credentials?.projectId || !credentials?.secretKey) {
+      throw new Error('Missing required MCP credentials (token, project ID, and secret key)');
     }
 
     if (!taxonomy || !Array.isArray(taxonomy)) {

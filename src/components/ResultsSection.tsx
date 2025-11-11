@@ -62,6 +62,7 @@ export const ResultsSection = ({ results, selectedMetrics = [], inputData }: Res
   const [amplitudeCredentials, setAmplitudeCredentials] = useState({
     mcpToken: "",
     projectId: "",
+    secretKey: "",
   });
   const [amplitudeDryRun, setAmplitudeDryRun] = useState(false);
   const [amplitudeResult, setAmplitudeResult] = useState<any>(null);
@@ -246,10 +247,10 @@ export const ResultsSection = ({ results, selectedMetrics = [], inputData }: Res
   };
 
   const handlePushToAmplitude = async () => {
-    if (!amplitudeCredentials.mcpToken || !amplitudeCredentials.projectId) {
+    if (!amplitudeCredentials.mcpToken || !amplitudeCredentials.projectId || !amplitudeCredentials.secretKey) {
       toast({
         title: "Error",
-        description: "Please provide both MCP Token and Project ID",
+        description: "Please provide MCP Token, Project ID, and Secret Key",
         variant: "destructive",
       });
       return;
@@ -529,6 +530,23 @@ export const ResultsSection = ({ results, selectedMetrics = [], inputData }: Res
               />
               <p className="text-xs text-muted-foreground">
                 Find this in your Amplitude project settings
+              </p>
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="secret-key">Secret Key</Label>
+              <Input
+                id="secret-key"
+                type="password"
+                value={amplitudeCredentials.secretKey}
+                onChange={(e) => setAmplitudeCredentials({ 
+                  ...amplitudeCredentials, 
+                  secretKey: e.target.value 
+                })}
+                placeholder="Enter your Amplitude Secret Key"
+              />
+              <p className="text-xs text-muted-foreground">
+                Your project's secret key for authentication
               </p>
             </div>
 
