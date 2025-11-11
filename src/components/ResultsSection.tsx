@@ -60,9 +60,9 @@ export const ResultsSection = ({ results, selectedMetrics = [], inputData }: Res
   });
   const [showAmplitudeDialog, setShowAmplitudeDialog] = useState(false);
   const [amplitudeCredentials, setAmplitudeCredentials] = useState({
-    mcpToken: "",
-    projectId: "",
+    apiKey: "",
     secretKey: "",
+    region: "us" as "us" | "eu",
   });
   const [amplitudeDryRun, setAmplitudeDryRun] = useState(false);
   const [amplitudeResult, setAmplitudeResult] = useState<any>(null);
@@ -247,10 +247,10 @@ export const ResultsSection = ({ results, selectedMetrics = [], inputData }: Res
   };
 
   const handlePushToAmplitude = async () => {
-    if (!amplitudeCredentials.mcpToken || !amplitudeCredentials.projectId || !amplitudeCredentials.secretKey) {
+    if (!amplitudeCredentials.apiKey || !amplitudeCredentials.secretKey) {
       toast({
         title: "Error",
-        description: "Please provide MCP Token, Project ID, and Secret Key",
+        description: "Please provide both API Key and Secret Key",
         variant: "destructive",
       });
       return;
@@ -269,7 +269,7 @@ export const ResultsSection = ({ results, selectedMetrics = [], inputData }: Res
       if (error) throw error;
 
       if (!data.success) {
-        throw new Error(data.error || "Failed to sync with Amplitude MCP");
+        throw new Error(data.error || "Failed to sync with Amplitude");
       }
 
       setAmplitudeResult(data.result);
@@ -280,13 +280,13 @@ export const ResultsSection = ({ results, selectedMetrics = [], inputData }: Res
         title: amplitudeDryRun ? "Dry Run Complete" : "Sync Complete",
         description: amplitudeDryRun 
           ? "Preview shows what would be synced"
-          : `Successfully synced taxonomy to Amplitude MCP`,
+          : `Successfully synced taxonomy to Amplitude`,
       });
     } catch (error: any) {
-      console.error("Error pushing to Amplitude MCP:", error);
+      console.error("Error pushing to Amplitude:", error);
       toast({
         title: "Sync Failed",
-        description: error.message || "Failed to sync with Amplitude MCP. Please check your credentials.",
+        description: error.message || "Failed to sync with Amplitude. Please check your credentials.",
         variant: "destructive",
       });
     } finally {
@@ -493,43 +493,27 @@ export const ResultsSection = ({ results, selectedMetrics = [], inputData }: Res
       <Dialog open={showAmplitudeDialog} onOpenChange={setShowAmplitudeDialog}>
         <DialogContent className="max-w-2xl">
           <DialogHeader>
-            <DialogTitle>Push Taxonomy to Amplitude MCP</DialogTitle>
+            <DialogTitle>Push Taxonomy to Amplitude</DialogTitle>
             <DialogDescription>
-              Enter your Amplitude MCP credentials to sync this taxonomy with your Amplitude project.
+              Enter your Amplitude API credentials to sync this taxonomy with your Amplitude project.
             </DialogDescription>
           </DialogHeader>
 
           <div className="space-y-4">
             <div className="space-y-2">
-              <Label htmlFor="mcp-token">MCP API Token</Label>
+              <Label htmlFor="api-key">API Key</Label>
               <Input
-                id="mcp-token"
+                id="api-key"
                 type="password"
-                value={amplitudeCredentials.mcpToken}
+                value={amplitudeCredentials.apiKey}
                 onChange={(e) => setAmplitudeCredentials({ 
                   ...amplitudeCredentials, 
-                  mcpToken: e.target.value 
+                  apiKey: e.target.value 
                 })}
-                placeholder="Enter your Amplitude MCP token"
+                placeholder="Enter your Amplitude API Key"
               />
               <p className="text-xs text-muted-foreground">
-                Available on all Amplitude plans including free
-              </p>
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="project-id">Project ID</Label>
-              <Input
-                id="project-id"
-                value={amplitudeCredentials.projectId}
-                onChange={(e) => setAmplitudeCredentials({ 
-                  ...amplitudeCredentials, 
-                  projectId: e.target.value 
-                })}
-                placeholder="Enter your Amplitude Project ID"
-              />
-              <p className="text-xs text-muted-foreground">
-                Find this in your Amplitude project settings
+                Find this in Settings → Projects → [Your Project] → General
               </p>
             </div>
 
@@ -550,6 +534,28 @@ export const ResultsSection = ({ results, selectedMetrics = [], inputData }: Res
               </p>
             </div>
 
+            <div className="space-y-2">
+              <Label htmlFor="region">Region</Label>
+              <Select
+                value={amplitudeCredentials.region}
+                onValueChange={(value: "us" | "eu") => setAmplitudeCredentials({ 
+                  ...amplitudeCredentials, 
+                  region: value 
+                })}
+              >
+                <SelectTrigger id="region">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="us">US (Standard Server)</SelectItem>
+                  <SelectItem value="eu">EU (EU Residency Server)</SelectItem>
+                </SelectContent>
+              </Select>
+              <p className="text-xs text-muted-foreground">
+                Select the region where your Amplitude project is hosted
+              </p>
+            </div>
+
             <div className="flex items-center space-x-2">
               <Checkbox 
                 id="dry-run"
@@ -563,7 +569,7 @@ export const ResultsSection = ({ results, selectedMetrics = [], inputData }: Res
 
             <div className="p-4 bg-accent/10 rounded-lg">
               <p className="text-sm text-muted-foreground">
-                <strong>Note:</strong> This will batch upload {events.length} events to your Amplitude MCP project.
+                <strong>Note:</strong> This will create {events.length} event types in your Amplitude project using the Taxonomy API.
                 The credentials will be validated before syncing.
               </p>
             </div>
@@ -584,7 +590,7 @@ export const ResultsSection = ({ results, selectedMetrics = [], inputData }: Res
       <Dialog open={showAmplitudeResultDialog} onOpenChange={setShowAmplitudeResultDialog}>
         <DialogContent className="max-w-3xl max-h-[80vh] overflow-y-auto">
           <DialogHeader>
-            <DialogTitle>Amplitude MCP Sync Results</DialogTitle>
+            <DialogTitle>Amplitude Taxonomy Sync Results</DialogTitle>
             <DialogDescription>
               Summary of the taxonomy sync operation
             </DialogDescription>
@@ -593,15 +599,15 @@ export const ResultsSection = ({ results, selectedMetrics = [], inputData }: Res
           {amplitudeResult && (
             <div className="space-y-4">
               <div className="grid grid-cols-2 gap-4">
-                <Card className="p-4 bg-green-50 dark:bg-green-950">
-                  <h4 className="font-semibold mb-2 text-sm">Events Created</h4>
+              <Card className="p-4 bg-green-50 dark:bg-green-950">
+                  <h4 className="font-semibold mb-2 text-sm">Event Types Created</h4>
                   <p className="text-3xl font-bold text-green-600 dark:text-green-400">
                     {amplitudeResult.events_created || 0}
                   </p>
                 </Card>
 
                 <Card className="p-4 bg-red-50 dark:bg-red-950">
-                  <h4 className="font-semibold mb-2 text-sm">Events Failed</h4>
+                  <h4 className="font-semibold mb-2 text-sm">Event Types Failed</h4>
                   <p className="text-3xl font-bold text-red-600 dark:text-red-400">
                     {amplitudeResult.events_failed || 0}
                   </p>
@@ -614,7 +620,7 @@ export const ResultsSection = ({ results, selectedMetrics = [], inputData }: Res
                   {amplitudeResult.errors && amplitudeResult.errors.length === 0 ? (
                     <p className="text-green-600 flex items-center gap-2">
                       <CheckCircle2 className="w-4 h-4" />
-                      All events synced successfully
+                      All event types synced successfully
                     </p>
                   ) : (
                     <p className="text-red-600">
