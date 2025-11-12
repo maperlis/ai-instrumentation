@@ -1,5 +1,6 @@
 import "https://deno.land/x/xhr@0.1.0/mod.ts";
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
+import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.76.1';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -46,6 +47,50 @@ function sampleValue(propertyName?: string): any {
   if (name.includes("tags") || name.includes("list")) return ["sample"];
   
   return "sample_value";
+}
+
+function generateSelector(event: TaxonomyEvent): string {
+  // Generate a reasonable CSS selector based on the event details
+  const eventName = event.event_name || "";
+  const screen = event.screen || "";
+  
+  // Extract key parts from event name
+  const parts = eventName.split("_");
+  const object = parts[parts.length - 1]; // last part is usually the object
+  
+  // Common patterns
+  if (eventName.includes("button") || eventName.includes("click")) {
+    return `button[data-event="${eventName}"], .${object}-button`;
+  }
+  if (eventName.includes("form") || eventName.includes("submit")) {
+    return `form[data-event="${eventName}"], .${object}-form`;
+  }
+  if (eventName.includes("link")) {
+    return `a[data-event="${eventName}"], .${object}-link`;
+  }
+  if (eventName.includes("input") || eventName.includes("field")) {
+    return `input[data-event="${eventName}"], .${object}-input`;
+  }
+  
+  // Default: use data attribute or class based on screen and object
+  const screenClass = screen.toLowerCase().replace(/\s+/g, "-");
+  return `[data-event="${eventName}"], .${screenClass} .${object}`;
+}
+
+function mapTriggerAction(triggerAction: string): string {
+  // Map common trigger actions to DOM events
+  const action = (triggerAction || "").toLowerCase();
+  
+  if (action.includes("click")) return "click";
+  if (action.includes("submit")) return "submit";
+  if (action.includes("change")) return "change";
+  if (action.includes("focus")) return "focus";
+  if (action.includes("blur")) return "blur";
+  if (action.includes("load")) return "load";
+  if (action.includes("scroll")) return "scroll";
+  if (action.includes("hover") || action.includes("mouseover")) return "mouseenter";
+  
+  return "click"; // default
 }
 
 async function sendEvents(
@@ -140,7 +185,7 @@ serve(async (req) => {
   }
 
   try {
-    const { credentials, taxonomy, dryRun = false } = await req.json();
+    const { credentials, taxonomy, dryRun = false, projectName } = await req.json();
 
     if (!credentials?.apiKey) {
       throw new Error('Missing required Amplitude API key');
@@ -160,6 +205,41 @@ serve(async (req) => {
 
     console.log('Taxonomy sync completed:', result);
 
+    // Store the config in database if not a dry run and projectName is provided
+    if (!dryRun && projectName) {
+      try {
+        const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
+        const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
+        const supabase = createClient(supabaseUrl, supabaseKey);
+
+        // Transform taxonomy to config format with selectors
+        const config = taxonomy.map((event: TaxonomyEvent) => ({
+          event_name: event.event_name,
+          selector: generateSelector(event),
+          trigger: mapTriggerAction(event.trigger_action),
+          properties: event.event_properties || []
+        }));
+
+        const { error: dbError } = await supabase
+          .from('event_configs')
+          .insert({
+            project_name: projectName,
+            amplitude_api_key: credentials.apiKey,
+            amplitude_region: credentials.region,
+            config: config
+          });
+
+        if (dbError) {
+          console.error('Error storing config:', dbError);
+        } else {
+          console.log(`Config stored for project: ${projectName}`);
+        }
+      } catch (dbError) {
+        console.error('Failed to store config:', dbError);
+        // Don't fail the whole request if config storage fails
+      }
+    }
+
     return new Response(
       JSON.stringify({ 
         success: true, 
@@ -167,7 +247,8 @@ serve(async (req) => {
         dryRun,
         message: dryRun 
           ? `Would send ${taxonomy.length} sample events` 
-          : `Sent ${result.events_created} sample events to register taxonomy`
+          : `Sent ${result.events_created} sample events to register taxonomy`,
+        projectName: projectName || null
       }),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );

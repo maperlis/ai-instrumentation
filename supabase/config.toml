@@ -8,3 +8,6 @@ verify_jwt = false
 
 [functions.push-taxonomy-to-amplitude]
 verify_jwt = false
+
+[functions.events-config]
+verify_jwt = false

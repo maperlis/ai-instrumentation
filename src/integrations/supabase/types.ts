@@ -14,7 +14,36 @@ export type Database = {
   }
   public: {
     Tables: {
-      [_ in never]: never
+      event_configs: {
+        Row: {
+          amplitude_api_key: string
+          amplitude_region: string
+          config: Json
+          created_at: string
+          id: string
+          project_name: string
+          updated_at: string
+        }
+        Insert: {
+          amplitude_api_key: string
+          amplitude_region?: string
+          config: Json
+          created_at?: string
+          id?: string
+          project_name: string
+          updated_at?: string
+        }
+        Update: {
+          amplitude_api_key?: string
+          amplitude_region?: string
+          config?: Json
+          created_at?: string
+          id?: string
+          project_name?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never

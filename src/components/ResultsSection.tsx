@@ -62,10 +62,13 @@ export const ResultsSection = ({ results, selectedMetrics = [], inputData }: Res
   const [amplitudeCredentials, setAmplitudeCredentials] = useState({
     apiKey: "",
     region: "US" as "US" | "EU",
+    projectName: "",
   });
   const [amplitudeDryRun, setAmplitudeDryRun] = useState(false);
   const [amplitudeResult, setAmplitudeResult] = useState<any>(null);
   const [showAmplitudeResultDialog, setShowAmplitudeResultDialog] = useState(false);
+  const [showLoaderDialog, setShowLoaderDialog] = useState(false);
+  const [loaderScript, setLoaderScript] = useState("");
 
   const downloadJSON = () => {
     const dataStr = JSON.stringify(events, null, 2);
@@ -255,13 +258,26 @@ export const ResultsSection = ({ results, selectedMetrics = [], inputData }: Res
       return;
     }
 
+    if (!amplitudeCredentials.projectName && !amplitudeDryRun) {
+      toast({
+        title: "Error",
+        description: "Please provide a project name for the instrumentation loader",
+        variant: "destructive",
+      });
+      return;
+    }
+
     setIsSubmitting(true);
     try {
       const { data, error } = await supabase.functions.invoke('push-taxonomy-to-amplitude', {
         body: {
-          credentials: amplitudeCredentials,
+          credentials: {
+            apiKey: amplitudeCredentials.apiKey,
+            region: amplitudeCredentials.region,
+          },
           taxonomy: events,
           dryRun: amplitudeDryRun,
+          projectName: amplitudeCredentials.projectName || null,
         },
       });
 
@@ -274,6 +290,13 @@ export const ResultsSection = ({ results, selectedMetrics = [], inputData }: Res
       setAmplitudeResult(data.result);
       setShowAmplitudeDialog(false);
       setShowAmplitudeResultDialog(true);
+
+      // Generate loader script if not dry run
+      if (!amplitudeDryRun && data.projectName) {
+        const projectUrl = window.location.origin;
+        const script = generateLoaderScript(projectUrl, data.projectName);
+        setLoaderScript(script);
+      }
 
       toast({
         title: amplitudeDryRun ? "Dry Run Complete" : "Sync Complete",
@@ -291,6 +314,74 @@ export const ResultsSection = ({ results, selectedMetrics = [], inputData }: Res
     } finally {
       setIsSubmitting(false);
     }
+  };
+
+  const generateLoaderScript = (baseUrl: string, projectName: string): string => {
+    const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
+    return `<!-- Amplitude Auto-Instrumentation Loader -->
+<script>
+(function() {
+  // Configuration
+  const CONFIG_URL = '${supabaseUrl}/functions/v1/events-config?project=${encodeURIComponent(projectName)}';
+  
+  // Fetch event configuration
+  fetch(CONFIG_URL)
+    .then(response => response.json())
+    .then(config => {
+      // Initialize Amplitude
+      const script = document.createElement('script');
+      script.src = 'https://cdn.amplitude.com/libs/analytics-browser-2.0.0-min.js.gz';
+      script.async = true;
+      
+      script.onload = function() {
+        // Initialize Amplitude with API key from config
+        const region = config.amplitude_region === 'EU' ? 'EU' : 'US';
+        window.amplitude.init(config.amplitude_api_key, {
+          serverZone: region,
+          defaultTracking: true
+        });
+        
+        // Attach event listeners for each configured event
+        config.events.forEach(function(event) {
+          const elements = document.querySelectorAll(event.selector);
+          
+          elements.forEach(function(element) {
+            element.addEventListener(event.trigger, function(e) {
+              // Build event properties from data attributes
+              const properties = {};
+              event.properties.forEach(function(prop) {
+                const dataKey = 'data-' + prop.toLowerCase().replace(/_/g, '-');
+                const value = element.getAttribute(dataKey);
+                if (value !== null) {
+                  properties[prop] = value;
+                }
+              });
+              
+              // Track the event
+              window.amplitude.track(event.event_name, properties);
+              console.log('[Amplitude] Tracked:', event.event_name, properties);
+            });
+          });
+          
+          console.log('[Amplitude] Attached listener for:', event.event_name, 'on', elements.length, 'elements');
+        });
+      };
+      
+      document.head.appendChild(script);
+    })
+    .catch(error => {
+      console.error('[Amplitude] Failed to load config:', error);
+    });
+})();
+</script>`;
+  };
+
+  const copyLoaderScript = () => {
+    navigator.clipboard.writeText(loaderScript);
+    toast({
+      title: "Copied",
+      description: "Loader script copied to clipboard",
+    });
   };
 
   const avgConfidence = events.reduce((acc, e) => acc + (e.confidence || 0), 0) / events.length;
@@ -500,6 +591,22 @@ export const ResultsSection = ({ results, selectedMetrics = [], inputData }: Res
 
           <div className="space-y-4">
             <div className="space-y-2">
+              <Label htmlFor="project-name">Project Name</Label>
+              <Input
+                id="project-name"
+                value={amplitudeCredentials.projectName}
+                onChange={(e) => setAmplitudeCredentials({ 
+                  ...amplitudeCredentials, 
+                  projectName: e.target.value 
+                })}
+                placeholder="my-website"
+              />
+              <p className="text-xs text-muted-foreground">
+                A unique identifier for your website (used to generate the loader script)
+              </p>
+            </div>
+
+            <div className="space-y-2">
               <Label htmlFor="api-key">API Key</Label>
               <Input
                 id="api-key"
@@ -626,8 +733,117 @@ export const ResultsSection = ({ results, selectedMetrics = [], inputData }: Res
           )}
 
           <DialogFooter>
+            {loaderScript && (
+              <Button 
+                variant="outline" 
+                onClick={() => {
+                  setShowAmplitudeResultDialog(false);
+                  setShowLoaderDialog(true);
+                }}
+              >
+                View Setup Instructions
+              </Button>
+            )}
             <Button onClick={() => setShowAmplitudeResultDialog(false)}>
               Close
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={showLoaderDialog} onOpenChange={setShowLoaderDialog}>
+        <DialogContent className="max-w-4xl max-h-[80vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Dynamic Instrumentation Setup</DialogTitle>
+            <DialogDescription>
+              Add this script to your website to automatically track events
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-6">
+            <Card className="p-6 bg-accent/10">
+              <h3 className="font-semibold mb-4 flex items-center gap-2">
+                <CheckCircle2 className="w-5 h-5 text-success" />
+                Setup Instructions
+              </h3>
+              <ol className="space-y-3 text-sm">
+                <li className="flex gap-2">
+                  <span className="font-bold min-w-[1.5rem]">1.</span>
+                  <span>Copy the loader script below and paste it into the <code className="px-2 py-0.5 bg-muted rounded">&lt;head&gt;</code> section of your website.</span>
+                </li>
+                <li className="flex gap-2">
+                  <span className="font-bold min-w-[1.5rem]">2.</span>
+                  <span>Add <code className="px-2 py-0.5 bg-muted rounded">data-event</code> attributes to elements you want to track, matching your event names.</span>
+                </li>
+                <li className="flex gap-2">
+                  <span className="font-bold min-w-[1.5rem]">3.</span>
+                  <span>Add optional data attributes for event properties (e.g., <code className="px-2 py-0.5 bg-muted rounded">data-button-type="primary"</code>).</span>
+                </li>
+                <li className="flex gap-2">
+                  <span className="font-bold min-w-[1.5rem]">4.</span>
+                  <span>Any future taxonomy updates will automatically apply without code changes!</span>
+                </li>
+              </ol>
+            </Card>
+
+            <div className="space-y-2">
+              <div className="flex justify-between items-center">
+                <Label>Loader Script</Label>
+                <Button variant="outline" size="sm" onClick={copyLoaderScript}>
+                  <Copy className="w-4 h-4 mr-2" />
+                  Copy Script
+                </Button>
+              </div>
+              <Card className="p-4">
+                <pre className="text-xs overflow-x-auto whitespace-pre-wrap bg-muted p-4 rounded-lg">
+                  {loaderScript}
+                </pre>
+              </Card>
+            </div>
+
+            <Card className="p-4 bg-blue-50 dark:bg-blue-950">
+              <h4 className="font-semibold mb-2 text-sm">Example Usage</h4>
+              <pre className="text-xs overflow-x-auto whitespace-pre-wrap bg-background p-4 rounded-lg">
+{`<!-- Button with event tracking -->
+<button 
+  data-event="checkout_button_click"
+  data-button-type="primary"
+  data-page="product"
+>
+  Checkout
+</button>
+
+<!-- Form with event tracking -->
+<form 
+  data-event="newsletter_signup_submit"
+  data-source="homepage"
+>
+  <input type="email" name="email" />
+  <button type="submit">Subscribe</button>
+</form>
+
+<!-- Link with event tracking -->
+<a 
+  href="/pricing" 
+  data-event="pricing_page_view"
+  data-referrer="navbar"
+>
+  View Pricing
+</a>`}
+              </pre>
+            </Card>
+
+            <Card className="p-4 bg-accent/10">
+              <p className="text-sm text-muted-foreground">
+                <strong>Note:</strong> The loader script fetches the latest event configuration from your stored taxonomy.
+                When you push updates to Amplitude, the instrumentation will automatically update across all websites using this loader.
+              </p>
+            </Card>
+          </div>
+
+          <DialogFooter>
+            <Button onClick={() => setShowLoaderDialog(false)}>
+              Done
             </Button>
           </DialogFooter>
         </DialogContent>
