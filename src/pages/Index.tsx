@@ -1,61 +1,67 @@
-import { useState } from "react";
+import { useState, useCallback } from "react";
 import { HeroSection } from "@/components/HeroSection";
 import { InputSection } from "@/components/InputSection";
-import { MetricSelection } from "@/components/MetricSelection";
+import { ConversationFlow } from "@/components/ConversationFlow";
 import { ResultsSection } from "@/components/ResultsSection";
 import { TaxonomyEvent, Metric } from "@/types/taxonomy";
-import { supabase } from "@/integrations/supabase/client";
+import { useOrchestration } from "@/hooks/useOrchestration";
 
-type WorkflowStep = 'input' | 'metrics' | 'results';
+type WorkflowStep = 'input' | 'conversation' | 'results';
 
 const Index = () => {
   const [currentStep, setCurrentStep] = useState<WorkflowStep>('input');
-  const [metrics, setMetrics] = useState<Metric[] | null>(null);
   const [results, setResults] = useState<TaxonomyEvent[] | null>(null);
-  const [isLoading, setIsLoading] = useState(false);
   const [inputData, setInputData] = useState<{ url?: string; imageData?: string; videoData?: string; productDetails?: string } | null>(null);
+  
+  const { state, isLoading, startSession, approve, reject, reset } = useOrchestration();
 
-  const handleMetricsGenerated = (generatedMetrics: Metric[], data: any) => {
-    setMetrics(generatedMetrics);
+  const handleStartAnalysis = useCallback(async (data: {
+    url?: string;
+    imageData?: string;
+    videoData?: string;
+    productDetails?: string;
+  }) => {
     setInputData(data);
-    setCurrentStep('metrics');
-  };
-
-  const handleMetricsSelected = async (selectedMetricIds: string[]) => {
-    if (!inputData) return;
-    
-    setIsLoading(true);
-    try {
-      const { data, error } = await supabase.functions.invoke("generate-taxonomy", {
-        body: {
-          ...inputData,
-          mode: 'taxonomy',
-          selectedMetrics: selectedMetricIds,
-        },
-      });
-
-      if (error) throw error;
-
-      if (data?.events) {
-        setResults(data.events);
-        setCurrentStep('results');
-      }
-    } catch (error) {
-      console.error("Error generating taxonomy:", error);
-    } finally {
-      setIsLoading(false);
+    const response = await startSession(data);
+    if (response && response.status !== 'error') {
+      setCurrentStep('conversation');
     }
-  };
+  }, [startSession]);
 
-  const handleTaxonomyGenerated = (generatedResults: TaxonomyEvent[]) => {
+  const handleApprove = useCallback(async (selectedMetrics?: string[]) => {
+    if (state.approvalType === 'metrics') {
+      await approve('metrics', selectedMetrics);
+    } else if (state.approvalType === 'taxonomy') {
+      await approve('taxonomy');
+    }
+  }, [state.approvalType, approve]);
+
+  const handleReject = useCallback(async () => {
+    await reject("User requested regeneration");
+    reset();
+    setCurrentStep('input');
+  }, [reject, reset]);
+
+  const handleBackToInput = useCallback(() => {
+    reset();
+    setCurrentStep('input');
+    setResults(null);
+  }, [reset]);
+
+  const handleComplete = useCallback((events: TaxonomyEvent[]) => {
+    setResults(events);
+    setCurrentStep('results');
+  }, []);
+
+  // Legacy handlers for backwards compatibility with InputSection
+  const handleMetricsGenerated = useCallback((generatedMetrics: Metric[], data: any) => {
+    // This is now handled by the orchestration flow
+  }, []);
+
+  const handleTaxonomyGenerated = useCallback((generatedResults: TaxonomyEvent[]) => {
     setResults(generatedResults);
     setCurrentStep('results');
-  };
-
-  const handleBackToInput = () => {
-    setCurrentStep('input');
-    setMetrics(null);
-  };
+  }, []);
 
   return (
     <div className="min-h-screen bg-background">
@@ -66,20 +72,27 @@ const Index = () => {
             onMetricsGenerated={handleMetricsGenerated}
             onTaxonomyGenerated={handleTaxonomyGenerated}
             isLoading={isLoading}
-            setIsLoading={setIsLoading}
+            setIsLoading={() => {}}
             inputData={inputData}
-            selectedMetrics={currentStep === 'input' && metrics ? [] : undefined}
+            onStartOrchestration={handleStartAnalysis}
           />
         </div>
       )}
       
-      {currentStep === 'metrics' && metrics && (
+      {currentStep === 'conversation' && (
         <div className="gradient-hero min-h-screen">
-          <MetricSelection
-            metrics={metrics}
-            onBack={handleBackToInput}
-            onContinue={handleMetricsSelected}
+          <ConversationFlow
+            conversationHistory={state.conversationHistory}
+            metrics={state.metrics}
+            events={state.events}
+            requiresApproval={state.requiresApproval}
+            approvalType={state.approvalType}
             isLoading={isLoading}
+            onApprove={handleApprove}
+            onReject={handleReject}
+            onBack={handleBackToInput}
+            onComplete={handleComplete}
+            status={state.status}
           />
         </div>
       )}
@@ -87,7 +100,7 @@ const Index = () => {
       {currentStep === 'results' && results && !isLoading && (
         <ResultsSection 
           results={results} 
-          selectedMetrics={metrics?.map(m => m.name) || []}
+          selectedMetrics={state.metrics?.map(m => m.name) || []}
           inputData={inputData || undefined}
         />
       )}

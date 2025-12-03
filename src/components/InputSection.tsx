@@ -17,6 +17,7 @@ interface InputSectionProps {
   setIsLoading: (loading: boolean) => void;
   inputData?: { url?: string; imageData?: string; videoData?: string; productDetails?: string } | null;
   selectedMetrics?: string[];
+  onStartOrchestration?: (data: { url?: string; imageData?: string; videoData?: string; productDetails?: string }) => void;
 }
 
 export const InputSection = ({ 
@@ -25,7 +26,8 @@ export const InputSection = ({
   isLoading, 
   setIsLoading,
   inputData: savedInputData,
-  selectedMetrics 
+  selectedMetrics,
+  onStartOrchestration
 }: InputSectionProps) => {
   const [url, setUrl] = useState("");
   const [productDetails, setProductDetails] = useState("");
@@ -141,24 +143,29 @@ export const InputSection = ({
       return;
     }
 
+    const requestData: any = {
+      productDetails: productDetails || undefined,
+    };
+
+    if (inputType === "url") {
+      requestData.url = url;
+    } else if (inputType === "image" && imagePreview) {
+      requestData.imageData = imagePreview;
+    } else if (inputType === "video" && videoFrameData) {
+      requestData.videoData = videoFrameData;
+    }
+
+    // Use orchestration flow if available
+    if (onStartOrchestration) {
+      onStartOrchestration(requestData);
+      return;
+    }
+
+    // Legacy flow (backwards compatibility)
     setIsLoading(true);
 
     try {
-      const requestData: any = {
-        productDetails: productDetails || undefined,
-      };
-
-      if (inputType === "url") {
-        requestData.url = url;
-      } else if (inputType === "image" && imagePreview) {
-        requestData.imageData = imagePreview;
-      } else if (inputType === "video" && videoFrameData) {
-        requestData.videoData = videoFrameData;
-      }
-
-      // Check if we're coming from metrics selection
       if (selectedMetrics && selectedMetrics.length > 0) {
-        // Generate taxonomy based on selected metrics
         requestData.mode = 'taxonomy';
         requestData.selectedMetrics = selectedMetrics;
 
@@ -176,7 +183,6 @@ export const InputSection = ({
           });
         }
       } else {
-        // First step: generate metrics recommendations
         requestData.mode = 'metrics';
 
         const { data, error } = await supabase.functions.invoke("generate-taxonomy", {
