@@ -5,7 +5,6 @@ import {
   OrchestrationState,
   OrchestrationRequest,
   OrchestrationResponse,
-  ActionType,
   ApprovalType,
 } from "@/types/orchestration";
 
@@ -17,6 +16,7 @@ const initialState: OrchestrationState = {
   conversationHistory: [],
   approvalType: null,
   requiresApproval: false,
+  inputData: null,
 };
 
 export function useOrchestration() {
@@ -44,6 +44,7 @@ export function useOrchestration() {
         conversationHistory: data.conversationHistory || prev.conversationHistory,
         approvalType: data.approvalType || null,
         requiresApproval: data.requiresApproval || false,
+        inputData: data.inputData || prev.inputData,
       }));
 
       return data;
@@ -90,9 +91,12 @@ export function useOrchestration() {
       action: 'approve',
       approvalType,
       selectedMetrics,
+      // Pass back context for stateless operation
+      inputData: state.inputData,
+      metrics: state.metrics,
     });
     return response;
-  }, [state.sessionId, invokeOrchestration, toast]);
+  }, [state.sessionId, state.inputData, state.metrics, invokeOrchestration, toast]);
 
   const reject = useCallback(async (userMessage?: string) => {
     if (!state.sessionId) return null;

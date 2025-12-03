@@ -6,9 +6,6 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
 
-// In-memory session store (for demo - consider using database for production)
-const sessions = new Map<string, any>();
-
 // Agent prompts
 const PRODUCT_ANALYST_PROMPT = `You are a Product Analytics Specialist. Analyze the product and recommend 5-8 key metrics that should be measured.
 
@@ -56,15 +53,6 @@ Return ONLY a valid JSON object with this exact structure:
   ],
   "summary": "Brief summary of the instrumentation approach"
 }`;
-
-const IMPLEMENTATION_SPECIALIST_PROMPT = `You are an Implementation Specialist. Review and enhance this taxonomy with implementation details.
-
-Current taxonomy:
-{taxonomy}
-
-Add practical implementation notes, priority order, and any potential conflicts or dependencies between events.
-
-Return ONLY a valid JSON object with the enhanced events array including any additional implementation guidance.`;
 
 async function callLovableAI(systemPrompt: string, userContent: any[], apiKey: string) {
   const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
@@ -128,6 +116,9 @@ serve(async (req) => {
       userMessage,
       action = 'start',
       approvalType,
+      // Stateless: client sends back context from previous responses
+      inputData: providedInputData,
+      metrics: providedMetrics,
     } = await req.json();
 
     console.log("Mode:", mode, "Action:", action, "Session:", sessionId);
@@ -137,54 +128,50 @@ serve(async (req) => {
       throw new Error("LOVABLE_API_KEY not configured");
     }
 
-    // Handle different actions
-    let currentSession = sessionId ? sessions.get(sessionId) : null;
     const newSessionId = sessionId || generateSessionId();
+    
+    // Use provided input data or build from current request
+    const inputData = providedInputData || { url, imageData, videoData, productDetails };
 
     // Build user content for AI
-    const userContent: any[] = [];
-
-    if (url) {
-      userContent.push({
-        type: "text",
-        text: `Analyze this product URL:\n\nURL: ${url}${productDetails ? `\n\nProduct Context: ${productDetails}` : ""}`,
-      });
-    } else if (imageData) {
-      userContent.push({
-        type: "text",
-        text: `Analyze this product design.${productDetails ? `\n\nProduct Context: ${productDetails}` : ""}`,
-      });
-      userContent.push({
-        type: "image_url",
-        image_url: { url: imageData },
-      });
-    } else if (videoData) {
-      userContent.push({
-        type: "text",
-        text: `Analyze this product demo video frame.${productDetails ? `\n\nProduct Context: ${productDetails}` : ""}`,
-      });
-      userContent.push({
-        type: "image_url",
-        image_url: { url: videoData },
-      });
-    }
+    const buildUserContent = (input: any, extraText?: string) => {
+      const userContent: any[] = [];
+      
+      if (input.url) {
+        userContent.push({
+          type: "text",
+          text: `Analyze this product URL:\n\nURL: ${input.url}${input.productDetails ? `\n\nProduct Context: ${input.productDetails}` : ""}${extraText ? `\n\n${extraText}` : ""}`,
+        });
+      } else if (input.imageData) {
+        userContent.push({
+          type: "text",
+          text: `Analyze this product design.${input.productDetails ? `\n\nProduct Context: ${input.productDetails}` : ""}${extraText ? `\n\n${extraText}` : ""}`,
+        });
+        userContent.push({
+          type: "image_url",
+          image_url: { url: input.imageData },
+        });
+      } else if (input.videoData) {
+        userContent.push({
+          type: "text",
+          text: `Analyze this product demo video frame.${input.productDetails ? `\n\nProduct Context: ${input.productDetails}` : ""}${extraText ? `\n\n${extraText}` : ""}`,
+        });
+        userContent.push({
+          type: "image_url",
+          image_url: { url: input.videoData },
+        });
+      }
+      
+      return userContent;
+    };
 
     // Action handlers
     if (action === 'start' || (action === 'continue' && mode === 'metrics')) {
       // Step 1: Product Analyst Agent - Generate metrics
       console.log("Running Product Analyst Agent...");
       
+      const userContent = buildUserContent(inputData);
       const metricsResult = await callLovableAI(PRODUCT_ANALYST_PROMPT, userContent, LOVABLE_API_KEY);
-      
-      // Store session state
-      sessions.set(newSessionId, {
-        inputData: { url, imageData, videoData, productDetails },
-        metrics: metricsResult.metrics,
-        status: 'waiting_metrics_approval',
-        conversationHistory: [
-          { role: 'assistant', agent: 'Product Analyst', content: metricsResult.analysis || 'I have analyzed your product and identified key metrics.' }
-        ]
-      });
 
       return new Response(JSON.stringify({
         sessionId: newSessionId,
@@ -193,6 +180,8 @@ serve(async (req) => {
         approvalType: 'metrics',
         metrics: metricsResult.metrics,
         analysis: metricsResult.analysis,
+        // Return input data for client to send back
+        inputData,
         conversationHistory: [
           { role: 'assistant', agent: 'Product Analyst', content: metricsResult.analysis || 'I have analyzed your product and identified key metrics to track.' }
         ]
@@ -205,11 +194,11 @@ serve(async (req) => {
       // Step 2: Instrumentation Architect Agent - Generate taxonomy
       console.log("Running Instrumentation Architect Agent...");
       
-      if (!currentSession) {
-        throw new Error("Session not found. Please start a new session.");
+      const metricsToUse = selectedMetrics || providedMetrics?.map((m: any) => m.name) || [];
+      
+      if (metricsToUse.length === 0) {
+        throw new Error("No metrics provided for taxonomy generation");
       }
-
-      const metricsToUse = selectedMetrics || currentSession.metrics?.map((m: any) => m.name) || [];
       
       // Build custom fields instruction
       let customFieldsInstruction = '';
@@ -228,111 +217,60 @@ serve(async (req) => {
         .replace('{customFieldsInstruction}', customFieldsInstruction)
         .replace('{customFieldsJson}', customFieldsJson);
 
-      // Re-build user content with metrics focus
-      const taxonomyUserContent: any[] = [];
-      const inputData = currentSession.inputData;
-      
-      if (inputData.url) {
-        taxonomyUserContent.push({
-          type: "text",
-          text: `Generate taxonomy for this product:\n\nURL: ${inputData.url}${inputData.productDetails ? `\n\nProduct Context: ${inputData.productDetails}` : ""}\n\nFocus on events for: ${metricsToUse.join(', ')}`,
-        });
-      } else if (inputData.imageData) {
-        taxonomyUserContent.push({
-          type: "text",
-          text: `Generate taxonomy for this product design.${inputData.productDetails ? `\n\nProduct Context: ${inputData.productDetails}` : ""}\n\nFocus on events for: ${metricsToUse.join(', ')}`,
-        });
-        taxonomyUserContent.push({
-          type: "image_url",
-          image_url: { url: inputData.imageData },
-        });
-      } else if (inputData.videoData) {
-        taxonomyUserContent.push({
-          type: "text",
-          text: `Generate taxonomy for this product.${inputData.productDetails ? `\n\nProduct Context: ${inputData.productDetails}` : ""}\n\nFocus on events for: ${metricsToUse.join(', ')}`,
-        });
-        taxonomyUserContent.push({
-          type: "image_url",
-          image_url: { url: inputData.videoData },
-        });
-      }
-
-      const taxonomyResult = await callLovableAI(architectPrompt, taxonomyUserContent, LOVABLE_API_KEY);
-      
-      // Update session
-      currentSession.taxonomy = taxonomyResult.events;
-      currentSession.status = 'waiting_taxonomy_approval';
-      currentSession.conversationHistory.push({
-        role: 'assistant',
-        agent: 'Instrumentation Architect',
-        content: taxonomyResult.summary || `I have generated ${taxonomyResult.events?.length || 0} events based on your selected metrics.`
-      });
-      sessions.set(sessionId, currentSession);
+      const userContent = buildUserContent(inputData, `Focus on events for: ${metricsToUse.join(', ')}`);
+      const taxonomyResult = await callLovableAI(architectPrompt, userContent, LOVABLE_API_KEY);
 
       return new Response(JSON.stringify({
-        sessionId,
+        sessionId: newSessionId,
         status: 'waiting_approval',
         requiresApproval: true,
         approvalType: 'taxonomy',
         events: taxonomyResult.events,
         summary: taxonomyResult.summary,
-        conversationHistory: currentSession.conversationHistory
+        // Return data for client to send back
+        inputData,
+        metrics: providedMetrics,
+        conversationHistory: [
+          { role: 'assistant', agent: 'Product Analyst', content: 'I have analyzed your product and identified key metrics to track.' },
+          { role: 'assistant', agent: 'Instrumentation Architect', content: taxonomyResult.summary || `I have generated ${taxonomyResult.events?.length || 0} events based on your selected metrics.` }
+        ]
       }), {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
 
     if (action === 'approve' && approvalType === 'taxonomy') {
-      // Step 3: Implementation Specialist Agent - Finalize
-      console.log("Running Implementation Specialist Agent...");
-      
-      if (!currentSession) {
-        throw new Error("Session not found. Please start a new session.");
-      }
-
-      // For now, just return the taxonomy as completed
-      // In a full implementation, we could enhance with more details
-      currentSession.status = 'completed';
-      currentSession.conversationHistory.push({
-        role: 'assistant',
-        agent: 'Implementation Specialist',
-        content: 'Your taxonomy has been finalized and is ready for implementation!'
-      });
-      sessions.set(sessionId, currentSession);
+      // Step 3: Finalize
+      console.log("Finalizing taxonomy...");
 
       return new Response(JSON.stringify({
-        sessionId,
+        sessionId: newSessionId,
         status: 'completed',
         requiresApproval: false,
-        events: currentSession.taxonomy,
-        conversationHistory: currentSession.conversationHistory
+        conversationHistory: [
+          { role: 'assistant', agent: 'Product Analyst', content: 'I have analyzed your product and identified key metrics to track.' },
+          { role: 'assistant', agent: 'Instrumentation Architect', content: 'I have generated events based on your selected metrics.' },
+          { role: 'assistant', agent: 'Implementation Specialist', content: 'Your taxonomy has been finalized and is ready for implementation!' }
+        ]
       }), {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
 
     if (action === 'reject') {
-      // Handle rejection - allow user to provide feedback
-      if (currentSession) {
-        currentSession.conversationHistory.push({
-          role: 'user',
-          content: userMessage || 'Rejected'
-        });
-        sessions.set(sessionId, currentSession);
-      }
-
       return new Response(JSON.stringify({
-        sessionId,
+        sessionId: newSessionId,
         status: 'rejected',
         message: 'Please provide feedback or start a new session.',
-        conversationHistory: currentSession?.conversationHistory || []
+        conversationHistory: []
       }), {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
 
-    // Legacy support: direct mode calls (backwards compatibility)
+    // Legacy support: direct mode calls
     if (mode === 'metrics' && !action) {
+      const userContent = buildUserContent({ url, imageData, videoData, productDetails });
       const metricsResult = await callLovableAI(PRODUCT_ANALYST_PROMPT, userContent, LOVABLE_API_KEY);
       return new Response(JSON.stringify(metricsResult), {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
@@ -356,11 +294,7 @@ serve(async (req) => {
         .replace('{customFieldsInstruction}', customFieldsInstruction)
         .replace('{customFieldsJson}', customFieldsJson);
 
-      userContent[0] = {
-        type: "text",
-        text: `${userContent[0]?.text || ''}\n\nFocus on events for: ${selectedMetrics.join(', ')}`,
-      };
-
+      const userContent = buildUserContent({ url, imageData, videoData, productDetails }, `Focus on events for: ${selectedMetrics.join(', ')}`);
       const taxonomyResult = await callLovableAI(architectPrompt, userContent, LOVABLE_API_KEY);
       return new Response(JSON.stringify(taxonomyResult), {
         headers: { ...corsHeaders, "Content-Type": "application/json" },

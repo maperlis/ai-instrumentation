@@ -22,6 +22,14 @@ export interface OrchestrationRequest {
   userMessage?: string;
   action?: ActionType;
   approvalType?: ApprovalType;
+  // For stateless operation - client sends back context
+  inputData?: {
+    url?: string;
+    imageData?: string;
+    videoData?: string;
+    productDetails?: string;
+  };
+  metrics?: Metric[];
 }
 
 export interface OrchestrationResponse {
@@ -36,6 +44,12 @@ export interface OrchestrationResponse {
   message?: string;
   error?: string;
   conversationHistory: ConversationMessage[];
+  inputData?: {
+    url?: string;
+    imageData?: string;
+    videoData?: string;
+    productDetails?: string;
+  };
 }
 
 export interface OrchestrationState {
@@ -46,4 +60,10 @@ export interface OrchestrationState {
   conversationHistory: ConversationMessage[];
   approvalType: ApprovalType | null;
   requiresApproval: boolean;
+  inputData: {
+    url?: string;
+    imageData?: string;
+    videoData?: string;
+    productDetails?: string;
+  } | null;
 }
