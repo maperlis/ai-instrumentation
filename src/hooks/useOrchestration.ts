@@ -46,13 +46,9 @@ export function useOrchestration() {
         }
       }
 
-      // Merge conversation history instead of replacing
+      // Append only new assistant messages to existing history (user messages are already added optimistically)
       const newHistory = data.conversationHistory || [];
-      const mergedHistory = state.conversationHistory.length > 0 && newHistory.length > 0
-        ? [...state.conversationHistory, ...newHistory]
-        : newHistory.length > 0 
-          ? newHistory 
-          : state.conversationHistory;
+      const mergedHistory = [...state.conversationHistory, ...newHistory];
 
       // Update state based on response
       setState(prev => ({
@@ -121,6 +117,7 @@ export function useOrchestration() {
       userMessage,
       inputData: state.inputData,
       metrics: state.metrics,
+      events: state.events,
       approvalType: state.approvalType,
     });
     return response;
