@@ -3,6 +3,7 @@ import { HeroSection } from "@/components/HeroSection";
 import { InputSection } from "@/components/InputSection";
 import { ConversationFlow } from "@/components/ConversationFlow";
 import { ResultsSection } from "@/components/ResultsSection";
+import { UserMenu } from "@/components/UserMenu";
 import { TaxonomyEvent, Metric } from "@/types/taxonomy";
 import { useOrchestration } from "@/hooks/useOrchestration";
 
@@ -68,7 +69,10 @@ const Index = () => {
   }, []);
 
   return (
-    <div className="min-h-screen bg-background">
+    <div className="min-h-screen bg-background relative">
+      <div className="absolute top-4 right-4 z-50">
+        <UserMenu />
+      </div>
       {currentStep === 'input' && (
         <div className="gradient-hero">
           <HeroSection />
