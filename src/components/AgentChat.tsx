@@ -1,0 +1,127 @@
+import { useState, useRef, useEffect } from "react";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { ScrollArea } from "@/components/ui/scroll-area";
+import { Badge } from "@/components/ui/badge";
+import { Bot, Send, User, Loader2 } from "lucide-react";
+import { ConversationMessage } from "@/types/orchestration";
+
+interface AgentChatProps {
+  conversationHistory: ConversationMessage[];
+  agentName: string;
+  agentDescription: string;
+  isLoading: boolean;
+  onSendMessage: (message: string) => void;
+  placeholder?: string;
+}
+
+export function AgentChat({
+  conversationHistory,
+  agentName,
+  agentDescription,
+  isLoading,
+  onSendMessage,
+  placeholder = "Ask a question about the metrics...",
+}: AgentChatProps) {
+  const [inputValue, setInputValue] = useState("");
+  const scrollRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (scrollRef.current) {
+      scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
+    }
+  }, [conversationHistory]);
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (inputValue.trim() && !isLoading) {
+      onSendMessage(inputValue.trim());
+      setInputValue("");
+    }
+  };
+
+  return (
+    <div className="flex flex-col h-full">
+      {/* Agent Header */}
+      <div className="p-4 border-b bg-muted/30">
+        <div className="flex items-center gap-3">
+          <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center">
+            <Bot className="w-5 h-5 text-primary" />
+          </div>
+          <div>
+            <h3 className="font-semibold text-sm">{agentName}</h3>
+            <p className="text-xs text-muted-foreground">{agentDescription}</p>
+          </div>
+        </div>
+      </div>
+
+      {/* Messages */}
+      <ScrollArea className="flex-1 p-4" ref={scrollRef}>
+        <div className="space-y-4">
+          {conversationHistory.map((msg, index) => (
+            <div
+              key={index}
+              className={`flex gap-3 ${msg.role === 'user' ? 'flex-row-reverse' : ''}`}
+            >
+              <div className={`w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0 ${
+                msg.role === 'user' 
+                  ? 'bg-primary text-primary-foreground' 
+                  : 'bg-primary/10'
+              }`}>
+                {msg.role === 'user' ? (
+                  <User className="w-4 h-4" />
+                ) : (
+                  <Bot className="w-4 h-4 text-primary" />
+                )}
+              </div>
+              <div
+                className={`rounded-lg p-3 max-w-[85%] ${
+                  msg.role === 'user'
+                    ? 'bg-primary text-primary-foreground'
+                    : 'bg-muted'
+                }`}
+              >
+                {msg.agent && msg.role === 'assistant' && (
+                  <Badge variant="outline" className="mb-2 text-xs bg-background">
+                    {msg.agent}
+                  </Badge>
+                )}
+                <p className="text-sm whitespace-pre-wrap">{msg.content}</p>
+              </div>
+            </div>
+          ))}
+          
+          {isLoading && (
+            <div className="flex gap-3">
+              <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center flex-shrink-0">
+                <Bot className="w-4 h-4 text-primary" />
+              </div>
+              <div className="rounded-lg p-3 bg-muted">
+                <div className="flex items-center gap-2">
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                  <span className="text-sm text-muted-foreground">Thinking...</span>
+                </div>
+              </div>
+            </div>
+          )}
+        </div>
+      </ScrollArea>
+
+      {/* Input */}
+      <form onSubmit={handleSubmit} className="p-4 border-t bg-background">
+        <div className="flex gap-2">
+          <Input
+            value={inputValue}
+            onChange={(e) => setInputValue(e.target.value)}
+            placeholder={placeholder}
+            disabled={isLoading}
+            className="flex-1"
+          />
+          <Button type="submit" size="icon" disabled={!inputValue.trim() || isLoading}>
+            <Send className="w-4 h-4" />
+          </Button>
+        </div>
+      </form>
+    </div>
+  );
+}

@@ -1,12 +1,12 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
-import { Checkbox } from "@/components/ui/checkbox";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { Loader2, Check, X, Bot, ArrowLeft } from "lucide-react";
+import { Loader2, ArrowLeft, Bot, Check, X } from "lucide-react";
 import { ConversationMessage, ApprovalType } from "@/types/orchestration";
 import { Metric, TaxonomyEvent } from "@/types/taxonomy";
+import { AgentChat } from "./AgentChat";
+import { MetricSelectionPanel } from "./MetricSelectionPanel";
 
 interface ConversationFlowProps {
   conversationHistory: ConversationMessage[];
@@ -19,7 +19,9 @@ interface ConversationFlowProps {
   onReject: () => void;
   onBack: () => void;
   onComplete: (events: TaxonomyEvent[]) => void;
+  onSendMessage: (message: string) => void;
   status: string;
+  newMetricIds?: string[];
 }
 
 export function ConversationFlow({
@@ -33,11 +35,28 @@ export function ConversationFlow({
   onReject,
   onBack,
   onComplete,
+  onSendMessage,
   status,
+  newMetricIds = [],
 }: ConversationFlowProps) {
-  const [selectedMetricIds, setSelectedMetricIds] = useState<string[]>(
-    metrics.map(m => m.id)
-  );
+  const [selectedMetricIds, setSelectedMetricIds] = useState<string[]>([]);
+
+  // Initialize selected metrics when metrics change
+  useEffect(() => {
+    if (metrics.length > 0 && selectedMetricIds.length === 0) {
+      setSelectedMetricIds(metrics.map(m => m.id));
+    }
+  }, [metrics]);
+
+  // Add new metrics to selection automatically
+  useEffect(() => {
+    if (newMetricIds.length > 0) {
+      setSelectedMetricIds(prev => {
+        const newIds = newMetricIds.filter(id => !prev.includes(id));
+        return [...prev, ...newIds];
+      });
+    }
+  }, [newMetricIds]);
 
   const toggleMetric = (metricId: string) => {
     setSelectedMetricIds(prev =>
@@ -55,170 +74,140 @@ export function ConversationFlow({
     }
   };
 
-  // Group metrics by category
-  const groupedMetrics = metrics.reduce((acc, metric) => {
-    const category = metric.category || 'Other';
-    if (!acc[category]) acc[category] = [];
-    acc[category].push(metric);
-    return acc;
-  }, {} as Record<string, Metric[]>);
-
   // When completed, show the results
   if (status === 'completed' && events.length > 0) {
     onComplete(events);
     return null;
   }
 
-  return (
-    <div className="container mx-auto px-4 py-8 max-w-4xl">
-      <Button
-        variant="ghost"
-        onClick={onBack}
-        className="mb-4"
-      >
-        <ArrowLeft className="w-4 h-4 mr-2" />
-        Start Over
-      </Button>
+  // Metrics approval with split panel
+  if (requiresApproval && approvalType === 'metrics' && metrics.length > 0) {
+    return (
+      <div className="container mx-auto px-4 py-6 max-w-7xl h-[calc(100vh-2rem)]">
+        <Button
+          variant="ghost"
+          onClick={onBack}
+          className="mb-4"
+        >
+          <ArrowLeft className="w-4 h-4 mr-2" />
+          Start Over
+        </Button>
 
-      <Card className="p-6">
-        {/* Conversation History */}
-        <ScrollArea className="h-auto max-h-64 mb-6">
-          <div className="space-y-4">
-            {conversationHistory.map((msg, index) => (
-              <div
-                key={index}
-                className={`flex gap-3 ${msg.role === 'user' ? 'flex-row-reverse' : ''}`}
-              >
-                {msg.role === 'assistant' && (
-                  <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center flex-shrink-0">
-                    <Bot className="w-4 h-4 text-primary" />
-                  </div>
-                )}
-                <div
-                  className={`rounded-lg p-3 max-w-[80%] ${
-                    msg.role === 'user'
-                      ? 'bg-primary text-primary-foreground'
-                      : 'bg-muted'
-                  }`}
-                >
-                  {msg.agent && (
-                    <Badge variant="outline" className="mb-2 text-xs">
-                      {msg.agent}
-                    </Badge>
-                  )}
-                  <p className="text-sm">{msg.content}</p>
-                </div>
-              </div>
-            ))}
-          </div>
-        </ScrollArea>
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 h-[calc(100%-4rem)]">
+          {/* Left Panel - Chat */}
+          <Card className="flex flex-col overflow-hidden">
+            <AgentChat
+              conversationHistory={conversationHistory}
+              agentName="Product Analyst"
+              agentDescription="Ask me about metrics, suggest alternatives, or request different recommendations"
+              isLoading={isLoading}
+              onSendMessage={onSendMessage}
+              placeholder="Ask about metrics or suggest alternatives..."
+            />
+          </Card>
 
-        {/* Loading State */}
-        {isLoading && (
-          <div className="flex items-center justify-center py-8">
-            <Loader2 className="w-6 h-6 animate-spin text-primary mr-2" />
-            <span className="text-muted-foreground">Processing...</span>
-          </div>
-        )}
+          {/* Right Panel - Metric Selection */}
+          <Card className="flex flex-col overflow-hidden">
+            <MetricSelectionPanel
+              metrics={metrics}
+              selectedMetricIds={selectedMetricIds}
+              onToggleMetric={toggleMetric}
+              onApprove={handleApprove}
+              isLoading={isLoading}
+              newMetricIds={newMetricIds}
+            />
+          </Card>
+        </div>
+      </div>
+    );
+  }
 
-        {/* Metrics Approval */}
-        {!isLoading && requiresApproval && approvalType === 'metrics' && metrics.length > 0 && (
-          <div className="space-y-6">
-            <h3 className="text-lg font-semibold">Select Metrics to Track</h3>
-            <p className="text-sm text-muted-foreground">
-              Choose the metrics you want to measure. Your taxonomy will be optimized for these.
-            </p>
+  // Taxonomy approval with split panel
+  if (requiresApproval && approvalType === 'taxonomy' && events.length > 0) {
+    return (
+      <div className="container mx-auto px-4 py-6 max-w-7xl h-[calc(100vh-2rem)]">
+        <Button
+          variant="ghost"
+          onClick={onBack}
+          className="mb-4"
+        >
+          <ArrowLeft className="w-4 h-4 mr-2" />
+          Start Over
+        </Button>
 
-            <div className="space-y-6">
-              {Object.entries(groupedMetrics).map(([category, categoryMetrics]) => (
-                <div key={category}>
-                  <h4 className="text-sm font-medium text-muted-foreground mb-3">
-                    {category}
-                  </h4>
-                  <div className="space-y-2">
-                    {categoryMetrics.map((metric) => (
-                      <div
-                        key={metric.id}
-                        className="flex items-start gap-3 p-3 rounded-lg border hover:bg-muted/50 transition-colors cursor-pointer"
-                        onClick={() => toggleMetric(metric.id)}
-                      >
-                        <Checkbox
-                          checked={selectedMetricIds.includes(metric.id)}
-                          onCheckedChange={() => toggleMetric(metric.id)}
-                        />
-                        <div className="flex-1">
-                          <p className="font-medium text-sm">{metric.name}</p>
-                          <p className="text-xs text-muted-foreground">
-                            {metric.description}
-                          </p>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              ))}
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 h-[calc(100%-4rem)]">
+          {/* Left Panel - Chat */}
+          <Card className="flex flex-col overflow-hidden">
+            <AgentChat
+              conversationHistory={conversationHistory}
+              agentName="Instrumentation Architect"
+              agentDescription="Ask me about the events, request changes, or suggest modifications"
+              isLoading={isLoading}
+              onSendMessage={onSendMessage}
+              placeholder="Ask about events or suggest changes..."
+            />
+          </Card>
+
+          {/* Right Panel - Taxonomy Review */}
+          <Card className="flex flex-col overflow-hidden">
+            <div className="p-4 border-b">
+              <h3 className="font-semibold">Review Generated Taxonomy</h3>
+              <p className="text-sm text-muted-foreground mt-1">
+                {events.length} events generated. Review and approve to finalize.
+              </p>
             </div>
 
-            <div className="flex gap-3 justify-end pt-4 border-t">
-              <Button variant="outline" onClick={onReject}>
-                <X className="w-4 h-4 mr-2" />
-                Start Over
-              </Button>
-              <Button
-                onClick={handleApprove}
-                disabled={selectedMetricIds.length === 0}
-              >
-                <Check className="w-4 h-4 mr-2" />
-                Generate Taxonomy ({selectedMetricIds.length} metrics)
-              </Button>
-            </div>
-          </div>
-        )}
-
-        {/* Taxonomy Approval */}
-        {!isLoading && requiresApproval && approvalType === 'taxonomy' && events.length > 0 && (
-          <div className="space-y-6">
-            <h3 className="text-lg font-semibold">Review Generated Taxonomy</h3>
-            <p className="text-sm text-muted-foreground">
-              {events.length} events have been generated. Review and approve to finalize.
-            </p>
-
-            <div className="border rounded-lg overflow-hidden">
-              <ScrollArea className="h-64">
-                <table className="w-full text-sm">
-                  <thead className="bg-muted sticky top-0">
-                    <tr>
-                      <th className="text-left p-3 font-medium">Event Name</th>
-                      <th className="text-left p-3 font-medium">Trigger</th>
-                      <th className="text-left p-3 font-medium">Screen</th>
+            <ScrollArea className="flex-1">
+              <table className="w-full text-sm">
+                <thead className="bg-muted sticky top-0">
+                  <tr>
+                    <th className="text-left p-3 font-medium">Event Name</th>
+                    <th className="text-left p-3 font-medium">Trigger</th>
+                    <th className="text-left p-3 font-medium">Screen</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {events.map((event, index) => (
+                    <tr key={index} className="border-t hover:bg-muted/50">
+                      <td className="p-3 font-mono text-xs">{event.event_name}</td>
+                      <td className="p-3 text-xs">{event.trigger_action}</td>
+                      <td className="p-3 text-xs">{event.screen}</td>
                     </tr>
-                  </thead>
-                  <tbody>
-                    {events.map((event, index) => (
-                      <tr key={index} className="border-t">
-                        <td className="p-3 font-mono text-xs">{event.event_name}</td>
-                        <td className="p-3">{event.trigger_action}</td>
-                        <td className="p-3">{event.screen}</td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </ScrollArea>
-            </div>
+                  ))}
+                </tbody>
+              </table>
+            </ScrollArea>
 
-            <div className="flex gap-3 justify-end pt-4 border-t">
-              <Button variant="outline" onClick={onReject}>
+            <div className="p-4 border-t bg-muted/30 flex gap-3">
+              <Button variant="outline" onClick={onReject} className="flex-1">
                 <X className="w-4 h-4 mr-2" />
                 Regenerate
               </Button>
-              <Button onClick={handleApprove}>
+              <Button onClick={handleApprove} disabled={isLoading} className="flex-1">
                 <Check className="w-4 h-4 mr-2" />
                 Approve & Finalize
               </Button>
             </div>
+          </Card>
+        </div>
+      </div>
+    );
+  }
+
+  // Loading state
+  if (isLoading) {
+    return (
+      <div className="container mx-auto px-4 py-8 max-w-4xl">
+        <Card className="p-12 flex flex-col items-center justify-center">
+          <div className="w-16 h-16 rounded-full bg-primary/10 flex items-center justify-center mb-4">
+            <Bot className="w-8 h-8 text-primary" />
           </div>
-        )}
-      </Card>
-    </div>
-  );
+          <Loader2 className="w-8 h-8 animate-spin text-primary mb-4" />
+          <p className="text-muted-foreground">Analyzing your product...</p>
+        </Card>
+      </div>
+    );
+  }
+
+  return null;
 }

@@ -54,6 +54,35 @@ Return ONLY a valid JSON object with this exact structure:
   "summary": "Brief summary of the instrumentation approach"
 }`;
 
+const CONVERSATION_PROMPT = `You are a Product Analytics Specialist having a conversation with a user about metrics for their product.
+
+Current metrics being considered:
+{currentMetrics}
+
+The user has asked: "{userMessage}"
+
+You should:
+1. Answer their question helpfully and concisely
+2. If they ask for different or additional metrics, suggest new ones
+3. If you suggest new metrics, include them in your response
+
+Return ONLY a valid JSON object with this structure:
+{
+  "response": "Your conversational response to the user",
+  "newMetrics": [
+    {
+      "id": "metric_id_snake_case",
+      "name": "Metric Name",
+      "description": "Description of the metric",
+      "category": "Acquisition|Engagement|Retention|Monetization|Product Usage",
+      "example_events": ["event_1", "event_2"]
+    }
+  ]
+}
+
+If no new metrics are suggested, return an empty array for newMetrics.
+Keep your response concise and helpful.`;
+
 async function callLovableAI(systemPrompt: string, userContent: any[], apiKey: string) {
   const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
     method: "POST",
@@ -177,7 +206,7 @@ serve(async (req) => {
     };
 
     // Action handlers
-    if (action === 'start' || (action === 'continue' && mode === 'metrics')) {
+    if (action === 'start') {
       // Step 1: Product Analyst Agent - Generate metrics
       console.log("Running Product Analyst Agent...");
       
@@ -195,6 +224,39 @@ serve(async (req) => {
         inputData,
         conversationHistory: [
           { role: 'assistant', agent: 'Product Analyst', content: metricsResult.analysis || 'I have analyzed your product and identified key metrics to track.' }
+        ]
+      }), {
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    if (action === 'continue' && userMessage) {
+      // Handle follow-up conversation
+      console.log("Processing follow-up question...");
+      
+      const currentMetricsStr = providedMetrics?.map((m: any) => `- ${m.name}: ${m.description}`).join('\n') || 'No metrics yet';
+      
+      const conversationPrompt = CONVERSATION_PROMPT
+        .replace('{currentMetrics}', currentMetricsStr)
+        .replace('{userMessage}', userMessage);
+
+      const userContent = buildUserContent(inputData, `User question: ${userMessage}`);
+      const result = await callLovableAI(conversationPrompt, userContent, LOVABLE_API_KEY);
+      
+      // Merge new metrics with existing ones
+      const existingMetricIds = new Set(providedMetrics?.map((m: any) => m.id) || []);
+      const newMetrics = (result.newMetrics || []).filter((m: any) => !existingMetricIds.has(m.id));
+      const allMetrics = [...(providedMetrics || []), ...newMetrics];
+
+      return new Response(JSON.stringify({
+        sessionId: newSessionId,
+        status: 'waiting_approval',
+        requiresApproval: true,
+        approvalType: approvalType || 'metrics',
+        metrics: allMetrics,
+        inputData,
+        conversationHistory: [
+          { role: 'assistant', agent: 'Product Analyst', content: result.response }
         ]
       }), {
         headers: { ...corsHeaders, "Content-Type": "application/json" },

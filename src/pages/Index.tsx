@@ -13,7 +13,7 @@ const Index = () => {
   const [results, setResults] = useState<TaxonomyEvent[] | null>(null);
   const [inputData, setInputData] = useState<{ url?: string; imageData?: string; videoData?: string; productDetails?: string } | null>(null);
   
-  const { state, isLoading, startSession, approve, reject, reset } = useOrchestration();
+  const { state, isLoading, newMetricIds, startSession, sendMessage, approve, reject, reset } = useOrchestration();
 
   const handleStartAnalysis = useCallback(async (data: {
     url?: string;
@@ -52,6 +52,10 @@ const Index = () => {
     setResults(events);
     setCurrentStep('results');
   }, []);
+
+  const handleSendMessage = useCallback(async (message: string) => {
+    await sendMessage(message);
+  }, [sendMessage]);
 
   // Legacy handlers for backwards compatibility with InputSection
   const handleMetricsGenerated = useCallback((generatedMetrics: Metric[], data: any) => {
@@ -92,7 +96,9 @@ const Index = () => {
             onReject={handleReject}
             onBack={handleBackToInput}
             onComplete={handleComplete}
+            onSendMessage={handleSendMessage}
             status={state.status}
+            newMetricIds={newMetricIds}
           />
         </div>
       )}

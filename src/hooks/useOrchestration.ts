@@ -22,6 +22,7 @@ const initialState: OrchestrationState = {
 export function useOrchestration() {
   const [state, setState] = useState<OrchestrationState>(initialState);
   const [isLoading, setIsLoading] = useState(false);
+  const [newMetricIds, setNewMetricIds] = useState<string[]>([]);
   const { toast } = useToast();
 
   const invokeOrchestration = useCallback(async (request: OrchestrationRequest): Promise<OrchestrationResponse | null> => {
@@ -34,6 +35,25 @@ export function useOrchestration() {
       if (error) throw error;
       if (!data) throw new Error("No response from orchestration");
 
+      // Track new metrics
+      if (data.metrics) {
+        const existingIds = state.metrics.map(m => m.id);
+        const newIds = data.metrics.filter(m => !existingIds.includes(m.id)).map(m => m.id);
+        if (newIds.length > 0) {
+          setNewMetricIds(prev => [...prev, ...newIds]);
+          // Clear new indicator after 5 seconds
+          setTimeout(() => setNewMetricIds([]), 5000);
+        }
+      }
+
+      // Merge conversation history instead of replacing
+      const newHistory = data.conversationHistory || [];
+      const mergedHistory = state.conversationHistory.length > 0 && newHistory.length > 0
+        ? [...state.conversationHistory, ...newHistory]
+        : newHistory.length > 0 
+          ? newHistory 
+          : state.conversationHistory;
+
       // Update state based on response
       setState(prev => ({
         ...prev,
@@ -41,7 +61,7 @@ export function useOrchestration() {
         status: data.status,
         metrics: data.metrics || prev.metrics,
         events: data.events || prev.events,
-        conversationHistory: data.conversationHistory || prev.conversationHistory,
+        conversationHistory: mergedHistory,
         approvalType: data.approvalType || null,
         requiresApproval: data.requiresApproval || false,
         inputData: data.inputData || prev.inputData,
@@ -60,7 +80,7 @@ export function useOrchestration() {
     } finally {
       setIsLoading(false);
     }
-  }, [toast]);
+  }, [toast, state.metrics]);
 
   const startSession = useCallback(async (inputData: {
     url?: string;
@@ -75,6 +95,36 @@ export function useOrchestration() {
     });
     return response;
   }, [invokeOrchestration]);
+
+  const sendMessage = useCallback(async (userMessage: string) => {
+    if (!state.sessionId) {
+      toast({
+        title: "Error",
+        description: "No active session",
+        variant: "destructive",
+      });
+      return null;
+    }
+
+    // Optimistically add user message to history
+    setState(prev => ({
+      ...prev,
+      conversationHistory: [
+        ...prev.conversationHistory,
+        { role: 'user' as const, content: userMessage }
+      ]
+    }));
+
+    const response = await invokeOrchestration({
+      sessionId: state.sessionId,
+      action: 'continue',
+      userMessage,
+      inputData: state.inputData,
+      metrics: state.metrics,
+      approvalType: state.approvalType,
+    });
+    return response;
+  }, [state.sessionId, state.inputData, state.metrics, state.approvalType, invokeOrchestration, toast]);
 
   const approve = useCallback(async (approvalType: ApprovalType, selectedMetrics?: string[]) => {
     if (!state.sessionId) {
@@ -91,7 +141,6 @@ export function useOrchestration() {
       action: 'approve',
       approvalType,
       selectedMetrics,
-      // Pass back context for stateless operation
       inputData: state.inputData,
       metrics: state.metrics,
     });
@@ -111,12 +160,15 @@ export function useOrchestration() {
 
   const reset = useCallback(() => {
     setState(initialState);
+    setNewMetricIds([]);
   }, []);
 
   return {
     state,
     isLoading,
+    newMetricIds,
     startSession,
+    sendMessage,
     approve,
     reject,
     reset,
