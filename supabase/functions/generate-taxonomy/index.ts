@@ -1,10 +1,59 @@
 import "https://deno.land/x/xhr@0.1.0/mod.ts";
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
+import { z } from "https://deno.land/x/zod@v3.22.4/mod.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
+
+// Input validation schemas
+const customFieldSchema = z.object({
+  id: z.string().max(100),
+  name: z.string().max(200),
+  type: z.string().max(50).optional(),
+}).passthrough();
+
+const metricSchema = z.object({
+  id: z.string().max(100),
+  name: z.string().max(200),
+  description: z.string().max(1000).optional(),
+  category: z.string().max(100).optional(),
+  example_events: z.array(z.string().max(200)).max(20).optional(),
+}).passthrough();
+
+const eventSchema = z.object({
+  event_name: z.string().max(200),
+  description: z.string().max(1000).optional(),
+  trigger_action: z.string().max(100).optional(),
+  screen: z.string().max(200).optional(),
+  event_properties: z.array(z.string().max(200)).max(50).optional(),
+  owner: z.string().max(200).optional(),
+  notes: z.string().max(2000).optional(),
+  confidence: z.number().min(0).max(1).optional(),
+}).passthrough();
+
+const requestSchema = z.object({
+  sessionId: z.string().max(100).optional(),
+  url: z.string().url().max(2000).optional(),
+  imageData: z.string().max(15_000_000).optional(), // ~15MB base64
+  videoData: z.string().max(15_000_000).optional(), // ~15MB base64
+  productDetails: z.string().max(10000).optional(),
+  mode: z.enum(['metrics', 'taxonomy']).optional(),
+  selectedMetrics: z.array(z.string().max(200)).max(50).optional(),
+  customFields: z.array(customFieldSchema).max(20).optional(),
+  userMessage: z.string().max(5000).optional(),
+  action: z.enum(['start', 'continue', 'approve', 'reject']).optional(),
+  approvalType: z.enum(['metrics', 'taxonomy']).optional(),
+  inputData: z.object({
+    url: z.string().url().max(2000).optional(),
+    imageData: z.string().max(15_000_000).optional(),
+    videoData: z.string().max(15_000_000).optional(),
+    productDetails: z.string().max(10000).optional(),
+  }).optional(),
+  metrics: z.array(metricSchema).max(50).optional(),
+  events: z.array(eventSchema).max(200).optional(),
+});
 
 // Agent prompts
 const PRODUCT_ANALYST_PROMPT = `You are a Product Analytics Specialist. Analyze the product and recommend 5-8 key metrics that should be measured.
@@ -167,6 +216,24 @@ serve(async (req) => {
   }
 
   try {
+    // Parse and validate request body
+    const rawBody = await req.json();
+    const validationResult = requestSchema.safeParse(rawBody);
+    
+    if (!validationResult.success) {
+      console.error("Validation error:", validationResult.error.flatten());
+      return new Response(
+        JSON.stringify({ 
+          error: "Invalid request data",
+          details: validationResult.error.flatten().fieldErrors
+        }),
+        { 
+          status: 400,
+          headers: { ...corsHeaders, "Content-Type": "application/json" } 
+        }
+      );
+    }
+
     const { 
       sessionId,
       url, 
@@ -179,11 +246,10 @@ serve(async (req) => {
       userMessage,
       action = 'start',
       approvalType,
-      // Stateless: client sends back context from previous responses
       inputData: providedInputData,
       metrics: providedMetrics,
       events: providedEvents,
-    } = await req.json();
+    } = validationResult.data;
 
     console.log("Mode:", mode, "Action:", action, "Session:", sessionId);
 
@@ -225,14 +291,12 @@ serve(async (req) => {
           image_url: { url: input.videoData },
         });
       } else if (input.productDetails) {
-        // Fallback: use product details as text input
         userContent.push({
           type: "text",
           text: `Analyze this product:\n\n${input.productDetails}${extraText ? `\n\n${extraText}` : ""}`,
         });
       }
       
-      // Validate we have content
       if (userContent.length === 0) {
         throw new Error("No input provided. Please provide a URL, image, video, or product details.");
       }
@@ -242,7 +306,6 @@ serve(async (req) => {
 
     // Action handlers
     if (action === 'start') {
-      // Step 1: Product Analyst Agent - Generate metrics
       console.log("Running Product Analyst Agent...");
       
       const userContent = buildUserContent(inputData);
@@ -255,7 +318,6 @@ serve(async (req) => {
         approvalType: 'metrics',
         metrics: metricsResult.metrics,
         analysis: metricsResult.analysis,
-        // Return input data for client to send back
         inputData,
         conversationHistory: [
           { role: 'assistant', agent: 'Product Analyst', content: metricsResult.analysis || 'I have analyzed your product and identified key metrics to track.' }
@@ -266,11 +328,9 @@ serve(async (req) => {
     }
 
     if (action === 'continue' && userMessage) {
-      // Handle follow-up conversation
       console.log("Processing follow-up question, approvalType:", approvalType);
       
       if (approvalType === 'taxonomy') {
-        // Taxonomy conversation with Instrumentation Architect
         const currentEventsStr = providedEvents?.map((e: any) => 
           `- ${e.event_name}: ${e.description} (trigger: ${e.trigger_action}, screen: ${e.screen})`
         ).join('\n') || 'No events yet';
@@ -297,7 +357,6 @@ serve(async (req) => {
           headers: { ...corsHeaders, "Content-Type": "application/json" },
         });
       } else {
-        // Metrics conversation with Product Analyst
         const currentMetricsStr = providedMetrics?.map((m: any) => `- ${m.name}: ${m.description}`).join('\n') || 'No metrics yet';
         
         const conversationPrompt = CONVERSATION_PROMPT
@@ -307,7 +366,6 @@ serve(async (req) => {
         const userContent = buildUserContent(inputData, `User question: ${userMessage}`);
         const result = await callLovableAI(conversationPrompt, userContent, LOVABLE_API_KEY);
         
-        // Merge new metrics with existing ones
         const existingMetricIds = new Set(providedMetrics?.map((m: any) => m.id) || []);
         const newMetrics = (result.newMetrics || []).filter((m: any) => !existingMetricIds.has(m.id));
         const allMetrics = [...(providedMetrics || []), ...newMetrics];
@@ -329,7 +387,6 @@ serve(async (req) => {
     }
 
     if (action === 'approve' && approvalType === 'metrics') {
-      // Step 2: Instrumentation Architect Agent - Generate taxonomy
       console.log("Running Instrumentation Architect Agent...");
       
       const metricsToUse = selectedMetrics || providedMetrics?.map((m: any) => m.name) || [];
@@ -338,7 +395,6 @@ serve(async (req) => {
         throw new Error("No metrics provided for taxonomy generation");
       }
       
-      // Build custom fields instruction
       let customFieldsInstruction = '';
       let customFieldsJson = '';
       if (customFields && customFields.length > 0) {
@@ -365,7 +421,6 @@ serve(async (req) => {
         approvalType: 'taxonomy',
         events: taxonomyResult.events,
         summary: taxonomyResult.summary,
-        // Return data for client to send back
         inputData,
         metrics: providedMetrics,
         conversationHistory: [
@@ -378,7 +433,6 @@ serve(async (req) => {
     }
 
     if (action === 'approve' && approvalType === 'taxonomy') {
-      // Step 3: Finalize
       console.log("Finalizing taxonomy...");
 
       return new Response(JSON.stringify({
