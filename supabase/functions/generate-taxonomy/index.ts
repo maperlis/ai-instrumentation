@@ -160,6 +160,17 @@ serve(async (req) => {
           type: "image_url",
           image_url: { url: input.videoData },
         });
+      } else if (input.productDetails) {
+        // Fallback: use product details as text input
+        userContent.push({
+          type: "text",
+          text: `Analyze this product:\n\n${input.productDetails}${extraText ? `\n\n${extraText}` : ""}`,
+        });
+      }
+      
+      // Validate we have content
+      if (userContent.length === 0) {
+        throw new Error("No input provided. Please provide a URL, image, video, or product details.");
       }
       
       return userContent;
