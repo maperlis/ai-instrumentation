@@ -23,6 +23,7 @@ export type Database = {
           id: string
           project_name: string
           updated_at: string
+          user_id: string | null
         }
         Insert: {
           amplitude_api_key: string
@@ -32,6 +33,7 @@ export type Database = {
           id?: string
           project_name: string
           updated_at?: string
+          user_id?: string | null
         }
         Update: {
           amplitude_api_key?: string
@@ -41,6 +43,7 @@ export type Database = {
           id?: string
           project_name?: string
           updated_at?: string
+          user_id?: string | null
         }
         Relationships: []
       }

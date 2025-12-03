@@ -187,6 +187,21 @@ serve(async (req) => {
   try {
     const { credentials, taxonomy, dryRun = false, projectName } = await req.json();
 
+    // Extract user_id from JWT token
+    const authHeader = req.headers.get('authorization');
+    let userId: string | null = null;
+    
+    if (authHeader?.startsWith('Bearer ')) {
+      const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
+      const supabaseKey = Deno.env.get('SUPABASE_ANON_KEY')!;
+      const supabase = createClient(supabaseUrl, supabaseKey, {
+        global: { headers: { Authorization: authHeader } }
+      });
+      
+      const { data: { user } } = await supabase.auth.getUser();
+      userId = user?.id || null;
+    }
+
     if (!credentials?.apiKey) {
       throw new Error('Missing required Amplitude API key');
     }
@@ -206,7 +221,7 @@ serve(async (req) => {
     console.log('Taxonomy sync completed:', result);
 
     // Store the config in database if not a dry run and projectName is provided
-    if (!dryRun && projectName) {
+    if (!dryRun && projectName && userId) {
       try {
         const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
         const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
@@ -226,7 +241,8 @@ serve(async (req) => {
             project_name: projectName,
             amplitude_api_key: credentials.apiKey,
             amplitude_region: credentials.region,
-            config: config
+            config: config,
+            user_id: userId
           });
 
         if (dbError) {
@@ -238,6 +254,8 @@ serve(async (req) => {
         console.error('Failed to store config:', dbError);
         // Don't fail the whole request if config storage fails
       }
+    } else if (!dryRun && projectName && !userId) {
+      console.warn('No user_id available - config not stored (user must be authenticated)');
     }
 
     return new Response(
