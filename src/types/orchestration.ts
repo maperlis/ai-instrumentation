@@ -30,6 +30,7 @@ export interface OrchestrationRequest {
     productDetails?: string;
   };
   metrics?: Metric[];
+  events?: TaxonomyEvent[];
 }
 
 export interface OrchestrationResponse {

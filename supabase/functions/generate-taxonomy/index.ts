@@ -83,6 +83,40 @@ Return ONLY a valid JSON object with this structure:
 If no new metrics are suggested, return an empty array for newMetrics.
 Keep your response concise and helpful.`;
 
+const TAXONOMY_CONVERSATION_PROMPT = `You are an Instrumentation Architect having a conversation with a user about their event taxonomy.
+
+Current events in the taxonomy:
+{currentEvents}
+
+The user has asked: "{userMessage}"
+
+You should:
+1. Answer their question helpfully and concisely
+2. If they request changes to events, provide the updated events
+3. If they ask for new events, add them
+4. If they ask to remove events, exclude them from the response
+
+Return ONLY a valid JSON object with this structure:
+{
+  "response": "Your conversational response explaining the changes",
+  "updatedEvents": [
+    {
+      "event_name": "string",
+      "description": "string",
+      "trigger_action": "click|view|submit|scroll|etc",
+      "screen": "string",
+      "event_properties": ["array", "of", "strings"],
+      "owner": "string",
+      "notes": "string",
+      "confidence": 0.0-1.0
+    }
+  ],
+  "hasChanges": true
+}
+
+If no changes to the taxonomy, set hasChanges to false and return the current events in updatedEvents.
+Keep your response concise and helpful.`;
+
 async function callLovableAI(systemPrompt: string, userContent: any[], apiKey: string) {
   const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
     method: "POST",
@@ -148,6 +182,7 @@ serve(async (req) => {
       // Stateless: client sends back context from previous responses
       inputData: providedInputData,
       metrics: providedMetrics,
+      events: providedEvents,
     } = await req.json();
 
     console.log("Mode:", mode, "Action:", action, "Session:", sessionId);
@@ -232,35 +267,65 @@ serve(async (req) => {
 
     if (action === 'continue' && userMessage) {
       // Handle follow-up conversation
-      console.log("Processing follow-up question...");
+      console.log("Processing follow-up question, approvalType:", approvalType);
       
-      const currentMetricsStr = providedMetrics?.map((m: any) => `- ${m.name}: ${m.description}`).join('\n') || 'No metrics yet';
-      
-      const conversationPrompt = CONVERSATION_PROMPT
-        .replace('{currentMetrics}', currentMetricsStr)
-        .replace('{userMessage}', userMessage);
+      if (approvalType === 'taxonomy') {
+        // Taxonomy conversation with Instrumentation Architect
+        const currentEventsStr = providedEvents?.map((e: any) => 
+          `- ${e.event_name}: ${e.description} (trigger: ${e.trigger_action}, screen: ${e.screen})`
+        ).join('\n') || 'No events yet';
+        
+        const conversationPrompt = TAXONOMY_CONVERSATION_PROMPT
+          .replace('{currentEvents}', currentEventsStr)
+          .replace('{userMessage}', userMessage);
 
-      const userContent = buildUserContent(inputData, `User question: ${userMessage}`);
-      const result = await callLovableAI(conversationPrompt, userContent, LOVABLE_API_KEY);
-      
-      // Merge new metrics with existing ones
-      const existingMetricIds = new Set(providedMetrics?.map((m: any) => m.id) || []);
-      const newMetrics = (result.newMetrics || []).filter((m: any) => !existingMetricIds.has(m.id));
-      const allMetrics = [...(providedMetrics || []), ...newMetrics];
+        const userContent = buildUserContent(inputData, `User question about taxonomy: ${userMessage}`);
+        const result = await callLovableAI(conversationPrompt, userContent, LOVABLE_API_KEY);
+        
+        return new Response(JSON.stringify({
+          sessionId: newSessionId,
+          status: 'waiting_approval',
+          requiresApproval: true,
+          approvalType: 'taxonomy',
+          events: result.hasChanges ? result.updatedEvents : providedEvents,
+          inputData,
+          metrics: providedMetrics,
+          conversationHistory: [
+            { role: 'assistant', agent: 'Instrumentation Architect', content: result.response }
+          ]
+        }), {
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      } else {
+        // Metrics conversation with Product Analyst
+        const currentMetricsStr = providedMetrics?.map((m: any) => `- ${m.name}: ${m.description}`).join('\n') || 'No metrics yet';
+        
+        const conversationPrompt = CONVERSATION_PROMPT
+          .replace('{currentMetrics}', currentMetricsStr)
+          .replace('{userMessage}', userMessage);
 
-      return new Response(JSON.stringify({
-        sessionId: newSessionId,
-        status: 'waiting_approval',
-        requiresApproval: true,
-        approvalType: approvalType || 'metrics',
-        metrics: allMetrics,
-        inputData,
-        conversationHistory: [
-          { role: 'assistant', agent: 'Product Analyst', content: result.response }
-        ]
-      }), {
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
+        const userContent = buildUserContent(inputData, `User question: ${userMessage}`);
+        const result = await callLovableAI(conversationPrompt, userContent, LOVABLE_API_KEY);
+        
+        // Merge new metrics with existing ones
+        const existingMetricIds = new Set(providedMetrics?.map((m: any) => m.id) || []);
+        const newMetrics = (result.newMetrics || []).filter((m: any) => !existingMetricIds.has(m.id));
+        const allMetrics = [...(providedMetrics || []), ...newMetrics];
+
+        return new Response(JSON.stringify({
+          sessionId: newSessionId,
+          status: 'waiting_approval',
+          requiresApproval: true,
+          approvalType: 'metrics',
+          metrics: allMetrics,
+          inputData,
+          conversationHistory: [
+            { role: 'assistant', agent: 'Product Analyst', content: result.response }
+          ]
+        }), {
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
     }
 
     if (action === 'approve' && approvalType === 'metrics') {
