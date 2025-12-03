@@ -48,16 +48,15 @@ export function useOrchestration() {
 
       // Append only new assistant messages to existing history (user messages are already added optimistically)
       const newHistory = data.conversationHistory || [];
-      const mergedHistory = [...state.conversationHistory, ...newHistory];
 
-      // Update state based on response
+      // Update state based on response - use prev to get latest state including optimistic updates
       setState(prev => ({
         ...prev,
         sessionId: data.sessionId || prev.sessionId,
         status: data.status,
         metrics: data.metrics || prev.metrics,
         events: data.events || prev.events,
-        conversationHistory: mergedHistory,
+        conversationHistory: [...prev.conversationHistory, ...newHistory],
         approvalType: data.approvalType || null,
         requiresApproval: data.requiresApproval || false,
         inputData: data.inputData || prev.inputData,
