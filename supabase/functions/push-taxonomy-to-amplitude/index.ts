@@ -1,11 +1,34 @@
 import "https://deno.land/x/xhr@0.1.0/mod.ts";
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.76.1';
+import { z } from "https://deno.land/x/zod@v3.22.4/mod.ts";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
+
+// Input validation schemas
+const taxonomyEventSchema = z.object({
+  event_name: z.string().min(1).max(200),
+  description: z.string().max(2000).optional(),
+  category: z.string().max(100).optional(),
+  trigger_action: z.string().max(100).optional(),
+  screen: z.string().max(200).optional(),
+  event_properties: z.array(z.string().max(200)).max(100).optional(),
+}).passthrough();
+
+const credentialsSchema = z.object({
+  apiKey: z.string().min(1).max(100),
+  region: z.enum(['US', 'EU']),
+});
+
+const requestSchema = z.object({
+  credentials: credentialsSchema,
+  taxonomy: z.array(taxonomyEventSchema).min(1).max(500),
+  dryRun: z.boolean().optional().default(false),
+  projectName: z.string().min(1).max(200).optional(),
+});
 
 type AmplitudeRegion = "US" | "EU";
 
@@ -16,8 +39,10 @@ interface AmplitudeCredentials {
 
 interface TaxonomyEvent {
   event_name: string;
-  description: string;
+  description?: string;
   category?: string;
+  trigger_action?: string;
+  screen?: string;
   event_properties?: string[];
   [key: string]: any;
 }
@@ -35,7 +60,6 @@ function ingestionBase(region: AmplitudeRegion): string {
 }
 
 function sampleValue(propertyName?: string): any {
-  // Generate reasonable sample values based on property name hints
   const name = (propertyName || "").toLowerCase();
   
   if (name.includes("id") || name.includes("key")) return "sample_id_123";
@@ -50,15 +74,12 @@ function sampleValue(propertyName?: string): any {
 }
 
 function generateSelector(event: TaxonomyEvent): string {
-  // Generate a reasonable CSS selector based on the event details
   const eventName = event.event_name || "";
   const screen = event.screen || "";
   
-  // Extract key parts from event name
   const parts = eventName.split("_");
-  const object = parts[parts.length - 1]; // last part is usually the object
+  const object = parts[parts.length - 1];
   
-  // Common patterns
   if (eventName.includes("button") || eventName.includes("click")) {
     return `button[data-event="${eventName}"], .${object}-button`;
   }
@@ -72,13 +93,11 @@ function generateSelector(event: TaxonomyEvent): string {
     return `input[data-event="${eventName}"], .${object}-input`;
   }
   
-  // Default: use data attribute or class based on screen and object
   const screenClass = screen.toLowerCase().replace(/\s+/g, "-");
   return `[data-event="${eventName}"], .${screenClass} .${object}`;
 }
 
-function mapTriggerAction(triggerAction: string): string {
-  // Map common trigger actions to DOM events
+function mapTriggerAction(triggerAction?: string): string {
   const action = (triggerAction || "").toLowerCase();
   
   if (action.includes("click")) return "click";
@@ -90,7 +109,7 @@ function mapTriggerAction(triggerAction: string): string {
   if (action.includes("scroll")) return "scroll";
   if (action.includes("hover") || action.includes("mouseover")) return "mouseenter";
   
-  return "click"; // default
+  return "click";
 }
 
 async function sendEvents(
@@ -158,7 +177,6 @@ async function publishTaxonomyViaIngestion(
     };
   });
 
-  // Send in chunks of 500 (Amplitude's batch limit)
   const chunkSize = 500;
   for (let i = 0; i < events.length; i += chunkSize) {
     const chunk = events.slice(i, i + chunkSize);
@@ -185,7 +203,26 @@ serve(async (req) => {
   }
 
   try {
-    const { credentials, taxonomy, dryRun = false, projectName } = await req.json();
+    // Parse and validate request body
+    const rawBody = await req.json();
+    const validationResult = requestSchema.safeParse(rawBody);
+    
+    if (!validationResult.success) {
+      console.error("Validation error:", validationResult.error.flatten());
+      return new Response(
+        JSON.stringify({ 
+          success: false,
+          error: "Invalid request data",
+          details: validationResult.error.flatten().fieldErrors
+        }),
+        { 
+          status: 400,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
+        }
+      );
+    }
+
+    const { credentials, taxonomy, dryRun, projectName } = validationResult.data;
 
     // Extract user_id from JWT token
     const authHeader = req.headers.get('authorization');
@@ -202,18 +239,6 @@ serve(async (req) => {
       userId = user?.id || null;
     }
 
-    if (!credentials?.apiKey) {
-      throw new Error('Missing required Amplitude API key');
-    }
-
-    if (!credentials?.region || !['US', 'EU'].includes(credentials.region)) {
-      throw new Error('Missing or invalid region (must be US or EU)');
-    }
-
-    if (!taxonomy || !Array.isArray(taxonomy)) {
-      throw new Error('Invalid taxonomy data');
-    }
-
     console.log(`Starting Amplitude ingestion-based taxonomy sync for ${taxonomy.length} events (dry run: ${dryRun}, region: ${credentials.region})`);
 
     const result = await publishTaxonomyViaIngestion(taxonomy, credentials, dryRun);
@@ -227,7 +252,6 @@ serve(async (req) => {
         const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
         const supabase = createClient(supabaseUrl, supabaseKey);
 
-        // Transform taxonomy to config format with selectors
         const config = taxonomy.map((event: TaxonomyEvent) => ({
           event_name: event.event_name,
           selector: generateSelector(event),
@@ -252,7 +276,6 @@ serve(async (req) => {
         }
       } catch (dbError) {
         console.error('Failed to store config:', dbError);
-        // Don't fail the whole request if config storage fails
       }
     } else if (!dryRun && projectName && !userId) {
       console.warn('No user_id available - config not stored (user must be authenticated)');

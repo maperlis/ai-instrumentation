@@ -1,10 +1,36 @@
 import "https://deno.land/x/xhr@0.1.0/mod.ts";
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
+import { z } from "https://deno.land/x/zod@v3.22.4/mod.ts";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
+
+// Input validation schemas
+const eventSchema = z.object({
+  event_name: z.string().min(1).max(200),
+  description: z.string().max(2000).optional().default(''),
+  trigger_action: z.string().max(100).optional().default(''),
+  screen: z.string().max(200).optional().default(''),
+  event_properties: z.array(z.string().max(200)).max(100).optional().default([]),
+  owner: z.string().max(200).optional().default(''),
+  notes: z.string().max(2000).optional().default(''),
+  confidence: z.number().min(0).max(1).optional(),
+}).passthrough();
+
+const customTicketSchema = z.object({
+  title: z.string().min(1).max(500),
+  description: z.string().max(50000),
+  labels: z.array(z.string().max(100)).max(20).optional(),
+  priority: z.string().max(50).optional(),
+}).optional();
+
+const requestSchema = z.object({
+  events: z.array(eventSchema).min(1).max(200),
+  selectedMetrics: z.array(z.string().max(200)).max(50).optional().default([]),
+  customTicket: customTicketSchema,
+});
 
 serve(async (req) => {
   if (req.method === 'OPTIONS') {
@@ -12,7 +38,25 @@ serve(async (req) => {
   }
 
   try {
-    const { events, selectedMetrics, customTicket } = await req.json();
+    // Parse and validate request body
+    const rawBody = await req.json();
+    const validationResult = requestSchema.safeParse(rawBody);
+    
+    if (!validationResult.success) {
+      console.error("Validation error:", validationResult.error.flatten());
+      return new Response(
+        JSON.stringify({ 
+          error: "Invalid request data",
+          details: validationResult.error.flatten().fieldErrors
+        }),
+        { 
+          status: 400,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
+        }
+      );
+    }
+
+    const { events, selectedMetrics, customTicket } = validationResult.data;
 
     // Check if JIRA credentials are configured
     const jiraEmail = Deno.env.get('JIRA_EMAIL');
@@ -79,15 +123,15 @@ import analytics from './analytics'; // Your analytics instance
 // 2. Event tracking functions
 ${events.map(event => `
 /**
- * ${event.description}
- * @param properties - Event properties: ${event.event_properties.join(', ')}
+ * ${event.description || 'Track ' + event.event_name}
+ * @param properties - Event properties: ${(event.event_properties || []).join(', ') || 'none'}
  */
 function track${toCamelCase(event.event_name)}(properties: {
-  ${event.event_properties.map((prop: string) => `${prop}: string | number;`).join('\n  ')}
+  ${(event.event_properties || []).map((prop: string) => `${prop}: string | number;`).join('\n  ')}
 }) {
   analytics.track('${event.event_name}', {
     ...properties,
-    screen: '${event.screen}',
+    screen: '${event.screen || 'unknown'}',
     timestamp: new Date().toISOString()
   });
 }
@@ -95,7 +139,7 @@ function track${toCamelCase(event.event_name)}(properties: {
 
 // 3. Example usage:
 // track${toCamelCase(events[0]?.event_name || 'Event')}({
-//   ${events[0]?.event_properties.map((prop: string) => `${prop}: 'value'`).join(',\n//   ')}
+//   ${(events[0]?.event_properties || []).map((prop: string) => `${prop}: 'value'`).join(',\n//   ') || '// No properties'}
 // });
 `;
 }
@@ -120,25 +164,25 @@ function generateTicketContent(events: any[], selectedMetrics: string[], code: s
 Implement the following analytics taxonomy to track key product metrics and user behaviors.
 
 ## Selected Metrics
-${selectedMetrics.map(metric => `- ${metric}`).join('\n')}
+${selectedMetrics.map(metric => `- ${metric}`).join('\n') || '- No specific metrics selected'}
 
 ## Events to Implement (${events.length} total)
 
 ${events.map((event, index) => `
 ### ${index + 1}. ${event.event_name}
 
-**Description:** ${event.description}
+**Description:** ${event.description || 'No description'}
 
-**Trigger Action:** ${event.trigger_action}
+**Trigger Action:** ${event.trigger_action || 'Not specified'}
 
-**Screen/Location:** ${event.screen}
+**Screen/Location:** ${event.screen || 'Not specified'}
 
 **Properties:**
-${event.event_properties.map((prop: string) => `- \`${prop}\``).join('\n')}
+${(event.event_properties || []).map((prop: string) => `- \`${prop}\``).join('\n') || '- No properties'}
 
-**Owner:** ${event.owner}
+**Owner:** ${event.owner || 'Not assigned'}
 
-**Notes:** ${event.notes}
+**Notes:** ${event.notes || 'No notes'}
 
 **Confidence Score:** ${event.confidence ? (event.confidence * 100).toFixed(0) + '%' : 'N/A'}
 
@@ -152,7 +196,7 @@ ${code}
 \`\`\`
 
 ## Testing Checklist
-${events.map(event => `- [ ] Verify ${event.event_name} fires on ${event.trigger_action}`).join('\n')}
+${events.map(event => `- [ ] Verify ${event.event_name} fires on ${event.trigger_action || 'trigger'}`).join('\n')}
 - [ ] Validate all event properties are captured correctly
 - [ ] Test events in development environment
 - [ ] Verify events appear in analytics dashboard
@@ -214,9 +258,9 @@ async function createJiraTicket(
         issuetype: {
           name: 'Task',
         },
-        labels: ticketContent.labels,
+        labels: ticketContent.labels || [],
         priority: {
-          name: ticketContent.priority,
+          name: ticketContent.priority || 'Medium',
         },
       },
     }),
@@ -230,6 +274,6 @@ async function createJiraTicket(
   const data = await response.json();
   return {
     key: data.key,
-    url: `https://${domain}/browse/${data.key}`,
+    url: `https://${cleanDomain}/browse/${data.key}`,
   };
 }
