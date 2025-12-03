@@ -1,13 +1,13 @@
 project_id = "zbeiifflalqondrwdmkp"
 
 [functions.generate-taxonomy]
-verify_jwt = false
+verify_jwt = true
 
 [functions.create-ticket]
-verify_jwt = false
+verify_jwt = true
 
 [functions.push-taxonomy-to-amplitude]
-verify_jwt = false
+verify_jwt = true
 
 [functions.events-config]
-verify_jwt = false
+verify_jwt = true
