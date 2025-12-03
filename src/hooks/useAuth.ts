@@ -53,6 +53,16 @@ export function useAuth() {
     return { error };
   }, []);
 
+  const signInWithGoogle = useCallback(async () => {
+    const { data, error } = await supabase.auth.signInWithOAuth({
+      provider: 'google',
+      options: {
+        redirectTo: `${window.location.origin}/`,
+      },
+    });
+    return { data, error };
+  }, []);
+
   return {
     user,
     session,
@@ -60,5 +70,6 @@ export function useAuth() {
     signUp,
     signIn,
     signOut,
+    signInWithGoogle,
   };
 }
