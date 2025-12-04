@@ -14,6 +14,8 @@ export interface MetricNode {
   level?: number;
   influenceDescription?: string;
   example_events?: string[];
+  calculation?: string;
+  businessQuestions?: string[];
 }
 
 export interface MetricRelationship {

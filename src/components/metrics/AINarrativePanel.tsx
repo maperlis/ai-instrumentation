@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Sparkles, Edit2, Save, X, ChevronRight, Tag, Settings2 } from "lucide-react";
+import { Sparkles, Edit2, Save, X, ChevronRight, Tag, Settings2, Calculator, HelpCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Input } from "@/components/ui/input";
@@ -46,6 +46,19 @@ export function AINarrativePanel({
     setEditedMetric(null);
   };
 
+  // Parse business questions from narrative or use metric's businessQuestions
+  const getBusinessQuestions = (): string[] => {
+    if (selectedMetric?.businessQuestions && selectedMetric.businessQuestions.length > 0) {
+      return selectedMetric.businessQuestions;
+    }
+    // Default placeholder questions if none provided
+    return [
+      "How is this metric trending over time?",
+      "What factors are driving changes in this metric?",
+      "How does this metric compare across segments?"
+    ];
+  };
+
   return (
     <div className="h-full flex flex-col bg-card border-l">
       {/* Header */}
@@ -62,39 +75,8 @@ export function AINarrativePanel({
       </div>
 
       <ScrollArea className="flex-1">
-        <div className="p-4 space-y-6">
-          {/* AI Narrative */}
-          <div className="space-y-3">
-            <h4 className="text-xs font-medium text-muted-foreground uppercase tracking-wide flex items-center gap-2">
-              <ChevronRight className="w-3 h-3" />
-              Analysis
-            </h4>
-            <motion.div
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              className="relative"
-            >
-              {isLoading ? (
-                <div className="space-y-2">
-                  {[1, 2, 3].map((i) => (
-                    <div
-                      key={i}
-                      className="h-4 bg-muted rounded animate-pulse"
-                      style={{ width: `${100 - i * 15}%` }}
-                    />
-                  ))}
-                </div>
-              ) : (
-                <p className="text-sm text-muted-foreground leading-relaxed">
-                  {narrative || "Select a metric or add more data to see AI-generated insights about your metrics and their relationships."}
-                </p>
-              )}
-            </motion.div>
-          </div>
-
-          <Separator />
-
-          {/* Selected Metric Details */}
+        <div className="p-4 space-y-5">
+          {/* Selected Metric Details - Now First */}
           <AnimatePresence mode="wait">
             {selectedMetric && (
               <motion.div
@@ -146,6 +128,17 @@ export function AINarrativePanel({
                       />
                     </div>
                     <div>
+                      <label className="text-xs text-muted-foreground">Calculation</label>
+                      <Input
+                        value={editedMetric.calculation || ''}
+                        onChange={(e) =>
+                          setEditedMetric({ ...editedMetric, calculation: e.target.value })
+                        }
+                        placeholder="e.g., Revenue / Active Users"
+                        className="mt-1 h-8 text-sm font-mono"
+                      />
+                    </div>
+                    <div>
                       <label className="text-xs text-muted-foreground">Category</label>
                       <Input
                         value={editedMetric.category}
@@ -175,45 +168,70 @@ export function AINarrativePanel({
                     </div>
                   </div>
                 ) : (
-                  <div className="space-y-3">
+                  <div className="space-y-4">
+                    {/* Metric Name & Tags */}
                     <div className="p-3 bg-muted/50 rounded-lg">
-                      <h5 className="font-semibold text-sm">{selectedMetric.name}</h5>
-                      <p className="text-xs text-muted-foreground mt-1">
+                      <div className="flex items-start justify-between gap-2">
+                        <h5 className="font-semibold text-base">{selectedMetric.name}</h5>
+                        {selectedMetric.isNorthStar && (
+                          <Badge className="text-xs bg-primary/10 text-primary border-primary/30 shrink-0">
+                            ⭐ North Star
+                          </Badge>
+                        )}
+                      </div>
+                      <div className="flex flex-wrap gap-1 mt-2">
+                        <Badge variant="secondary" className="text-xs">
+                          <Tag className="w-2.5 h-2.5 mr-1" />
+                          {selectedMetric.category}
+                        </Badge>
+                        {selectedMetric.status && (
+                          <Badge
+                            variant="outline"
+                            className={cn(
+                              "text-xs capitalize",
+                              selectedMetric.status === 'healthy' && "border-success text-success",
+                              selectedMetric.status === 'warning' && "border-warning text-warning",
+                              selectedMetric.status === 'critical' && "border-destructive text-destructive"
+                            )}
+                          >
+                            {selectedMetric.status}
+                          </Badge>
+                        )}
+                      </div>
+                    </div>
+
+                    {/* Definition */}
+                    <div>
+                      <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide mb-1.5">
+                        Definition
+                      </p>
+                      <p className="text-sm text-foreground leading-relaxed">
                         {selectedMetric.description}
                       </p>
                     </div>
 
-                    {/* Tags */}
-                    <div className="flex flex-wrap gap-1">
-                      <Badge variant="secondary" className="text-xs">
-                        <Tag className="w-2.5 h-2.5 mr-1" />
-                        {selectedMetric.category}
-                      </Badge>
-                      {selectedMetric.isNorthStar && (
-                        <Badge className="text-xs bg-primary/10 text-primary border-primary/30">
-                          ⭐ North Star
-                        </Badge>
-                      )}
-                      {selectedMetric.status && (
-                        <Badge
-                          variant="outline"
-                          className={cn(
-                            "text-xs capitalize",
-                            selectedMetric.status === 'healthy' && "border-success text-success",
-                            selectedMetric.status === 'warning' && "border-warning text-warning",
-                            selectedMetric.status === 'critical' && "border-destructive text-destructive"
-                          )}
-                        >
-                          {selectedMetric.status}
-                        </Badge>
-                      )}
-                    </div>
+                    {/* Calculation */}
+                    {selectedMetric.calculation && (
+                      <div className="p-3 bg-muted/30 border border-border/50 rounded-lg">
+                        <div className="flex items-center gap-1.5 mb-1.5">
+                          <Calculator className="w-3.5 h-3.5 text-muted-foreground" />
+                          <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
+                            Calculation
+                          </p>
+                        </div>
+                        <p className="text-sm font-mono text-foreground">
+                          {selectedMetric.calculation}
+                        </p>
+                      </div>
+                    )}
 
                     {/* Influence Description */}
                     {selectedMetric.influenceDescription && (
-                      <div className="p-3 bg-primary/5 border border-primary/10 rounded-lg">
-                        <p className="text-xs text-muted-foreground">
-                          <span className="text-primary font-medium">Influence:</span>{" "}
+                      <div>
+                        <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide mb-1.5">
+                          Influence
+                        </p>
+                        <p className="text-sm text-foreground leading-relaxed">
                           {selectedMetric.influenceDescription}
                         </p>
                       </div>
@@ -222,7 +240,9 @@ export function AINarrativePanel({
                     {/* Example Events */}
                     {selectedMetric.example_events && selectedMetric.example_events.length > 0 && (
                       <div>
-                        <p className="text-xs text-muted-foreground mb-2">Related Events</p>
+                        <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide mb-2">
+                          Related Events
+                        </p>
                         <div className="flex flex-wrap gap-1">
                           {selectedMetric.example_events.map((event, i) => (
                             <Badge key={i} variant="outline" className="text-xs font-mono">
@@ -246,6 +266,60 @@ export function AINarrativePanel({
               </div>
               <p className="text-sm text-muted-foreground">
                 Select a metric to view and edit its details
+              </p>
+            </div>
+          )}
+
+          {selectedMetric && <Separator />}
+
+          {/* Business Questions Analysis - Now Second */}
+          {selectedMetric && (
+            <div className="space-y-3">
+              <h4 className="text-xs font-medium text-muted-foreground uppercase tracking-wide flex items-center gap-2">
+                <HelpCircle className="w-3 h-3" />
+                Business Questions
+              </h4>
+              <motion.div
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                className="relative"
+              >
+                {isLoading ? (
+                  <div className="space-y-2">
+                    {[1, 2, 3].map((i) => (
+                      <div
+                        key={i}
+                        className="h-4 bg-muted rounded animate-pulse"
+                        style={{ width: `${100 - i * 15}%` }}
+                      />
+                    ))}
+                  </div>
+                ) : (
+                  <ul className="space-y-2">
+                    {getBusinessQuestions().map((question, index) => (
+                      <li 
+                        key={index} 
+                        className="flex items-start gap-2 text-sm text-muted-foreground"
+                      >
+                        <span className="text-primary mt-1">•</span>
+                        <span>{question}</span>
+                      </li>
+                    ))}
+                  </ul>
+                )}
+              </motion.div>
+            </div>
+          )}
+
+          {/* General Analysis for when no metric is selected */}
+          {!selectedMetric && narrative && (
+            <div className="space-y-3">
+              <h4 className="text-xs font-medium text-muted-foreground uppercase tracking-wide flex items-center gap-2">
+                <ChevronRight className="w-3 h-3" />
+                Analysis
+              </h4>
+              <p className="text-sm text-muted-foreground leading-relaxed">
+                {narrative}
               </p>
             </div>
           )}
