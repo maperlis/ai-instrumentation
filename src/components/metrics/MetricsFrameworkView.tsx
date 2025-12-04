@@ -1,11 +1,12 @@
 import { useState, useCallback, useMemo, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Check, Eye, List } from "lucide-react";
+import { Check, Eye, List, Star } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Checkbox } from "@/components/ui/checkbox";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Badge } from "@/components/ui/badge";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { FrameworkType, FrameworkData, MetricNode, MetricRelationship, FunnelStage, FlywheelLoop, FrameworkRecommendation, ClarifyingQuestion } from "@/types/metricsFramework";
 import { Metric } from "@/types/taxonomy";
 import { FrameworkSelector } from "./FrameworkSelector";
@@ -207,6 +208,10 @@ export function MetricsFrameworkView({
     setSelectedMetric(metric);
   }, []);
 
+  const handleSetNorthStar = useCallback((metricId: string) => {
+    setNorthStarId(metricId);
+  }, []);
+
   return (
     <div className="h-full flex">
       {/* Left Panel - Chat or Recommendation Flow */}
@@ -365,31 +370,42 @@ export function MetricsFrameworkView({
                       {categoryMetrics.map((metric) => {
                         const isSelected = selectedMetricIds.includes(metric.id);
                         const isNew = newMetricIds.includes(metric.id);
+                        const currentNorthStarId = northStarId || (selectedMetricIds.length > 0 ? metrics.find(m => selectedMetricIds.includes(m.id))?.id : null);
+                        const isNorthStar = metric.id === currentNorthStarId;
                         
                         return (
                           <div
                             key={metric.id}
-                            onClick={() => onToggleMetric(metric.id)}
                             className={`
-                              p-4 rounded-lg border cursor-pointer transition-all
+                              p-4 rounded-lg border transition-all
                               ${isSelected 
                                 ? 'bg-primary/10 border-primary/50' 
                                 : 'bg-card hover:bg-accent/50 border-border'
                               }
                               ${isNew ? 'ring-2 ring-primary/50 ring-offset-2' : ''}
+                              ${isNorthStar && isSelected ? 'ring-2 ring-amber-500/50' : ''}
                             `}
                           >
                             <div className="flex items-start gap-3">
                               <Checkbox
                                 checked={isSelected}
                                 onCheckedChange={() => onToggleMetric(metric.id)}
-                                className="mt-0.5"
+                                className="mt-0.5 cursor-pointer"
                               />
-                              <div className="flex-1 min-w-0">
+                              <div 
+                                className="flex-1 min-w-0 cursor-pointer"
+                                onClick={() => onToggleMetric(metric.id)}
+                              >
                                 <div className="flex items-center gap-2">
                                   <span className="font-medium">{metric.name}</span>
                                   {isNew && (
                                     <Badge variant="default" className="text-xs">New</Badge>
+                                  )}
+                                  {isNorthStar && isSelected && (
+                                    <Badge variant="outline" className="text-xs bg-amber-500/10 text-amber-600 border-amber-500/30">
+                                      <Star className="w-3 h-3 mr-1 fill-amber-500" />
+                                      North Star
+                                    </Badge>
                                   )}
                                 </div>
                                 <p className="text-sm text-muted-foreground mt-1 line-clamp-2">
@@ -405,6 +421,32 @@ export function MetricsFrameworkView({
                                   </div>
                                 )}
                               </div>
+                              {isSelected && (
+                                <TooltipProvider>
+                                  <Tooltip>
+                                    <TooltipTrigger asChild>
+                                      <button
+                                        onClick={(e) => {
+                                          e.stopPropagation();
+                                          handleSetNorthStar(metric.id);
+                                        }}
+                                        className={`
+                                          p-1.5 rounded-md transition-all
+                                          ${isNorthStar 
+                                            ? 'text-amber-500 bg-amber-500/10' 
+                                            : 'text-muted-foreground hover:text-amber-500 hover:bg-amber-500/10'
+                                          }
+                                        `}
+                                      >
+                                        <Star className={`w-4 h-4 ${isNorthStar ? 'fill-amber-500' : ''}`} />
+                                      </button>
+                                    </TooltipTrigger>
+                                    <TooltipContent>
+                                      {isNorthStar ? 'Current North Star' : 'Set as North Star'}
+                                    </TooltipContent>
+                                  </Tooltip>
+                                </TooltipProvider>
+                              )}
                             </div>
                           </div>
                         );
