@@ -344,9 +344,9 @@ export function MetricsFrameworkView({
           </TabsContent>
 
           {/* Metric Selection Tab */}
-          <TabsContent value="selection" className="flex-1 m-0 overflow-hidden" style={{ height: 'calc(100vh - 140px)' }}>
-            <ScrollArea className="h-full w-full">
-              <div className="p-6 space-y-4">
+          <TabsContent value="selection" className="flex-1 m-0 relative overflow-hidden">
+            <div className="absolute inset-0 overflow-auto">
+              <div className="p-6 space-y-4 pb-12">
                 {/* Group metrics by category */}
                 {Object.entries(
                   metrics.reduce((acc, metric) => {
@@ -412,7 +412,7 @@ export function MetricsFrameworkView({
                   </div>
                 ))}
               </div>
-            </ScrollArea>
+            </div>
           </TabsContent>
         </Tabs>
       </div>
