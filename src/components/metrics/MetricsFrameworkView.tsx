@@ -1,7 +1,11 @@
 import { useState, useCallback, useMemo, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Check } from "lucide-react";
+import { Check, Eye, List } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Checkbox } from "@/components/ui/checkbox";
+import { ScrollArea } from "@/components/ui/scroll-area";
+import { Badge } from "@/components/ui/badge";
 import { FrameworkType, FrameworkData, MetricNode, MetricRelationship, FunnelStage, FlywheelLoop, FrameworkRecommendation, ClarifyingQuestion } from "@/types/metricsFramework";
 import { Metric } from "@/types/taxonomy";
 import { FrameworkSelector } from "./FrameworkSelector";
@@ -203,78 +207,169 @@ export function MetricsFrameworkView({
 
       {/* Center Panel - Visualization */}
       <div className="flex-1 flex flex-col min-w-0">
-        {/* Framework Selector Header */}
-        <div className="p-4 border-b flex items-center justify-between bg-card/50 backdrop-blur-sm">
-          <FrameworkSelector
-            selectedFramework={selectedFramework}
-            onSelect={setSelectedFramework}
-            recommendedFramework={frameworkRecommendation?.recommendedFramework}
-          />
-          <Button
-            onClick={onApprove}
-            disabled={selectedMetricIds.length === 0 || isLoading}
-            size="lg"
-            className="shadow-lg"
-          >
-            <Check className="w-4 h-4 mr-2" />
-            Generate Taxonomy ({selectedMetricIds.length})
-          </Button>
-        </div>
+        <Tabs defaultValue="visualization" className="flex-1 flex flex-col">
+          {/* Header with Tabs and Actions */}
+          <div className="p-4 border-b flex items-center justify-between bg-card/50 backdrop-blur-sm">
+            <div className="flex items-center gap-4">
+              <TabsList>
+                <TabsTrigger value="visualization" className="gap-2">
+                  <Eye className="w-4 h-4" />
+                  Visualization
+                </TabsTrigger>
+                <TabsTrigger value="selection" className="gap-2">
+                  <List className="w-4 h-4" />
+                  Select Metrics
+                  <Badge variant="secondary" className="ml-1 px-1.5 py-0 text-xs">
+                    {selectedMetricIds.length}
+                  </Badge>
+                </TabsTrigger>
+              </TabsList>
+              
+              <FrameworkSelector
+                selectedFramework={selectedFramework}
+                onSelect={setSelectedFramework}
+                recommendedFramework={frameworkRecommendation?.recommendedFramework}
+              />
+            </div>
+            
+            <Button
+              onClick={onApprove}
+              disabled={selectedMetricIds.length === 0 || isLoading}
+              size="lg"
+              className="shadow-lg"
+            >
+              <Check className="w-4 h-4 mr-2" />
+              Generate Taxonomy ({selectedMetricIds.length})
+            </Button>
+          </div>
 
-        {/* Visualization Area */}
-        <div className="flex-1 relative overflow-hidden">
-          <AnimatePresence mode="wait">
-            {selectedFramework === 'driver_tree' && (
-              <motion.div
-                key="driver-tree"
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                exit={{ opacity: 0 }}
-                className="absolute inset-0"
-              >
-                <DriverTreeVisualization
-                  data={frameworkData}
-                  onMetricSelect={handleMetricSelect}
-                  selectedMetricId={selectedMetric?.id}
-                />
-              </motion.div>
-            )}
+          {/* Visualization Tab */}
+          <TabsContent value="visualization" className="flex-1 m-0 relative overflow-hidden">
+            <AnimatePresence mode="wait">
+              {selectedFramework === 'driver_tree' && (
+                <motion.div
+                  key="driver-tree"
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  exit={{ opacity: 0 }}
+                  className="absolute inset-0"
+                >
+                  <DriverTreeVisualization
+                    data={frameworkData}
+                    onMetricSelect={handleMetricSelect}
+                    selectedMetricId={selectedMetric?.id}
+                  />
+                </motion.div>
+              )}
 
-            {selectedFramework === 'conversion_funnel' && (
-              <motion.div
-                key="funnel"
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                exit={{ opacity: 0 }}
-                className="absolute inset-0"
-              >
-                <ConversionFunnelVisualization
-                  stages={funnelStages}
-                  northStarMetric={frameworkData.northStarMetric}
-                  onStageSelect={() => {}}
-                  onMetricSelect={handleMetricSelect}
-                />
-              </motion.div>
-            )}
+              {selectedFramework === 'conversion_funnel' && (
+                <motion.div
+                  key="funnel"
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  exit={{ opacity: 0 }}
+                  className="absolute inset-0"
+                >
+                  <ConversionFunnelVisualization
+                    stages={funnelStages}
+                    northStarMetric={frameworkData.northStarMetric}
+                    onStageSelect={() => {}}
+                    onMetricSelect={handleMetricSelect}
+                  />
+                </motion.div>
+              )}
 
-            {selectedFramework === 'growth_flywheel' && (
-              <motion.div
-                key="flywheel"
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                exit={{ opacity: 0 }}
-                className="absolute inset-0"
-              >
-                <GrowthFlywheelVisualization
-                  loops={flywheelLoops}
-                  northStarMetric={frameworkData.northStarMetric}
-                  onLoopSelect={() => {}}
-                  onMetricSelect={handleMetricSelect}
-                />
-              </motion.div>
-            )}
-          </AnimatePresence>
-        </div>
+              {selectedFramework === 'growth_flywheel' && (
+                <motion.div
+                  key="flywheel"
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  exit={{ opacity: 0 }}
+                  className="absolute inset-0"
+                >
+                  <GrowthFlywheelVisualization
+                    loops={flywheelLoops}
+                    northStarMetric={frameworkData.northStarMetric}
+                    onLoopSelect={() => {}}
+                    onMetricSelect={handleMetricSelect}
+                  />
+                </motion.div>
+              )}
+            </AnimatePresence>
+          </TabsContent>
+
+          {/* Metric Selection Tab */}
+          <TabsContent value="selection" className="flex-1 m-0 overflow-hidden">
+            <ScrollArea className="h-full">
+              <div className="p-6 space-y-4">
+                {/* Group metrics by category */}
+                {Object.entries(
+                  metrics.reduce((acc, metric) => {
+                    const category = metric.category || 'Uncategorized';
+                    if (!acc[category]) acc[category] = [];
+                    acc[category].push(metric);
+                    return acc;
+                  }, {} as Record<string, Metric[]>)
+                ).map(([category, categoryMetrics]) => (
+                  <div key={category} className="space-y-2">
+                    <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide">
+                      {category}
+                    </h3>
+                    <div className="grid gap-2">
+                      {categoryMetrics.map((metric) => {
+                        const isSelected = selectedMetricIds.includes(metric.id);
+                        const isNew = newMetricIds.includes(metric.id);
+                        
+                        return (
+                          <div
+                            key={metric.id}
+                            onClick={() => onToggleMetric(metric.id)}
+                            className={`
+                              p-4 rounded-lg border cursor-pointer transition-all
+                              ${isSelected 
+                                ? 'bg-primary/10 border-primary/50' 
+                                : 'bg-card hover:bg-accent/50 border-border'
+                              }
+                              ${isNew ? 'ring-2 ring-primary/50 ring-offset-2' : ''}
+                            `}
+                          >
+                            <div className="flex items-start gap-3">
+                              <Checkbox
+                                checked={isSelected}
+                                onCheckedChange={() => onToggleMetric(metric.id)}
+                                className="mt-0.5"
+                              />
+                              <div className="flex-1 min-w-0">
+                                <div className="flex items-center gap-2">
+                                  <span className="font-medium">{metric.name}</span>
+                                  {isNew && (
+                                    <Badge variant="default" className="text-xs">New</Badge>
+                                  )}
+                                </div>
+                                <p className="text-sm text-muted-foreground mt-1 line-clamp-2">
+                                  {metric.description}
+                                </p>
+                                {metric.example_events && metric.example_events.length > 0 && (
+                                  <div className="flex flex-wrap gap-1 mt-2">
+                                    {metric.example_events.slice(0, 3).map((event, i) => (
+                                      <Badge key={i} variant="outline" className="text-xs">
+                                        {event}
+                                      </Badge>
+                                    ))}
+                                  </div>
+                                )}
+                              </div>
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </ScrollArea>
+          </TabsContent>
+        </Tabs>
       </div>
 
       {/* Right Panel - AI Narrative */}
