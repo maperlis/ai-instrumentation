@@ -56,42 +56,87 @@ export function MetricsFrameworkView({
     }
   }, [frameworkRecommendation]);
 
-  // Convert Metric[] to MetricNode[] with hierarchy
+  // Convert Metric[] to MetricNode[] with 3-level hierarchy
   const metricNodes: MetricNode[] = useMemo(() => {
-    return metrics
-      .filter((m) => selectedMetricIds.includes(m.id))
-      .map((m, index) => {
-        const metricWithLevel = m as Metric & { level?: number; influenceDescription?: string };
-        return {
-          id: m.id,
-          name: m.name,
-          description: m.description,
-          category: m.category,
-          example_events: m.example_events,
-          isNorthStar: northStarId === m.id || (index === 0 && !northStarId),
-          level: metricWithLevel.level ?? (northStarId === m.id || (index === 0 && !northStarId) ? 0 : 1),
-          parentId: index === 0 || northStarId === m.id ? null : (northStarId || metrics[0]?.id),
-          influenceDescription: metricWithLevel.influenceDescription || `This metric helps drive ${metrics[0]?.name || 'your North Star'}`,
-          status: 'healthy' as const,
-          trend: 'up' as const,
-          trendPercentage: Math.floor(Math.random() * 20) + 1,
-        };
-      });
+    const selectedMetrics = metrics.filter((m) => selectedMetricIds.includes(m.id));
+    if (selectedMetrics.length === 0) return [];
+
+    // Determine North Star (first metric or explicit northStarId)
+    const northStarMetricId = northStarId || selectedMetrics[0]?.id;
+    
+    // Group remaining metrics by category to create driver/sub-driver structure
+    const otherMetrics = selectedMetrics.filter(m => m.id !== northStarMetricId);
+    const categories = [...new Set(otherMetrics.map(m => m.category))];
+    
+    // First metric in each category becomes a driver (level 1)
+    // Remaining metrics in each category become sub-drivers (level 2)
+    const driverIds = new Set<string>();
+    const categoryFirstMetric: Record<string, string> = {};
+    
+    categories.forEach(category => {
+      const firstInCategory = otherMetrics.find(m => m.category === category);
+      if (firstInCategory) {
+        driverIds.add(firstInCategory.id);
+        categoryFirstMetric[category] = firstInCategory.id;
+      }
+    });
+
+    return selectedMetrics.map((m) => {
+      const isNorthStar = m.id === northStarMetricId;
+      const isDriver = driverIds.has(m.id);
+      
+      let level = 2; // Default to sub-driver
+      let parentId: string | null = null;
+      
+      if (isNorthStar) {
+        level = 0;
+        parentId = null;
+      } else if (isDriver) {
+        level = 1;
+        parentId = northStarMetricId;
+      } else {
+        level = 2;
+        // Parent is the driver metric from the same category
+        parentId = categoryFirstMetric[m.category] || northStarMetricId;
+      }
+
+      const metricWithLevel = m as Metric & { influenceDescription?: string };
+      return {
+        id: m.id,
+        name: m.name,
+        description: m.description,
+        category: m.category,
+        example_events: m.example_events,
+        isNorthStar,
+        level,
+        parentId,
+        influenceDescription: metricWithLevel.influenceDescription || 
+          (isDriver 
+            ? `Core driver for ${selectedMetrics[0]?.name || 'your North Star'}`
+            : `Sub-driver contributing to ${m.category} metrics`),
+        status: 'healthy' as const,
+        trend: 'up' as const,
+        trendPercentage: Math.floor(Math.random() * 20) + 1,
+      };
+    });
   }, [metrics, selectedMetricIds, northStarId]);
 
-  // Build relationships
+  // Build relationships based on parent-child hierarchy
   const relationships: MetricRelationship[] = useMemo(() => {
-    const northStar = metricNodes.find((m) => m.isNorthStar);
-    if (!northStar) return [];
-
-    return metricNodes
-      .filter((m) => !m.isNorthStar)
-      .map((m) => ({
-        sourceId: northStar.id,
-        targetId: m.id,
-        influenceStrength: (['strong', 'medium', 'weak'] as const)[Math.floor(Math.random() * 3)],
-        description: `Influences ${northStar.name}`,
-      }));
+    const rels: MetricRelationship[] = [];
+    
+    metricNodes.forEach(metric => {
+      if (metric.parentId) {
+        rels.push({
+          sourceId: metric.parentId,
+          targetId: metric.id,
+          influenceStrength: metric.level === 1 ? 'strong' : 'medium',
+          description: `Drives ${metric.name}`,
+        });
+      }
+    });
+    
+    return rels;
   }, [metricNodes]);
 
   // Framework data
@@ -299,8 +344,8 @@ export function MetricsFrameworkView({
           </TabsContent>
 
           {/* Metric Selection Tab */}
-          <TabsContent value="selection" className="flex-1 m-0 overflow-hidden">
-            <ScrollArea className="h-full">
+          <TabsContent value="selection" className="flex-1 m-0 overflow-hidden" style={{ height: 'calc(100vh - 140px)' }}>
+            <ScrollArea className="h-full w-full">
               <div className="p-6 space-y-4">
                 {/* Group metrics by category */}
                 {Object.entries(
