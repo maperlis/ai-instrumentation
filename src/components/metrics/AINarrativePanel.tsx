@@ -1,0 +1,263 @@
+import { useState } from "react";
+import { motion, AnimatePresence } from "framer-motion";
+import { Sparkles, Edit2, Save, X, ChevronRight, Tag, Settings2 } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Textarea } from "@/components/ui/textarea";
+import { Input } from "@/components/ui/input";
+import { Badge } from "@/components/ui/badge";
+import { ScrollArea } from "@/components/ui/scroll-area";
+import { Separator } from "@/components/ui/separator";
+import { MetricNode } from "@/types/metricsFramework";
+import { cn } from "@/lib/utils";
+
+interface AINarrativePanelProps {
+  narrative: string;
+  selectedMetric?: MetricNode | null;
+  onMetricUpdate?: (metric: MetricNode) => void;
+  isLoading?: boolean;
+}
+
+export function AINarrativePanel({
+  narrative,
+  selectedMetric,
+  onMetricUpdate,
+  isLoading,
+}: AINarrativePanelProps) {
+  const [isEditing, setIsEditing] = useState(false);
+  const [editedMetric, setEditedMetric] = useState<MetricNode | null>(null);
+
+  const handleEditStart = () => {
+    if (selectedMetric) {
+      setEditedMetric({ ...selectedMetric });
+      setIsEditing(true);
+    }
+  };
+
+  const handleSave = () => {
+    if (editedMetric && onMetricUpdate) {
+      onMetricUpdate(editedMetric);
+    }
+    setIsEditing(false);
+    setEditedMetric(null);
+  };
+
+  const handleCancel = () => {
+    setIsEditing(false);
+    setEditedMetric(null);
+  };
+
+  return (
+    <div className="h-full flex flex-col bg-card border-l">
+      {/* Header */}
+      <div className="p-4 border-b">
+        <div className="flex items-center gap-2">
+          <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center">
+            <Sparkles className="w-4 h-4 text-primary" />
+          </div>
+          <div>
+            <h3 className="font-semibold text-sm">AI Insights</h3>
+            <p className="text-xs text-muted-foreground">Your metrics co-pilot</p>
+          </div>
+        </div>
+      </div>
+
+      <ScrollArea className="flex-1">
+        <div className="p-4 space-y-6">
+          {/* AI Narrative */}
+          <div className="space-y-3">
+            <h4 className="text-xs font-medium text-muted-foreground uppercase tracking-wide flex items-center gap-2">
+              <ChevronRight className="w-3 h-3" />
+              Analysis
+            </h4>
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              className="relative"
+            >
+              {isLoading ? (
+                <div className="space-y-2">
+                  {[1, 2, 3].map((i) => (
+                    <div
+                      key={i}
+                      className="h-4 bg-muted rounded animate-pulse"
+                      style={{ width: `${100 - i * 15}%` }}
+                    />
+                  ))}
+                </div>
+              ) : (
+                <p className="text-sm text-muted-foreground leading-relaxed">
+                  {narrative || "Select a metric or add more data to see AI-generated insights about your metrics and their relationships."}
+                </p>
+              )}
+            </motion.div>
+          </div>
+
+          <Separator />
+
+          {/* Selected Metric Details */}
+          <AnimatePresence mode="wait">
+            {selectedMetric && (
+              <motion.div
+                key={selectedMetric.id}
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -10 }}
+                className="space-y-4"
+              >
+                <div className="flex items-center justify-between">
+                  <h4 className="text-xs font-medium text-muted-foreground uppercase tracking-wide flex items-center gap-2">
+                    <Settings2 className="w-3 h-3" />
+                    Selected Metric
+                  </h4>
+                  {!isEditing && (
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={handleEditStart}
+                      className="h-7 text-xs"
+                    >
+                      <Edit2 className="w-3 h-3 mr-1" />
+                      Edit
+                    </Button>
+                  )}
+                </div>
+
+                {isEditing && editedMetric ? (
+                  <div className="space-y-3">
+                    <div>
+                      <label className="text-xs text-muted-foreground">Name</label>
+                      <Input
+                        value={editedMetric.name}
+                        onChange={(e) =>
+                          setEditedMetric({ ...editedMetric, name: e.target.value })
+                        }
+                        className="mt-1 h-8 text-sm"
+                      />
+                    </div>
+                    <div>
+                      <label className="text-xs text-muted-foreground">Description</label>
+                      <Textarea
+                        value={editedMetric.description}
+                        onChange={(e) =>
+                          setEditedMetric({ ...editedMetric, description: e.target.value })
+                        }
+                        className="mt-1 text-sm resize-none"
+                        rows={3}
+                      />
+                    </div>
+                    <div>
+                      <label className="text-xs text-muted-foreground">Category</label>
+                      <Input
+                        value={editedMetric.category}
+                        onChange={(e) =>
+                          setEditedMetric({ ...editedMetric, category: e.target.value })
+                        }
+                        className="mt-1 h-8 text-sm"
+                      />
+                    </div>
+                    <div className="flex gap-2">
+                      <Button
+                        size="sm"
+                        onClick={handleSave}
+                        className="flex-1 h-8"
+                      >
+                        <Save className="w-3 h-3 mr-1" />
+                        Save
+                      </Button>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={handleCancel}
+                        className="h-8"
+                      >
+                        <X className="w-3 h-3" />
+                      </Button>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="space-y-3">
+                    <div className="p-3 bg-muted/50 rounded-lg">
+                      <h5 className="font-semibold text-sm">{selectedMetric.name}</h5>
+                      <p className="text-xs text-muted-foreground mt-1">
+                        {selectedMetric.description}
+                      </p>
+                    </div>
+
+                    {/* Tags */}
+                    <div className="flex flex-wrap gap-1">
+                      <Badge variant="secondary" className="text-xs">
+                        <Tag className="w-2.5 h-2.5 mr-1" />
+                        {selectedMetric.category}
+                      </Badge>
+                      {selectedMetric.isNorthStar && (
+                        <Badge className="text-xs bg-primary/10 text-primary border-primary/30">
+                          ⭐ North Star
+                        </Badge>
+                      )}
+                      {selectedMetric.status && (
+                        <Badge
+                          variant="outline"
+                          className={cn(
+                            "text-xs capitalize",
+                            selectedMetric.status === 'healthy' && "border-success text-success",
+                            selectedMetric.status === 'warning' && "border-warning text-warning",
+                            selectedMetric.status === 'critical' && "border-destructive text-destructive"
+                          )}
+                        >
+                          {selectedMetric.status}
+                        </Badge>
+                      )}
+                    </div>
+
+                    {/* Influence Description */}
+                    {selectedMetric.influenceDescription && (
+                      <div className="p-3 bg-primary/5 border border-primary/10 rounded-lg">
+                        <p className="text-xs text-muted-foreground">
+                          <span className="text-primary font-medium">Influence:</span>{" "}
+                          {selectedMetric.influenceDescription}
+                        </p>
+                      </div>
+                    )}
+
+                    {/* Example Events */}
+                    {selectedMetric.example_events && selectedMetric.example_events.length > 0 && (
+                      <div>
+                        <p className="text-xs text-muted-foreground mb-2">Related Events</p>
+                        <div className="flex flex-wrap gap-1">
+                          {selectedMetric.example_events.map((event, i) => (
+                            <Badge key={i} variant="outline" className="text-xs font-mono">
+                              {event}
+                            </Badge>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                )}
+              </motion.div>
+            )}
+          </AnimatePresence>
+
+          {/* Empty state when no metric selected */}
+          {!selectedMetric && (
+            <div className="text-center py-8">
+              <div className="w-12 h-12 rounded-full bg-muted flex items-center justify-center mx-auto mb-3">
+                <Settings2 className="w-5 h-5 text-muted-foreground" />
+              </div>
+              <p className="text-sm text-muted-foreground">
+                Select a metric to view and edit its details
+              </p>
+            </div>
+          )}
+        </div>
+      </ScrollArea>
+
+      {/* Footer tip */}
+      <div className="p-3 border-t bg-muted/30">
+        <p className="text-xs text-muted-foreground text-center">
+          💡 Tip: Click any metric to see detailed insights
+        </p>
+      </div>
+    </div>
+  );
+}

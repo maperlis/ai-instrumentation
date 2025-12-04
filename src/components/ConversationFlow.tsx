@@ -5,8 +5,10 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { Loader2, ArrowLeft, Bot, Check, X } from "lucide-react";
 import { ConversationMessage, ApprovalType } from "@/types/orchestration";
 import { Metric, TaxonomyEvent } from "@/types/taxonomy";
+import { FrameworkRecommendation, ClarifyingQuestion } from "@/types/metricsFramework";
 import { AgentChat } from "./AgentChat";
 import { MetricSelectionPanel } from "./MetricSelectionPanel";
+import { MetricsFrameworkView } from "./metrics";
 
 interface ConversationFlowProps {
   conversationHistory: ConversationMessage[];
@@ -22,6 +24,10 @@ interface ConversationFlowProps {
   onSendMessage: (message: string) => void;
   status: string;
   newMetricIds?: string[];
+  frameworkRecommendation?: FrameworkRecommendation | null;
+  clarifyingQuestions?: ClarifyingQuestion[];
+  onClarifyingAnswer?: (answers: Record<string, string>) => void;
+  useFrameworkView?: boolean;
 }
 
 export function ConversationFlow({
@@ -38,6 +44,10 @@ export function ConversationFlow({
   onSendMessage,
   status,
   newMetricIds = [],
+  frameworkRecommendation,
+  clarifyingQuestions = [],
+  onClarifyingAnswer,
+  useFrameworkView = true,
 }: ConversationFlowProps) {
   const [selectedMetricIds, setSelectedMetricIds] = useState<string[]>([]);
 
@@ -80,21 +90,45 @@ export function ConversationFlow({
     return null;
   }
 
-  // Metrics approval with split panel
+  // Metrics approval with framework visualization
   if (requiresApproval && approvalType === 'metrics' && metrics.length > 0) {
+    if (useFrameworkView) {
+      return (
+        <div className="h-screen flex flex-col">
+          <div className="p-4 border-b flex items-center gap-4 bg-card">
+            <Button variant="ghost" onClick={onBack} size="sm">
+              <ArrowLeft className="w-4 h-4 mr-2" />
+              Start Over
+            </Button>
+            <h1 className="font-semibold">Select Metrics & Framework</h1>
+          </div>
+          <div className="flex-1 overflow-hidden">
+            <MetricsFrameworkView
+              metrics={metrics}
+              selectedMetricIds={selectedMetricIds}
+              onToggleMetric={toggleMetric}
+              onApprove={handleApprove}
+              isLoading={isLoading}
+              conversationHistory={conversationHistory}
+              onSendMessage={onSendMessage}
+              newMetricIds={newMetricIds}
+              frameworkRecommendation={frameworkRecommendation}
+              clarifyingQuestions={clarifyingQuestions}
+              onClarifyingAnswer={onClarifyingAnswer}
+            />
+          </div>
+        </div>
+      );
+    }
+
+    // Fallback to original panel view
     return (
       <div className="container mx-auto px-4 py-6 max-w-7xl h-[calc(100vh-2rem)]">
-        <Button
-          variant="ghost"
-          onClick={onBack}
-          className="mb-4"
-        >
+        <Button variant="ghost" onClick={onBack} className="mb-4">
           <ArrowLeft className="w-4 h-4 mr-2" />
           Start Over
         </Button>
-
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 h-[calc(100%-4rem)]">
-          {/* Left Panel - Chat */}
           <Card className="flex flex-col overflow-hidden">
             <AgentChat
               conversationHistory={conversationHistory}
@@ -105,8 +139,6 @@ export function ConversationFlow({
               placeholder="Ask about metrics or suggest alternatives..."
             />
           </Card>
-
-          {/* Right Panel - Metric Selection */}
           <Card className="flex flex-col overflow-hidden">
             <MetricSelectionPanel
               metrics={metrics}
