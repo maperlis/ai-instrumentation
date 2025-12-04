@@ -1,4 +1,5 @@
 import { TaxonomyEvent, Metric } from "./taxonomy";
+import { FrameworkType, FrameworkRecommendation, ClarifyingQuestion } from "./metricsFramework";
 
 export interface ConversationMessage {
   role: 'user' | 'assistant';
@@ -8,7 +9,7 @@ export interface ConversationMessage {
 
 export type OrchestrationStatus = 'idle' | 'processing' | 'waiting_approval' | 'completed' | 'error' | 'rejected';
 export type ApprovalType = 'metrics' | 'taxonomy';
-export type ActionType = 'start' | 'continue' | 'approve' | 'reject';
+export type ActionType = 'start' | 'continue' | 'approve' | 'reject' | 'answer_questions';
 
 export interface OrchestrationRequest {
   sessionId?: string;
@@ -22,6 +23,8 @@ export interface OrchestrationRequest {
   userMessage?: string;
   action?: ActionType;
   approvalType?: ApprovalType;
+  clarifyingAnswers?: Record<string, string>;
+  selectedFramework?: FrameworkType;
   // For stateless operation - client sends back context
   inputData?: {
     url?: string;
@@ -51,6 +54,8 @@ export interface OrchestrationResponse {
     videoData?: string;
     productDetails?: string;
   };
+  frameworkRecommendation?: FrameworkRecommendation;
+  clarifyingQuestions?: ClarifyingQuestion[];
 }
 
 export interface OrchestrationState {
@@ -67,4 +72,7 @@ export interface OrchestrationState {
     videoData?: string;
     productDetails?: string;
   } | null;
+  frameworkRecommendation: FrameworkRecommendation | null;
+  clarifyingQuestions: ClarifyingQuestion[];
+  selectedFramework: FrameworkType | null;
 }

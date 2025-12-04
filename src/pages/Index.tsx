@@ -88,7 +88,7 @@ const Index = () => {
       )}
       
       {currentStep === 'conversation' && (
-        <div className="gradient-hero min-h-screen">
+        <div className="min-h-screen">
           <ConversationFlow
             conversationHistory={state.conversationHistory}
             metrics={state.metrics}
@@ -103,6 +103,12 @@ const Index = () => {
             onSendMessage={handleSendMessage}
             status={state.status}
             newMetricIds={newMetricIds}
+            frameworkRecommendation={state.frameworkRecommendation}
+            clarifyingQuestions={state.clarifyingQuestions}
+            onClarifyingAnswer={(answers) => {
+              // For now, just log - could send to backend for refined recommendations
+              console.log("Clarifying answers:", answers);
+            }}
           />
         </div>
       )}

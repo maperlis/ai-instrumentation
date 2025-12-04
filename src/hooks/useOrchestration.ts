@@ -17,6 +17,9 @@ const initialState: OrchestrationState = {
   approvalType: null,
   requiresApproval: false,
   inputData: null,
+  frameworkRecommendation: null,
+  clarifyingQuestions: [],
+  selectedFramework: null,
 };
 
 export function useOrchestration() {
@@ -60,6 +63,8 @@ export function useOrchestration() {
         approvalType: data.approvalType || null,
         requiresApproval: data.requiresApproval || false,
         inputData: data.inputData || prev.inputData,
+        frameworkRecommendation: data.frameworkRecommendation || prev.frameworkRecommendation,
+        clarifyingQuestions: data.clarifyingQuestions || prev.clarifyingQuestions,
       }));
 
       return data;

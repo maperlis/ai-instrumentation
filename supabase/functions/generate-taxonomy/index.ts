@@ -56,9 +56,42 @@ const requestSchema = z.object({
 });
 
 // Agent prompts
+const FRAMEWORK_RECOMMENDATION_PROMPT = `You are a Product Analytics Specialist. Analyze the product and recommend the best metrics framework for visualizing and tracking their key metrics.
+
+The three framework options are:
+1. "driver_tree" - A hierarchical Driver Tree showing a North Star metric at top with contributing metrics branching below. Best for: understanding cause-and-effect relationships, products with clear metric hierarchies.
+2. "conversion_funnel" - A step-by-step Conversion Funnel showing user journey stages. Best for: e-commerce, SaaS onboarding, lead generation, products with clear user journeys.
+3. "growth_flywheel" - A circular Growth Flywheel showing self-reinforcing loops. Best for: marketplace products, viral products, community-driven products with network effects.
+
+Based on the product, provide:
+1. Your recommended framework with reasoning
+2. 2-3 clarifying questions to refine your recommendation (if helpful)
+
+Return ONLY a valid JSON object with this structure:
+{
+  "recommendedFramework": "driver_tree|conversion_funnel|growth_flywheel",
+  "confidence": 0.0-1.0,
+  "reasoning": "Clear explanation of why this framework suits their product. Be conversational and helpful. Use plain language.",
+  "clarifyingQuestions": [
+    {
+      "id": "question_1",
+      "question": "What is your primary business goal right now?",
+      "type": "single_choice",
+      "options": ["Grow new users", "Increase engagement", "Improve retention", "Drive revenue"]
+    }
+  ]
+}`;
+
 const PRODUCT_ANALYST_PROMPT = `You are a Product Analytics Specialist. Analyze the product and recommend 5-8 key metrics that should be measured.
 
+Consider the recommended framework: {framework}
+User's clarifying answers: {clarifyingAnswers}
+
 Group metrics by category (Acquisition, Engagement, Retention, Monetization, Product Usage).
+
+For each metric, also include:
+- A "level" (0 for North Star, 1 for primary drivers, 2 for secondary/operational metrics)
+- An "influenceDescription" explaining how this metric drives the metrics above it
 
 Return ONLY a valid JSON object with this exact structure:
 {
@@ -68,10 +101,12 @@ Return ONLY a valid JSON object with this exact structure:
       "name": "Conversion Rate",
       "description": "Percentage of users who complete key actions like signup or purchase",
       "category": "Acquisition",
-      "example_events": ["signup_completed", "purchase_completed", "trial_started"]
+      "example_events": ["signup_completed", "purchase_completed", "trial_started"],
+      "level": 1,
+      "influenceDescription": "Higher conversion rates directly increase Weekly Active Users"
     }
   ],
-  "analysis": "Brief analysis of the product and why these metrics matter"
+  "analysis": "Brief analysis of the product and why these metrics matter. Be conversational, mention the framework choice, and explain the metric relationships. ✨ Add a touch of personality."
 }`;
 
 const INSTRUMENTATION_ARCHITECT_PROMPT = `You are an Instrumentation Architect. Generate a comprehensive event taxonomy optimized for measuring these metrics: {selectedMetrics}.
@@ -306,10 +341,20 @@ serve(async (req) => {
 
     // Action handlers
     if (action === 'start') {
-      console.log("Running Product Analyst Agent...");
+      console.log("Running Framework Recommendation + Product Analyst Agent...");
       
       const userContent = buildUserContent(inputData);
-      const metricsResult = await callLovableAI(PRODUCT_ANALYST_PROMPT, userContent, LOVABLE_API_KEY);
+      
+      // First, get framework recommendation
+      const frameworkResult = await callLovableAI(FRAMEWORK_RECOMMENDATION_PROMPT, userContent, LOVABLE_API_KEY);
+      console.log("Framework recommendation:", frameworkResult.recommendedFramework);
+      
+      // Then get metrics with framework context
+      const metricsPrompt = PRODUCT_ANALYST_PROMPT
+        .replace('{framework}', frameworkResult.recommendedFramework || 'driver_tree')
+        .replace('{clarifyingAnswers}', 'None yet');
+      
+      const metricsResult = await callLovableAI(metricsPrompt, userContent, LOVABLE_API_KEY);
 
       return new Response(JSON.stringify({
         sessionId: newSessionId,
@@ -319,8 +364,15 @@ serve(async (req) => {
         metrics: metricsResult.metrics,
         analysis: metricsResult.analysis,
         inputData,
+        frameworkRecommendation: {
+          recommendedFramework: frameworkResult.recommendedFramework,
+          confidence: frameworkResult.confidence || 0.8,
+          reasoning: frameworkResult.reasoning,
+        },
+        clarifyingQuestions: frameworkResult.clarifyingQuestions || [],
         conversationHistory: [
-          { role: 'assistant', agent: 'Product Analyst', content: metricsResult.analysis || 'I have analyzed your product and identified key metrics to track.' }
+          { role: 'assistant', agent: 'Product Analyst', content: frameworkResult.reasoning || 'I have analyzed your product.' },
+          { role: 'assistant', agent: 'Product Analyst', content: metricsResult.analysis || 'Here are the key metrics I recommend tracking.' }
         ]
       }), {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
