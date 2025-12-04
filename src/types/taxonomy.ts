@@ -24,6 +24,10 @@ export interface Metric {
   description: string;
   category: string;
   example_events: string[];
+  calculation?: string;
+  businessQuestions?: string[];
+  influenceDescription?: string;
+  level?: number;
 }
 
 export interface GenerateRequest {
