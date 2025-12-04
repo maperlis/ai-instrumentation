@@ -9,6 +9,7 @@ interface GrowthFlywheelVisualizationProps {
   loops: FlywheelLoop[];
   northStarMetric?: MetricNode | null;
   onLoopSelect?: (loop: FlywheelLoop) => void;
+  onMetricSelect?: (metric: MetricNode) => void;
   selectedLoopId?: string;
 }
 
@@ -16,9 +17,10 @@ export function GrowthFlywheelVisualization({
   loops,
   northStarMetric,
   onLoopSelect,
+  onMetricSelect,
   selectedLoopId,
 }: GrowthFlywheelVisualizationProps) {
-  const [hoveredLoop, setHoveredLoop] = useState<string | null>(null);
+  const [expandedLoop, setExpandedLoop] = useState<string | null>(null);
   const containerRef = useRef<HTMLDivElement>(null);
 
   const momentumColors = {
@@ -92,7 +94,7 @@ export function GrowthFlywheelVisualization({
         {/* Flywheel Loops */}
         {loops.map((loop, index) => {
           const pos = calculateLoopPosition(index, loops.length, 260);
-          const isHovered = hoveredLoop === loop.id;
+          const isExpanded = expandedLoop === loop.id;
           const isSelected = selectedLoopId === loop.id;
 
           return (
@@ -112,18 +114,19 @@ export function GrowthFlywheelVisualization({
               <motion.div
                 className={cn(
                   "relative cursor-pointer transition-all",
-                  "w-40 h-40 rounded-full",
+                  "w-44 h-44 rounded-full",
                   "bg-gradient-to-br",
                   momentumColors[loop.momentum],
                   "border-2",
                   momentumBorders[loop.momentum],
-                  (isHovered || isSelected) && "ring-4 ring-primary/30 ring-offset-4 ring-offset-background shadow-xl"
+                  (isExpanded || isSelected) && "ring-4 ring-primary/30 ring-offset-4 ring-offset-background shadow-xl"
                 )}
-                onMouseEnter={() => setHoveredLoop(loop.id)}
-                onMouseLeave={() => setHoveredLoop(null)}
-                onClick={() => onLoopSelect?.(loop)}
-                whileHover={{ scale: 1.08 }}
-                whileTap={{ scale: 0.95 }}
+                onClick={() => {
+                  setExpandedLoop(isExpanded ? null : loop.id);
+                  onLoopSelect?.(loop);
+                }}
+                whileHover={{ scale: 1.05 }}
+                whileTap={{ scale: 0.98 }}
               >
                 {/* Momentum indicator - rotating ring */}
                 <motion.div
@@ -146,7 +149,7 @@ export function GrowthFlywheelVisualization({
                   )} />
                   <h4 className="font-semibold text-sm leading-tight">{loop.name}</h4>
                   <p className="text-xs text-muted-foreground mt-1.5 capitalize">
-                    {loop.momentum} momentum
+                    {loop.momentum} · {loop.metrics.length} metrics
                   </p>
                 </div>
               </motion.div>
@@ -175,32 +178,33 @@ export function GrowthFlywheelVisualization({
                 />
               </svg>
 
-              {/* Expanded metrics on hover/select */}
+              {/* Expanded metrics panel - always visible when expanded */}
               <AnimatePresence>
-                {(isHovered || isSelected) && loop.metrics.length > 0 && (
+                {isExpanded && loop.metrics.length > 0 && (
                   <motion.div
                     initial={{ opacity: 0, scale: 0.9, y: 10 }}
                     animate={{ opacity: 1, scale: 1, y: 0 }}
                     exit={{ opacity: 0, scale: 0.9, y: 10 }}
                     className="absolute top-full left-1/2 -translate-x-1/2 mt-4 z-30"
+                    onClick={(e) => e.stopPropagation()}
                   >
-                    <div className="bg-card border-2 rounded-xl shadow-xl p-4 min-w-[240px]">
+                    <div className="bg-card border-2 rounded-xl shadow-xl p-4 min-w-[280px]">
                       <p className="text-sm text-muted-foreground mb-3 line-clamp-2 leading-relaxed">
                         {loop.description}
                       </p>
                       <div className="space-y-3">
-                        {loop.metrics.slice(0, 3).map(metric => (
-                          <MetricCard
+                        {loop.metrics.map(metric => (
+                          <div 
                             key={metric.id}
-                            metric={metric}
-                            compact
-                          />
+                            onClick={() => onMetricSelect?.(metric)}
+                            className="cursor-pointer hover:scale-[1.02] transition-transform"
+                          >
+                            <MetricCard
+                              metric={metric}
+                              compact
+                            />
+                          </div>
                         ))}
-                        {loop.metrics.length > 3 && (
-                          <p className="text-xs text-muted-foreground text-center pt-1">
-                            +{loop.metrics.length - 3} more metrics
-                          </p>
-                        )}
                       </div>
                     </div>
                   </motion.div>

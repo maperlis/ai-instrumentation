@@ -252,6 +252,7 @@ export function MetricsFrameworkView({
                   stages={funnelStages}
                   northStarMetric={frameworkData.northStarMetric}
                   onStageSelect={() => {}}
+                  onMetricSelect={handleMetricSelect}
                 />
               </motion.div>
             )}
@@ -268,6 +269,7 @@ export function MetricsFrameworkView({
                   loops={flywheelLoops}
                   northStarMetric={frameworkData.northStarMetric}
                   onLoopSelect={() => {}}
+                  onMetricSelect={handleMetricSelect}
                 />
               </motion.div>
             )}

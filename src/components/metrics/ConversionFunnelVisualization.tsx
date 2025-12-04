@@ -10,6 +10,7 @@ interface ConversionFunnelVisualizationProps {
   northStarMetric?: MetricNode | null;
   onStageSelect?: (stage: FunnelStage) => void;
   onMetricHighlight?: (metricIds: string[]) => void;
+  onMetricSelect?: (metric: MetricNode) => void;
 }
 
 export function ConversionFunnelVisualization({
@@ -17,6 +18,7 @@ export function ConversionFunnelVisualization({
   northStarMetric,
   onStageSelect,
   onMetricHighlight,
+  onMetricSelect,
 }: ConversionFunnelVisualizationProps) {
   const [expandedStage, setExpandedStage] = useState<string | null>(null);
   const [hoveredStage, setHoveredStage] = useState<string | null>(null);
@@ -157,12 +159,20 @@ export function ConversionFunnelVisualization({
                       </p>
                       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 max-w-2xl mx-auto">
                         {stage.driverMetrics.map(metric => (
-                          <MetricCard
-                            key={metric.id}
-                            metric={metric}
-                            compact
-                            showInfluence
-                          />
+                          <div 
+                            key={metric.id} 
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              onMetricSelect?.(metric);
+                            }}
+                            className="cursor-pointer"
+                          >
+                            <MetricCard
+                              metric={metric}
+                              compact
+                              showInfluence
+                            />
+                          </div>
                         ))}
                       </div>
                     </div>
