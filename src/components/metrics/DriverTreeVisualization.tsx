@@ -1,20 +1,22 @@
-import { useCallback, useMemo, useState, useEffect } from "react";
+import { useCallback, useMemo, useState, useEffect, useRef } from "react";
 import {
   ReactFlow,
   Node,
   Edge,
-  Controls,
   Background,
   useNodesState,
   useEdgesState,
   ConnectionMode,
   Position,
+  useReactFlow,
+  ReactFlowProvider,
 } from "@xyflow/react";
 import "@xyflow/react/dist/style.css";
 import { motion } from "framer-motion";
 import { ChevronDown, ChevronRight, Sparkles } from "lucide-react";
 import { MetricNode as MetricNodeType, FrameworkData } from "@/types/metricsFramework";
 import { MetricCard } from "./MetricCard";
+import { ZoomControls } from "./ZoomControls";
 
 interface DriverTreeVisualizationProps {
   data: FrameworkData;
@@ -70,13 +72,14 @@ interface TreeNode {
   width?: number;
 }
 
-export function DriverTreeVisualization({
+function DriverTreeContent({
   data,
   onMetricSelect,
   onMetricDrag,
   selectedMetricId,
 }: DriverTreeVisualizationProps) {
   const [collapsedNodes, setCollapsedNodes] = useState<Set<string>>(new Set());
+  const { zoomIn, zoomOut, fitView } = useReactFlow();
 
   const toggleExpand = useCallback((nodeId: string) => {
     setCollapsedNodes((prev) => {
@@ -110,9 +113,6 @@ export function DriverTreeVisualization({
     const parentMap = new Map<string, string>();
     
     data.relationships.forEach(rel => {
-      // source influences target, so source is child, target is parent
-      // OR source is parent and target is child - need to check the data structure
-      // Based on the memory, edges go from parent to child (parent influences child)
       if (!childrenMap.has(rel.sourceId)) {
         childrenMap.set(rel.sourceId, []);
       }
@@ -160,7 +160,6 @@ export function DriverTreeVisualization({
     if (northStar) {
       rootMetrics = [northStar];
     } else {
-      // Find metrics that have no parent
       rootMetrics = data.metrics.filter(m => !parentMap.has(m.id));
       if (rootMetrics.length === 0) {
         rootMetrics = [data.metrics[0]];
@@ -225,7 +224,6 @@ export function DriverTreeVisualization({
       });
 
       node.children.forEach(child => {
-        // Edge from parent (top) to child (bottom) - visually connects downward
         edges.push({
           id: `edge-${node.metric.id}-${child.metric.id}`,
           source: node.metric.id,
@@ -295,11 +293,21 @@ export function DriverTreeVisualization({
     setEdges(initialEdges);
   }, [initialNodes, initialEdges, setNodes, setEdges]);
 
+  const handleZoomIn = useCallback(() => zoomIn({ duration: 200 }), [zoomIn]);
+  const handleZoomOut = useCallback(() => zoomOut({ duration: 200 }), [zoomOut]);
+  const handleFitView = useCallback(() => fitView({ padding: 0.4, duration: 200 }), [fitView]);
+
   return (
     <div className="w-full h-full relative bg-gradient-to-b from-background to-muted/20">
+      <ZoomControls
+        onZoomIn={handleZoomIn}
+        onZoomOut={handleZoomOut}
+        onResetView={handleFitView}
+      />
+
       {/* Empty State */}
       {!data.metrics.length && (
-        <div className="absolute inset-0 flex items-center justify-center">
+        <div className="absolute inset-0 flex items-center justify-center z-10">
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
@@ -334,15 +342,11 @@ export function DriverTreeVisualization({
           proOptions={{ hideAttribution: true }}
         >
           <Background color="hsl(var(--border))" gap={24} size={1} />
-          <Controls 
-            className="bg-card border rounded-lg shadow-md [&>button]:border-border"
-            showInteractive={false}
-          />
         </ReactFlow>
       )}
 
       {/* Legend */}
-      <div className="absolute bottom-6 left-6 bg-card/95 backdrop-blur-sm rounded-xl p-4 border shadow-lg">
+      <div className="absolute bottom-6 left-6 bg-card/95 backdrop-blur-sm rounded-xl p-4 border shadow-lg z-30">
         <p className="text-xs font-semibold mb-3 text-foreground">Tree Structure</p>
         <div className="flex flex-col gap-2 text-xs">
           <div className="flex items-center gap-2">
@@ -360,5 +364,13 @@ export function DriverTreeVisualization({
         </div>
       </div>
     </div>
+  );
+}
+
+export function DriverTreeVisualization(props: DriverTreeVisualizationProps) {
+  return (
+    <ReactFlowProvider>
+      <DriverTreeContent {...props} />
+    </ReactFlowProvider>
   );
 }
