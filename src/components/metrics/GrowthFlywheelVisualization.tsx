@@ -1,8 +1,9 @@
 import { useState, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Sparkles, Zap, ZoomIn, ZoomOut, Move, X } from "lucide-react";
+import { Sparkles, Zap, X } from "lucide-react";
 import { FlywheelLoop, MetricNode } from "@/types/metricsFramework";
 import { MetricCard } from "./MetricCard";
+import { ZoomControls } from "./ZoomControls";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 
@@ -46,7 +47,6 @@ export function GrowthFlywheelVisualization({
     weak: { rotate: 360, transition: { duration: 60, repeat: Infinity, ease: "linear" } },
   };
 
-  // Calculate positions for loops around the center
   const calculateLoopPosition = (index: number, total: number, radius: number) => {
     const angle = (index / total) * 2 * Math.PI - Math.PI / 2;
     return {
@@ -89,18 +89,11 @@ export function GrowthFlywheelVisualization({
       onMouseLeave={handleMouseUp}
       style={{ cursor: isPanning ? 'grabbing' : 'grab' }}
     >
-      {/* Zoom/Pan Controls */}
-      <div className="absolute top-4 right-4 z-40 flex gap-2">
-        <Button variant="outline" size="icon" onClick={handleZoomIn} title="Zoom In">
-          <ZoomIn className="h-4 w-4" />
-        </Button>
-        <Button variant="outline" size="icon" onClick={handleZoomOut} title="Zoom Out">
-          <ZoomOut className="h-4 w-4" />
-        </Button>
-        <Button variant="outline" size="icon" onClick={handleResetView} title="Reset View">
-          <Move className="h-4 w-4" />
-        </Button>
-      </div>
+      <ZoomControls
+        onZoomIn={handleZoomIn}
+        onZoomOut={handleZoomOut}
+        onResetView={handleResetView}
+      />
 
       {/* Zoomable/Pannable Container */}
       <div 
@@ -132,7 +125,6 @@ export function GrowthFlywheelVisualization({
             >
               {northStarMetric ? (
                 <div className="relative max-w-[260px]">
-                  {/* Glow effect */}
                   <div className="absolute inset-0 bg-primary/10 rounded-2xl blur-2xl scale-150" />
                   <MetricCard metric={northStarMetric} />
                 </div>
@@ -166,7 +158,6 @@ export function GrowthFlywheelVisualization({
                 animate={{ opacity: 1, scale: 1 }}
                 transition={{ delay: index * 0.15 + 0.3 }}
               >
-                {/* Loop segment */}
                 <motion.div
                   className={cn(
                     "relative cursor-pointer transition-all",
@@ -185,7 +176,6 @@ export function GrowthFlywheelVisualization({
                   whileHover={{ scale: 1.05 }}
                   whileTap={{ scale: 0.98 }}
                 >
-                  {/* Momentum indicator - rotating ring */}
                   <motion.div
                     className={cn(
                       "absolute inset-0 rounded-full border-[3px] border-transparent",
@@ -196,7 +186,6 @@ export function GrowthFlywheelVisualization({
                     animate={momentumAnimations[loop.momentum]}
                   />
 
-                  {/* Loop content */}
                   <div className="absolute inset-0 flex flex-col items-center justify-center p-4 text-center">
                     <Zap className={cn(
                       "w-6 h-6 mb-2",
@@ -211,7 +200,6 @@ export function GrowthFlywheelVisualization({
                   </div>
                 </motion.div>
 
-                {/* Connector line to center */}
                 <svg
                   className="absolute pointer-events-none"
                   style={{
