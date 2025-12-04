@@ -1,4 +1,4 @@
-import { useCallback, useMemo, useState } from "react";
+import { useCallback, useMemo, useState, useEffect } from "react";
 import {
   ReactFlow,
   Node,
@@ -12,11 +12,10 @@ import {
   MarkerType,
 } from "@xyflow/react";
 import "@xyflow/react/dist/style.css";
-import { motion, AnimatePresence } from "framer-motion";
+import { motion } from "framer-motion";
 import { ChevronDown, ChevronRight, Sparkles } from "lucide-react";
 import { MetricNode as MetricNodeType, MetricRelationship, FrameworkData } from "@/types/metricsFramework";
 import { MetricCard } from "./MetricCard";
-import { cn } from "@/lib/utils";
 
 interface DriverTreeVisualizationProps {
   data: FrameworkData;
@@ -39,21 +38,23 @@ const TreeMetricNode = ({ data, selected }: { data: any; selected: boolean }) =>
             setIsExpanded(!isExpanded);
             data.onToggleExpand?.(data.metric.id);
           }}
-          className="absolute -left-6 top-1/2 -translate-y-1/2 p-1 rounded-full bg-muted hover:bg-muted/80 transition-colors z-10"
+          className="absolute -left-8 top-1/2 -translate-y-1/2 p-1.5 rounded-full bg-card border shadow-sm hover:bg-muted transition-colors z-10"
         >
           {isExpanded ? (
-            <ChevronDown className="w-3 h-3" />
+            <ChevronDown className="w-4 h-4" />
           ) : (
-            <ChevronRight className="w-3 h-3" />
+            <ChevronRight className="w-4 h-4" />
           )}
         </button>
       )}
-      <MetricCard
-        metric={data.metric}
-        isSelected={selected}
-        onClick={() => data.onSelect?.(data.metric)}
-        showInfluence
-      />
+      <div className="min-w-[220px] max-w-[280px]">
+        <MetricCard
+          metric={data.metric}
+          isSelected={selected}
+          onClick={() => data.onSelect?.(data.metric)}
+          showInfluence
+        />
+      </div>
     </div>
   );
 };
@@ -99,19 +100,19 @@ export function DriverTreeVisualization({
       levelMap.get(level)!.push(metric);
     });
 
-    // Position nodes
-    const levelHeight = 180;
-    const nodeWidth = 200;
+    // Position nodes with better spacing
+    const levelHeight = 220;
+    const nodeWidth = 280;
+    const nodeGap = 60;
     
     Array.from(levelMap.entries())
       .sort(([a], [b]) => a - b)
       .forEach(([level, metrics]) => {
-        const totalWidth = metrics.length * (nodeWidth + 40);
+        const totalWidth = metrics.length * nodeWidth + (metrics.length - 1) * nodeGap;
         const startX = -totalWidth / 2;
         
         metrics.forEach((metric, index) => {
           // Check if this node should be hidden due to collapsed parent
-          const parent = data.metrics.find(m => m.id === metric.parentId);
           const isHidden = metric.parentId && collapsedNodes.has(metric.parentId);
           
           if (!isHidden) {
@@ -121,7 +122,7 @@ export function DriverTreeVisualization({
               id: metric.id,
               type: 'metricNode',
               position: {
-                x: startX + index * (nodeWidth + 40),
+                x: startX + index * (nodeWidth + nodeGap),
                 y: level * levelHeight,
               },
               data: {
@@ -170,8 +171,6 @@ export function DriverTreeVisualization({
             type: MarkerType.ArrowClosed,
             color: strengthColors[rel.influenceStrength || 'medium'],
           },
-          label: rel.description,
-          labelStyle: { fontSize: 10, fill: 'hsl(var(--muted-foreground))' },
         });
       }
     });
@@ -183,13 +182,13 @@ export function DriverTreeVisualization({
   const [edges, setEdges, onEdgesChange] = useEdgesState(initialEdges);
 
   // Update nodes when data changes
-  useMemo(() => {
+  useEffect(() => {
     setNodes(initialNodes);
     setEdges(initialEdges);
   }, [initialNodes, initialEdges, setNodes, setEdges]);
 
   return (
-    <div className="w-full h-full relative">
+    <div className="w-full h-full relative bg-gradient-to-b from-background to-muted/20">
       {/* Empty State */}
       {!data.metrics.length && (
         <div className="absolute inset-0 flex items-center justify-center">
@@ -198,12 +197,13 @@ export function DriverTreeVisualization({
             animate={{ opacity: 1, y: 0 }}
             className="text-center p-8"
           >
-            <div className="w-16 h-16 rounded-full bg-primary/10 flex items-center justify-center mx-auto mb-4">
-              <Sparkles className="w-8 h-8 text-primary" />
+            <div className="w-20 h-20 rounded-full bg-primary/10 flex items-center justify-center mx-auto mb-6">
+              <Sparkles className="w-10 h-10 text-primary" />
             </div>
-            <h3 className="text-lg font-semibold mb-2">No metrics yet</h3>
-            <p className="text-muted-foreground text-sm max-w-xs">
+            <h3 className="text-xl font-semibold mb-3">No metrics selected yet</h3>
+            <p className="text-muted-foreground text-sm max-w-sm mx-auto leading-relaxed">
               Select a North Star metric and add contributing metrics to visualize your driver tree.
+              The tree will show how each metric influences your goals.
             </p>
           </motion.div>
         </div>
@@ -219,34 +219,35 @@ export function DriverTreeVisualization({
           nodeTypes={nodeTypes}
           connectionMode={ConnectionMode.Loose}
           fitView
-          fitViewOptions={{ padding: 0.2 }}
-          minZoom={0.3}
-          maxZoom={1.5}
-          className="bg-background"
+          fitViewOptions={{ padding: 0.3, maxZoom: 1 }}
+          minZoom={0.2}
+          maxZoom={1.2}
+          className="bg-transparent"
+          proOptions={{ hideAttribution: true }}
         >
-          <Background color="hsl(var(--border))" gap={20} size={1} />
+          <Background color="hsl(var(--border))" gap={24} size={1} />
           <Controls 
-            className="bg-card border rounded-lg shadow-md"
+            className="bg-card border rounded-lg shadow-md [&>button]:border-border"
             showInteractive={false}
           />
         </ReactFlow>
       )}
 
       {/* Legend */}
-      <div className="absolute bottom-4 left-4 bg-card/90 backdrop-blur-sm rounded-lg p-3 border shadow-sm">
-        <p className="text-xs font-medium mb-2 text-muted-foreground">Influence Strength</p>
-        <div className="flex items-center gap-4 text-xs">
-          <div className="flex items-center gap-1.5">
-            <div className="w-6 h-0.5 bg-primary rounded" />
-            <span>Strong</span>
+      <div className="absolute bottom-6 left-6 bg-card/95 backdrop-blur-sm rounded-xl p-4 border shadow-lg">
+        <p className="text-xs font-semibold mb-3 text-foreground">Influence Strength</p>
+        <div className="flex flex-col gap-2 text-xs">
+          <div className="flex items-center gap-2">
+            <div className="w-8 h-1 bg-primary rounded-full" />
+            <span className="text-muted-foreground">Strong</span>
           </div>
-          <div className="flex items-center gap-1.5">
-            <div className="w-6 h-0.5 bg-secondary rounded" />
-            <span>Medium</span>
+          <div className="flex items-center gap-2">
+            <div className="w-8 h-0.5 bg-secondary rounded-full" />
+            <span className="text-muted-foreground">Medium</span>
           </div>
-          <div className="flex items-center gap-1.5">
-            <div className="w-6 h-0.5 bg-muted-foreground rounded" />
-            <span>Weak</span>
+          <div className="flex items-center gap-2">
+            <div className="w-8 h-0.5 bg-muted-foreground/50 rounded-full" />
+            <span className="text-muted-foreground">Weak</span>
           </div>
         </div>
       </div>

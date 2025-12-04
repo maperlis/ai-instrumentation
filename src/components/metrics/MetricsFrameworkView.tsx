@@ -1,8 +1,7 @@
 import { useState, useCallback, useMemo, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { ArrowLeft, Check } from "lucide-react";
+import { Check } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Card } from "@/components/ui/card";
 import { FrameworkType, FrameworkData, MetricNode, MetricRelationship, FunnelStage, FlywheelLoop, FrameworkRecommendation, ClarifyingQuestion } from "@/types/metricsFramework";
 import { Metric } from "@/types/taxonomy";
 import { FrameworkSelector } from "./FrameworkSelector";
@@ -57,20 +56,23 @@ export function MetricsFrameworkView({
   const metricNodes: MetricNode[] = useMemo(() => {
     return metrics
       .filter((m) => selectedMetricIds.includes(m.id))
-      .map((m, index) => ({
-        id: m.id,
-        name: m.name,
-        description: m.description,
-        category: m.category,
-        example_events: m.example_events,
-        isNorthStar: northStarId === m.id || (index === 0 && !northStarId),
-        level: northStarId === m.id || (index === 0 && !northStarId) ? 0 : 1,
-        parentId: index === 0 || northStarId === m.id ? null : (northStarId || metrics[0]?.id),
-        influenceDescription: `This metric helps drive ${metrics[0]?.name || 'your North Star'}`,
-        status: 'healthy' as const,
-        trend: 'up' as const,
-        trendPercentage: Math.floor(Math.random() * 20) + 1,
-      }));
+      .map((m, index) => {
+        const metricWithLevel = m as Metric & { level?: number; influenceDescription?: string };
+        return {
+          id: m.id,
+          name: m.name,
+          description: m.description,
+          category: m.category,
+          example_events: m.example_events,
+          isNorthStar: northStarId === m.id || (index === 0 && !northStarId),
+          level: metricWithLevel.level ?? (northStarId === m.id || (index === 0 && !northStarId) ? 0 : 1),
+          parentId: index === 0 || northStarId === m.id ? null : (northStarId || metrics[0]?.id),
+          influenceDescription: metricWithLevel.influenceDescription || `This metric helps drive ${metrics[0]?.name || 'your North Star'}`,
+          status: 'healthy' as const,
+          trend: 'up' as const,
+          trendPercentage: Math.floor(Math.random() * 20) + 1,
+        };
+      });
   }, [metrics, selectedMetricIds, northStarId]);
 
   // Build relationships
@@ -155,14 +157,10 @@ export function MetricsFrameworkView({
     setSelectedMetric(metric);
   }, []);
 
-  const handleSetNorthStar = useCallback((metricId: string) => {
-    setNorthStarId(metricId);
-  }, []);
-
   return (
     <div className="h-full flex">
       {/* Left Panel - Chat or Recommendation Flow */}
-      <div className="w-[400px] border-r flex flex-col">
+      <div className="w-[380px] border-r flex flex-col bg-card">
         <AnimatePresence mode="wait">
           {showRecommendationFlow && (clarifyingQuestions.length > 0 || frameworkRecommendation) ? (
             <motion.div
@@ -205,8 +203,8 @@ export function MetricsFrameworkView({
 
       {/* Center Panel - Visualization */}
       <div className="flex-1 flex flex-col min-w-0">
-        {/* Framework Selector */}
-        <div className="p-4 border-b flex items-center justify-between bg-card">
+        {/* Framework Selector Header */}
+        <div className="p-4 border-b flex items-center justify-between bg-card/50 backdrop-blur-sm">
           <FrameworkSelector
             selectedFramework={selectedFramework}
             onSelect={setSelectedFramework}
@@ -215,6 +213,8 @@ export function MetricsFrameworkView({
           <Button
             onClick={onApprove}
             disabled={selectedMetricIds.length === 0 || isLoading}
+            size="lg"
+            className="shadow-lg"
           >
             <Check className="w-4 h-4 mr-2" />
             Generate Taxonomy ({selectedMetricIds.length})
@@ -276,13 +276,12 @@ export function MetricsFrameworkView({
       </div>
 
       {/* Right Panel - AI Narrative */}
-      <div className="w-[300px]">
+      <div className="w-[280px]">
         <AINarrativePanel
           narrative={frameworkData.aiNarrative || ""}
           selectedMetric={selectedMetric}
           isLoading={isLoading}
           onMetricUpdate={(updated) => {
-            // Handle metric update
             setSelectedMetric(updated);
           }}
         />
