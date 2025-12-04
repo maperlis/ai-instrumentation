@@ -100,17 +100,18 @@ export function MetricsFrameworkView({
         parentId = categoryFirstMetric[m.category] || northStarMetricId;
       }
 
-      const metricWithLevel = m as Metric & { influenceDescription?: string };
       return {
         id: m.id,
         name: m.name,
         description: m.description,
         category: m.category,
         example_events: m.example_events,
+        calculation: m.calculation,
+        businessQuestions: m.businessQuestions,
         isNorthStar,
         level,
         parentId,
-        influenceDescription: metricWithLevel.influenceDescription || 
+        influenceDescription: m.influenceDescription || 
           (isDriver 
             ? `Core driver for ${selectedMetrics[0]?.name || 'your North Star'}`
             : `Sub-driver contributing to ${m.category} metrics`),
