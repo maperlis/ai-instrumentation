@@ -20,6 +20,8 @@ const metricSchema = z.object({
   description: z.string().max(1000).optional(),
   category: z.string().max(100).optional(),
   example_events: z.array(z.string().max(200)).max(20).optional(),
+  calculation: z.string().max(500).optional(),
+  businessQuestions: z.array(z.string().max(300)).max(10).optional(),
 }).passthrough();
 
 const eventSchema = z.object({
@@ -89,9 +91,11 @@ User's clarifying answers: {clarifyingAnswers}
 
 Group metrics by category (Acquisition, Engagement, Retention, Monetization, Product Usage).
 
-For each metric, also include:
+For each metric, include:
 - A "level" (0 for North Star, 1 for primary drivers, 2 for secondary/operational metrics)
 - An "influenceDescription" explaining how this metric drives the metrics above it
+- A "calculation" formula showing how the metric is computed (e.g., "Revenue / Active Users", "Returning Users / Total Users * 100")
+- 3-4 "businessQuestions" that can be answered by analyzing this metric
 
 Return ONLY a valid JSON object with this exact structure:
 {
@@ -103,7 +107,14 @@ Return ONLY a valid JSON object with this exact structure:
       "category": "Acquisition",
       "example_events": ["signup_completed", "purchase_completed", "trial_started"],
       "level": 1,
-      "influenceDescription": "Higher conversion rates directly increase Weekly Active Users"
+      "influenceDescription": "Higher conversion rates directly increase Weekly Active Users",
+      "calculation": "Users Who Converted / Total Visitors * 100",
+      "businessQuestions": [
+        "Which acquisition channels have the highest conversion rates?",
+        "How does conversion rate vary by user segment or device type?",
+        "What is the impact of recent product changes on conversion?",
+        "Are there specific points in the funnel where users drop off?"
+      ]
     }
   ],
   "analysis": "Brief analysis of the product and why these metrics matter. Be conversational, mention the framework choice, and explain the metric relationships. ✨ Add a touch of personality."
@@ -148,7 +159,7 @@ The user has asked: "{userMessage}"
 You should:
 1. Answer their question helpfully and concisely
 2. If they ask for different or additional metrics, suggest new ones
-3. If you suggest new metrics, include them in your response
+3. If you suggest new metrics, include them in your response with calculation formulas and business questions
 
 Return ONLY a valid JSON object with this structure:
 {
@@ -159,7 +170,13 @@ Return ONLY a valid JSON object with this structure:
       "name": "Metric Name",
       "description": "Description of the metric",
       "category": "Acquisition|Engagement|Retention|Monetization|Product Usage",
-      "example_events": ["event_1", "event_2"]
+      "example_events": ["event_1", "event_2"],
+      "calculation": "Numerator / Denominator * 100 (or appropriate formula)",
+      "businessQuestions": [
+        "What business question can this metric answer?",
+        "How does this metric vary across segments?",
+        "What factors influence this metric?"
+      ]
     }
   ]
 }
