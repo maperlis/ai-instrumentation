@@ -94,26 +94,31 @@ Group metrics by category (Acquisition, Engagement, Retention, Monetization, Pro
 For each metric, include:
 - A "level" (0 for North Star, 1 for primary drivers, 2 for secondary/operational metrics)
 - An "influenceDescription" explaining how this metric drives the metrics above it
-- A "calculation" formula showing how the metric is computed (e.g., "Revenue / Active Users", "Returning Users / Total Users * 100")
+- A "calculation" formula showing how the metric is computed (e.g., "signup_completed_count / page_viewed_count * 100")
 - 3-4 "businessQuestions" that can be answered by analyzing this metric
+- "example_events": CRITICAL - these MUST be the exact events referenced in the calculation formula. Use snake_case event names that match what's in the calculation.
+
+IMPORTANT: The example_events array must contain ONLY the events that are used to compute the calculation. For example:
+- If calculation is "signup_completed_count / landing_page_viewed_count * 100", then example_events should be ["signup_completed", "landing_page_viewed"]
+- If calculation is "returning_users_count / total_users_count * 100", then example_events should be ["user_session_started"] (the event used to identify users)
 
 Return ONLY a valid JSON object with this exact structure:
 {
   "metrics": [
     {
-      "id": "conversion_rate",
-      "name": "Conversion Rate",
-      "description": "Percentage of users who complete key actions like signup or purchase",
+      "id": "signup_conversion_rate",
+      "name": "Signup Conversion Rate",
+      "description": "Percentage of landing page visitors who complete signup",
       "category": "Acquisition",
-      "example_events": ["signup_completed", "purchase_completed", "trial_started"],
+      "example_events": ["signup_completed", "landing_page_viewed"],
       "level": 1,
-      "influenceDescription": "Higher conversion rates directly increase Weekly Active Users",
-      "calculation": "Users Who Converted / Total Visitors * 100",
+      "influenceDescription": "Higher signup conversion directly increases active user count",
+      "calculation": "signup_completed_count / landing_page_viewed_count * 100",
       "businessQuestions": [
-        "Which acquisition channels have the highest conversion rates?",
-        "How does conversion rate vary by user segment or device type?",
-        "What is the impact of recent product changes on conversion?",
-        "Are there specific points in the funnel where users drop off?"
+        "Which traffic sources have the highest signup conversion?",
+        "How does signup conversion vary by device type?",
+        "What is the impact of form changes on conversion?",
+        "At which step do most users drop off?"
       ]
     }
   ],
@@ -161,6 +166,8 @@ You should:
 2. If they ask for different or additional metrics, suggest new ones
 3. If you suggest new metrics, include them in your response with calculation formulas and business questions
 
+IMPORTANT: The example_events array must contain ONLY the events that are used to compute the calculation. Use snake_case event names that match what's referenced in the calculation formula.
+
 Return ONLY a valid JSON object with this structure:
 {
   "response": "Your conversational response to the user",
@@ -170,8 +177,8 @@ Return ONLY a valid JSON object with this structure:
       "name": "Metric Name",
       "description": "Description of the metric",
       "category": "Acquisition|Engagement|Retention|Monetization|Product Usage",
-      "example_events": ["event_1", "event_2"],
-      "calculation": "Numerator / Denominator * 100 (or appropriate formula)",
+      "example_events": ["event_from_calculation_1", "event_from_calculation_2"],
+      "calculation": "event_from_calculation_1_count / event_from_calculation_2_count * 100",
       "businessQuestions": [
         "What business question can this metric answer?",
         "How does this metric vary across segments?",
