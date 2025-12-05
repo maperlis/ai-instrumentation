@@ -328,7 +328,7 @@ export const ResultsSection = ({
 
       if (!amplitudeDryRun && data.projectName) {
         const projectUrl = window.location.origin;
-        const script = generateLoaderScript(projectUrl, data.projectName);
+        const script = generateLoaderScript(projectUrl, data.projectName, amplitudeCredentials.apiKey, amplitudeCredentials.region);
         setLoaderScript(script);
       }
 
@@ -350,58 +350,51 @@ export const ResultsSection = ({
     }
   };
 
-  const generateLoaderScript = (baseUrl: string, projectName: string): string => {
+  const generateLoaderScript = (baseUrl: string, projectName: string, amplitudeApiKey: string, amplitudeRegion: string): string => {
     const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
     return `<!-- Amplitude Auto-Instrumentation Loader -->
+<!-- IMPORTANT: Initialize Amplitude with your API key before this script runs -->
+<script src="https://cdn.amplitude.com/libs/analytics-browser-2.0.0-min.js.gz"></script>
+<script>
+  // Initialize Amplitude with your API key (configured at build time, not fetched)
+  amplitude.init('${amplitudeApiKey}', {
+    serverZone: '${amplitudeRegion}',
+    defaultTracking: true
+  });
+</script>
 <script>
 (function() {
-  // Configuration
+  // Configuration - fetches only event selectors, no sensitive data
   const CONFIG_URL = '${supabaseUrl}/functions/v1/events-config?project=${encodeURIComponent(projectName)}';
   
-  // Fetch event configuration
+  // Fetch event configuration (public endpoint - returns only selectors/triggers)
   fetch(CONFIG_URL)
     .then(response => response.json())
     .then(config => {
-      // Initialize Amplitude
-      const script = document.createElement('script');
-      script.src = 'https://cdn.amplitude.com/libs/analytics-browser-2.0.0-min.js.gz';
-      script.async = true;
-      
-      script.onload = function() {
-        // Initialize Amplitude with API key from config
-        const region = config.amplitude_region === 'EU' ? 'EU' : 'US';
-        window.amplitude.init(config.amplitude_api_key, {
-          serverZone: region,
-          defaultTracking: true
+      // Attach event listeners for each configured event
+      config.events.forEach(function(event) {
+        const elements = document.querySelectorAll(event.selector);
+        
+        elements.forEach(function(element) {
+          element.addEventListener(event.trigger, function(e) {
+            // Build event properties from data attributes
+            const properties = {};
+            event.properties.forEach(function(prop) {
+              const dataKey = 'data-' + prop.toLowerCase().replace(/_/g, '-');
+              const value = element.getAttribute(dataKey);
+              if (value !== null) {
+                properties[prop] = value;
+              }
+            });
+            
+            // Track the event
+            amplitude.track(event.event_name, properties);
+            console.log('[Amplitude] Tracked:', event.event_name, properties);
+          });
         });
         
-        // Attach event listeners for each configured event
-        config.events.forEach(function(event) {
-          const elements = document.querySelectorAll(event.selector);
-          
-          elements.forEach(function(element) {
-            element.addEventListener(event.trigger, function(e) {
-              // Build event properties from data attributes
-              const properties = {};
-              event.properties.forEach(function(prop) {
-                const dataKey = 'data-' + prop.toLowerCase().replace(/_/g, '-');
-                const value = element.getAttribute(dataKey);
-                if (value !== null) {
-                  properties[prop] = value;
-                }
-              });
-              
-              // Track the event
-              window.amplitude.track(event.event_name, properties);
-              console.log('[Amplitude] Tracked:', event.event_name, properties);
-            });
-          });
-          
-          console.log('[Amplitude] Attached listener for:', event.event_name, 'on', elements.length, 'elements');
-        });
-      };
-      
-      document.head.appendChild(script);
+        console.log('[Amplitude] Attached listener for:', event.event_name, 'on', elements.length, 'elements');
+      });
     })
     .catch(error => {
       console.error('[Amplitude] Failed to load config:', error);

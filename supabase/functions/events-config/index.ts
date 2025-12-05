@@ -26,42 +26,15 @@ serve(async (req) => {
       );
     }
 
-    // Extract user_id from JWT token for authorization
-    const authHeader = req.headers.get('authorization');
-    let userId: string | null = null;
-    
     const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
-    const supabaseAnonKey = Deno.env.get('SUPABASE_ANON_KEY')!;
-    
-    if (authHeader?.startsWith('Bearer ')) {
-      const authSupabase = createClient(supabaseUrl, supabaseAnonKey, {
-        global: { headers: { Authorization: authHeader } }
-      });
-      
-      const { data: { user } } = await authSupabase.auth.getUser();
-      userId = user?.id || null;
-    }
-
-    if (!userId) {
-      return new Response(
-        JSON.stringify({ error: 'Authentication required' }),
-        { 
-          status: 401,
-          headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
-        }
-      );
-    }
-
-    // Create Supabase client with service role for database access
     const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
     const supabase = createClient(supabaseUrl, supabaseKey);
 
-    // Fetch the most recent config for this project owned by this user
+    // Fetch the most recent config for this project (public endpoint - no auth required)
     const { data, error } = await supabase
       .from('event_configs')
-      .select('config, amplitude_api_key, amplitude_region')
+      .select('config')
       .eq('project_name', projectName)
-      .eq('user_id', userId)
       .order('created_at', { ascending: false })
       .limit(1)
       .maybeSingle();
@@ -89,10 +62,9 @@ serve(async (req) => {
 
     console.log(`Serving config for project: ${projectName}`);
 
+    // SECURITY: Only return event selectors/triggers - NO API keys or sensitive data
     return new Response(
       JSON.stringify({
-        amplitude_api_key: data.amplitude_api_key,
-        amplitude_region: data.amplitude_region,
         events: data.config
       }),
       { 

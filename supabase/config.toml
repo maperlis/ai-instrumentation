@@ -10,4 +10,7 @@ verify_jwt = true
 verify_jwt = true
 
 [functions.events-config]
+verify_jwt = false
+
+[functions.generate-discovery-questions]
 verify_jwt = true
