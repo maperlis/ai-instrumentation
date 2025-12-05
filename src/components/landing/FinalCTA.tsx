@@ -1,7 +1,11 @@
 import { ArrowRight, Clock } from "lucide-react";
+import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
+import { useAuth } from "@/hooks/useAuth";
 
 export const FinalCTA = () => {
+  const { user } = useAuth();
+
   return (
     <section className="py-32 px-6 bg-surface-dark">
       <div className="max-w-4xl mx-auto text-center relative">
@@ -23,11 +27,14 @@ export const FinalCTA = () => {
 
         <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
           <Button
+            asChild
             size="lg"
             className="w-full sm:w-auto px-10 py-6 h-auto rounded-xl bg-white text-zinc-900 font-bold text-lg hover:bg-zinc-100 transition-colors shadow-xl"
           >
-            Get Started for Free
-            <ArrowRight className="ml-2 w-5 h-5" />
+            <Link to={user ? "/app" : "/auth"}>
+              {user ? "Go to Dashboard" : "Get Started for Free"}
+              <ArrowRight className="ml-2 w-5 h-5" />
+            </Link>
           </Button>
           <Button
             size="lg"
