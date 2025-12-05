@@ -54,7 +54,8 @@ const Index = () => {
   const handleApprove = useCallback(async (selectedMetrics?: string[]) => {
     if (state.approvalType === 'metrics') {
       await approve('metrics', selectedMetrics);
-      setCurrentStep('taxonomy-review');
+      // Go directly to results page - skip taxonomy-review step
+      setCurrentStep('results');
     } else if (state.approvalType === 'taxonomy') {
       await approve('taxonomy');
     }
@@ -148,11 +149,14 @@ const Index = () => {
         </div>
       )}
       
-      {currentStep === 'results' && results && !isLoading && (
+      {currentStep === 'results' && state.events.length > 0 && (
         <ResultsSection 
-          results={results} 
+          results={state.events}
           selectedMetrics={state.metrics?.map(m => m.name) || []}
           inputData={inputData || undefined}
+          conversationHistory={state.conversationHistory}
+          onSendMessage={handleSendMessage}
+          isLoading={isLoading}
         />
       )}
     </PageContainer>
