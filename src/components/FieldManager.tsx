@@ -1,14 +1,16 @@
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
-import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { TaxonomyField, DEFAULT_TAXONOMY_FIELDS } from "@/types/taxonomy";
-import { Plus, Pencil, Trash2, Settings2 } from "lucide-react";
+import { Plus, Pencil, RotateCcw, Settings2, ChevronDown, ChevronUp } from "lucide-react";
 import { Textarea } from "@/components/ui/textarea";
+import { Badge } from "@/components/ui/badge";
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
+import { cn } from "@/lib/utils";
 
 interface FieldManagerProps {
   fields: TaxonomyField[];
@@ -16,6 +18,7 @@ interface FieldManagerProps {
 }
 
 export const FieldManager = ({ fields, onFieldsChange }: FieldManagerProps) => {
+  const [isOpen, setIsOpen] = useState(false);
   const [showDialog, setShowDialog] = useState(false);
   const [editingField, setEditingField] = useState<TaxonomyField | null>(null);
   const [formData, setFormData] = useState<Partial<TaxonomyField>>({
@@ -33,10 +36,6 @@ export const FieldManager = ({ fields, onFieldsChange }: FieldManagerProps) => {
     setEditingField(field);
     setFormData(field);
     setShowDialog(true);
-  };
-
-  const handleDeleteField = (fieldId: string) => {
-    onFieldsChange(fields.filter(f => f.id !== fieldId));
   };
 
   const handleSaveField = () => {
@@ -70,63 +69,74 @@ export const FieldManager = ({ fields, onFieldsChange }: FieldManagerProps) => {
   };
 
   return (
-    <Card className="p-6">
-      <div className="flex justify-between items-center mb-4">
-        <div className="flex items-center gap-2">
-          <Settings2 className="w-5 h-5 text-accent" />
-          <h3 className="text-lg font-semibold">Taxonomy Fields</h3>
-        </div>
-        <div className="flex gap-2">
-          <Button variant="outline" size="sm" onClick={handleResetToDefault}>
-            Reset to Default
+    <Collapsible open={isOpen} onOpenChange={setIsOpen} className="w-full">
+      <div className="flex items-center justify-between gap-4">
+        <CollapsibleTrigger asChild>
+          <Button variant="ghost" size="sm" className="gap-2 text-muted-foreground hover:text-foreground">
+            <Settings2 className="w-4 h-4" />
+            <span className="font-medium">Taxonomy Fields</span>
+            {isOpen ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
           </Button>
-          <Button size="sm" onClick={handleAddField} className="gap-2">
-            <Plus className="w-4 h-4" />
+        </CollapsibleTrigger>
+        
+        {/* Compact field preview when collapsed */}
+        {!isOpen && (
+          <div className="flex-1 flex items-center gap-2 overflow-x-auto">
+            {fields.slice(0, 6).map((field) => (
+              <Badge 
+                key={field.id} 
+                variant="secondary" 
+                className="whitespace-nowrap text-xs cursor-pointer hover:bg-accent/20"
+                onClick={() => {
+                  setIsOpen(true);
+                  handleEditField(field);
+                }}
+              >
+                {field.name}
+                {field.required && <span className="text-destructive ml-0.5">*</span>}
+              </Badge>
+            ))}
+            {fields.length > 6 && (
+              <Badge variant="outline" className="text-xs">
+                +{fields.length - 6}
+              </Badge>
+            )}
+          </div>
+        )}
+
+        <div className="flex gap-2">
+          <Button variant="ghost" size="sm" onClick={handleResetToDefault} className="gap-1 text-xs">
+            <RotateCcw className="w-3 h-3" />
+            Reset
+          </Button>
+          <Button size="sm" onClick={handleAddField} className="gap-1">
+            <Plus className="w-3 h-3" />
             Add Field
           </Button>
         </div>
       </div>
 
-      <div className="space-y-2">
-        {fields.map((field) => (
-          <div
-            key={field.id}
-            className="flex items-center justify-between p-3 border rounded-lg hover:bg-accent/5"
-          >
-            <div className="flex-1">
-              <div className="flex items-center gap-2">
-                <span className="font-medium">{field.name}</span>
-                {field.required && (
-                  <span className="text-xs text-destructive">*</span>
-                )}
-                <span className="text-xs text-muted-foreground">({field.type})</span>
-              </div>
-              {field.description && (
-                <p className="text-sm text-muted-foreground mt-1">{field.description}</p>
+      <CollapsibleContent className="mt-3">
+        <div className="flex flex-wrap gap-2">
+          {fields.map((field) => (
+            <div
+              key={field.id}
+              className={cn(
+                "flex items-center gap-2 px-3 py-2 border rounded-lg bg-background hover:bg-accent/5 cursor-pointer transition-colors",
+                "group"
               )}
-            </div>
-            <div className="flex gap-2">
-              <Button
-                size="sm"
-                variant="ghost"
-                onClick={() => handleEditField(field)}
-              >
-                <Pencil className="w-4 h-4" />
-              </Button>
-              {!isDefaultField(field.id) && (
-                <Button
-                  size="sm"
-                  variant="ghost"
-                  onClick={() => handleDeleteField(field.id)}
-                  className="text-destructive hover:text-destructive"
-                >
-                  <Trash2 className="w-4 h-4" />
-                </Button>
+              onClick={() => handleEditField(field)}
+            >
+              <span className="text-sm font-medium">{field.name}</span>
+              {field.required && (
+                <span className="text-xs text-destructive">*</span>
               )}
+              <span className="text-xs text-muted-foreground">({field.type})</span>
+              <Pencil className="w-3 h-3 text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity" />
             </div>
-          </div>
-        ))}
-      </div>
+          ))}
+        </div>
+      </CollapsibleContent>
 
       <Dialog open={showDialog} onOpenChange={setShowDialog}>
         <DialogContent>
@@ -198,6 +208,6 @@ export const FieldManager = ({ fields, onFieldsChange }: FieldManagerProps) => {
           </DialogFooter>
         </DialogContent>
       </Dialog>
-    </Card>
+    </Collapsible>
   );
 };

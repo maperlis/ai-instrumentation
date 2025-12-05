@@ -576,26 +576,31 @@ export const ResultsSection = ({
             </span>
           </div>
 
-          {/* Field Manager */}
-          <div className="px-6 py-4 border-b border-border">
-            <div className="flex items-center justify-between">
+          {/* Field Manager - Compact */}
+          <div className="px-6 py-3 border-b border-border">
+            <div className="flex items-center gap-4">
               <FieldManager fields={fields} onFieldsChange={setFields} />
               <Button
                 onClick={handleRegenerateTaxonomy}
                 disabled={isRegenerating}
                 variant="outline"
                 size="sm"
-                className="gap-2"
+                className="gap-2 shrink-0"
               >
                 <RefreshCw className={cn("w-4 h-4", isRegenerating && "animate-spin")} />
-                {isRegenerating ? 'Regenerating...' : 'Regenerate'}
+                Regenerate
               </Button>
             </div>
           </div>
 
           {/* Event Table */}
           <div className="flex-1 overflow-auto p-6">
-            <EventTable events={events} fields={fields} onEventsChange={setEvents} />
+            <EventTable 
+              events={events} 
+              fields={fields} 
+              selectedMetrics={selectedMetrics}
+              onEventsChange={setEvents} 
+            />
           </div>
         </div>
       </div>
