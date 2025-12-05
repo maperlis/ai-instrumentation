@@ -1,6 +1,6 @@
 import { useState, useCallback, useMemo, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Check, Eye, List, Star } from "lucide-react";
+import { Check, Eye, List, Star, PanelRightClose, PanelRightOpen, MousePointerClick } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -42,11 +42,19 @@ export function MetricsFrameworkView({
   const [selectedFramework, setSelectedFramework] = useState<FrameworkType>(initialFramework);
   const [selectedMetric, setSelectedMetric] = useState<MetricNode | null>(null);
   const [northStarId, setNorthStarId] = useState<string | null>(null);
+  const [isInsightsPanelOpen, setIsInsightsPanelOpen] = useState(false);
 
   // Sync with initial framework if it changes
   useEffect(() => {
     setSelectedFramework(initialFramework);
   }, [initialFramework]);
+
+  // Auto-expand panel when metric is selected
+  useEffect(() => {
+    if (selectedMetric) {
+      setIsInsightsPanelOpen(true);
+    }
+  }, [selectedMetric]);
 
   // Convert Metric[] to MetricNode[] with 3-level hierarchy
   const metricNodes: MetricNode[] = useMemo(() => {
@@ -414,17 +422,52 @@ export function MetricsFrameworkView({
         </Tabs>
       </div>
 
-      {/* Right Panel - AI Narrative */}
-      <div className="w-[280px]">
-        <AINarrativePanel
-          narrative={frameworkData.aiNarrative || ""}
-          selectedMetric={selectedMetric}
-          isLoading={isLoading}
+      {/* Right Panel - AI Narrative (Collapsible) */}
+      <AnimatePresence mode="wait">
+        {isInsightsPanelOpen ? (
+          <motion.div
+            key="panel-open"
+            initial={{ width: 0, opacity: 0 }}
+            animate={{ width: 280, opacity: 1 }}
+            exit={{ width: 0, opacity: 0 }}
+            transition={{ duration: 0.2 }}
+            className="overflow-hidden"
+          >
+            <AINarrativePanel
+              narrative={frameworkData.aiNarrative || ""}
+              selectedMetric={selectedMetric}
+              isLoading={isLoading}
+              onClose={() => setIsInsightsPanelOpen(false)}
           onMetricUpdate={(updated) => {
             setSelectedMetric(updated);
           }}
-        />
-      </div>
+            />
+          </motion.div>
+        ) : (
+          <motion.div
+            key="panel-closed"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="w-12 border-l bg-card flex flex-col items-center py-4 gap-3"
+          >
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={() => setIsInsightsPanelOpen(true)}
+              className="h-9 w-9"
+            >
+              <PanelRightOpen className="w-4 h-4" />
+            </Button>
+            <div className="flex-1 flex flex-col items-center justify-center gap-2">
+              <MousePointerClick className="w-5 h-5 text-muted-foreground animate-pulse" />
+              <p className="text-xs text-muted-foreground [writing-mode:vertical-rl] rotate-180">
+                Click a metric
+              </p>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   );
 }
