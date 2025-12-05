@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Sparkles, Edit2, Save, X, ChevronRight, Tag, Settings2, Calculator, HelpCircle } from "lucide-react";
+import { Sparkles, Edit2, Save, X, ChevronRight, Tag, Settings2, Calculator, HelpCircle, PanelRightClose } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Input } from "@/components/ui/input";
@@ -15,6 +15,7 @@ interface AINarrativePanelProps {
   selectedMetric?: MetricNode | null;
   onMetricUpdate?: (metric: MetricNode) => void;
   isLoading?: boolean;
+  onClose?: () => void;
 }
 
 export function AINarrativePanel({
@@ -22,6 +23,7 @@ export function AINarrativePanel({
   selectedMetric,
   onMetricUpdate,
   isLoading,
+  onClose,
 }: AINarrativePanelProps) {
   const [isEditing, setIsEditing] = useState(false);
   const [editedMetric, setEditedMetric] = useState<MetricNode | null>(null);
@@ -63,14 +65,21 @@ export function AINarrativePanel({
     <div className="h-full flex flex-col bg-card border-l">
       {/* Header */}
       <div className="p-4 border-b">
-        <div className="flex items-center gap-2">
-          <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center">
-            <Sparkles className="w-4 h-4 text-primary" />
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center">
+              <Sparkles className="w-4 h-4 text-primary" />
+            </div>
+            <div>
+              <h3 className="font-semibold text-sm">AI Insights</h3>
+              <p className="text-xs text-muted-foreground">Your metrics co-pilot</p>
+            </div>
           </div>
-          <div>
-            <h3 className="font-semibold text-sm">AI Insights</h3>
-            <p className="text-xs text-muted-foreground">Your metrics co-pilot</p>
-          </div>
+          {onClose && (
+            <Button variant="ghost" size="icon" onClick={onClose} className="h-8 w-8">
+              <PanelRightClose className="w-4 h-4" />
+            </Button>
+          )}
         </div>
       </div>
 
