@@ -27,7 +27,7 @@ const Auth = () => {
   // Redirect if already logged in
   useEffect(() => {
     if (user && !isLoading) {
-      navigate("/");
+      navigate("/app");
     }
   }, [user, isLoading, navigate]);
 
@@ -70,7 +70,7 @@ const Auth = () => {
         title: "Welcome back!",
         description: "You have successfully signed in.",
       });
-      navigate("/");
+      navigate("/app");
     }
   };
 
@@ -101,7 +101,7 @@ const Auth = () => {
         title: "Account created!",
         description: "You can now sign in with your credentials.",
       });
-      navigate("/");
+      navigate("/app");
     }
   };
 

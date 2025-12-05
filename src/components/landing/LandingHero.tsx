@@ -1,7 +1,11 @@
 import { ArrowRight, Sparkles, CheckCircle2, Play } from "lucide-react";
+import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
+import { useAuth } from "@/hooks/useAuth";
 
 export const LandingHero = () => {
+  const { user } = useAuth();
+  
   const features = [
     "Strategy Builder",
     "Auto-Instrumentation",
@@ -59,11 +63,14 @@ export const LandingHero = () => {
         {/* CTAs */}
         <div className="animate-fade-in [animation-delay:200ms] opacity-0 flex flex-col sm:flex-row items-center justify-center gap-4 mb-6">
           <Button
+            asChild
             size="lg"
             className="w-full sm:w-auto h-14 px-8 rounded-xl bg-foreground text-background font-bold text-base hover:bg-foreground/90 transition-all transform hover:-translate-y-1 shadow-xl"
           >
-            Get started. It's FREE
-            <ArrowRight className="ml-2 w-4 h-4" />
+            <Link to={user ? "/app" : "/auth"}>
+              {user ? "Go to Dashboard" : "Get started. It's FREE"}
+              <ArrowRight className="ml-2 w-4 h-4" />
+            </Link>
           </Button>
           <Button
             size="lg"

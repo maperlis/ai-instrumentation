@@ -1,10 +1,13 @@
 import { useState, useEffect } from "react";
+import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Menu, X } from "lucide-react";
+import { useAuth } from "@/hooks/useAuth";
 
 export const LandingNav = () => {
   const [isScrolled, setIsScrolled] = useState(false);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  const { user, isLoading } = useAuth();
 
   useEffect(() => {
     const handleScroll = () => {
@@ -30,15 +33,15 @@ export const LandingNav = () => {
     >
       <div className="max-w-7xl mx-auto px-6 h-16 flex items-center justify-between">
         <div className="flex items-center gap-8">
-          <a
-            href="#"
+          <Link
+            to="/"
             className="text-foreground font-bold tracking-tighter text-lg hover:opacity-80 transition-opacity flex items-center gap-2"
           >
             <div className="w-6 h-6 rounded-lg bg-gradient-to-br from-primary to-secondary flex items-center justify-center">
               <span className="text-primary-foreground text-xs font-bold">M</span>
             </div>
             metrIQ AI
-          </a>
+          </Link>
           <div className="hidden md:flex items-center gap-8 text-sm font-medium text-muted-foreground">
             {navLinks.map((link) => (
               <a
@@ -53,15 +56,27 @@ export const LandingNav = () => {
         </div>
 
         <div className="flex items-center gap-4">
-          <a
-            href="/auth"
-            className="hidden md:block text-sm font-medium text-muted-foreground hover:text-foreground transition-colors"
-          >
-            Log in
-          </a>
-          <Button className="hidden md:flex bg-foreground text-background hover:bg-foreground/90 font-semibold shadow-lg">
-            Get Started Free
-          </Button>
+          {!isLoading && (
+            <>
+              {user ? (
+                <Button asChild className="hidden md:flex bg-foreground text-background hover:bg-foreground/90 font-semibold shadow-lg">
+                  <Link to="/app">Go to Dashboard</Link>
+                </Button>
+              ) : (
+                <>
+                  <Link
+                    to="/auth"
+                    className="hidden md:block text-sm font-medium text-muted-foreground hover:text-foreground transition-colors"
+                  >
+                    Log in
+                  </Link>
+                  <Button asChild className="hidden md:flex bg-foreground text-background hover:bg-foreground/90 font-semibold shadow-lg">
+                    <Link to="/auth">Get Started Free</Link>
+                  </Button>
+                </>
+              )}
+            </>
+          )}
           <button
             className="md:hidden p-2"
             onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
@@ -86,12 +101,20 @@ export const LandingNav = () => {
               </a>
             ))}
             <hr className="border-border" />
-            <a href="/auth" className="text-foreground font-medium py-2">
-              Log in
-            </a>
-            <Button className="w-full bg-foreground text-background font-semibold">
-              Get Started Free
-            </Button>
+            {user ? (
+              <Button asChild className="w-full bg-foreground text-background font-semibold">
+                <Link to="/app" onClick={() => setIsMobileMenuOpen(false)}>Go to Dashboard</Link>
+              </Button>
+            ) : (
+              <>
+                <Link to="/auth" className="text-foreground font-medium py-2" onClick={() => setIsMobileMenuOpen(false)}>
+                  Log in
+                </Link>
+                <Button asChild className="w-full bg-foreground text-background font-semibold">
+                  <Link to="/auth" onClick={() => setIsMobileMenuOpen(false)}>Get Started Free</Link>
+                </Button>
+              </>
+            )}
           </div>
         </div>
       )}
