@@ -1,12 +1,17 @@
-import { useState } from "react";
+import { useState, useRef, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { TaxonomyEvent, TaxonomyField, DEFAULT_TAXONOMY_FIELDS } from "@/types/taxonomy";
-import { Download, FileJson, FileSpreadsheet, CheckCircle2, Send, Copy, ExternalLink, RefreshCw, Upload } from "lucide-react";
+import { ConversationMessage } from "@/types/orchestration";
+import { Download, FileJson, FileSpreadsheet, CheckCircle2, Send, Copy, ExternalLink, RefreshCw, Upload, Bot, User, ChevronLeft, ChevronRight, Loader2, MessageSquare } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { EventTable } from "@/components/EventTable";
 import { FieldManager } from "@/components/FieldManager";
 import { supabase } from "@/integrations/supabase/client";
+import { ScrollArea } from "@/components/ui/scroll-area";
+import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
+import { Label } from "@/components/ui/label";
 import {
   Dialog,
   DialogContent,
@@ -15,9 +20,6 @@ import {
   DialogTitle,
   DialogFooter,
 } from "@/components/ui/dialog";
-import { Textarea } from "@/components/ui/textarea";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import {
   Select,
   SelectContent,
@@ -26,6 +28,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Checkbox } from "@/components/ui/checkbox";
+import { cn } from "@/lib/utils";
 
 interface ResultsSectionProps {
   results: TaxonomyEvent[];
@@ -36,9 +39,19 @@ interface ResultsSectionProps {
     videoData?: string;
     productDetails?: string;
   };
+  conversationHistory?: ConversationMessage[];
+  onSendMessage?: (message: string) => void;
+  isLoading?: boolean;
 }
 
-export const ResultsSection = ({ results, selectedMetrics = [], inputData }: ResultsSectionProps) => {
+export const ResultsSection = ({ 
+  results, 
+  selectedMetrics = [], 
+  inputData,
+  conversationHistory = [],
+  onSendMessage,
+  isLoading = false,
+}: ResultsSectionProps) => {
   const { toast } = useToast();
   const [events, setEvents] = useState<TaxonomyEvent[]>(results);
   const [fields, setFields] = useState<TaxonomyField[]>(DEFAULT_TAXONOMY_FIELDS);
@@ -69,6 +82,29 @@ export const ResultsSection = ({ results, selectedMetrics = [], inputData }: Res
   const [showAmplitudeResultDialog, setShowAmplitudeResultDialog] = useState(false);
   const [showLoaderDialog, setShowLoaderDialog] = useState(false);
   const [loaderScript, setLoaderScript] = useState("");
+  const [chatInput, setChatInput] = useState("");
+  const [isChatCollapsed, setIsChatCollapsed] = useState(false);
+  const scrollRef = useRef<HTMLDivElement>(null);
+
+  // Update events when results change
+  useEffect(() => {
+    setEvents(results);
+  }, [results]);
+
+  // Auto-scroll chat to bottom
+  useEffect(() => {
+    if (scrollRef.current) {
+      scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
+    }
+  }, [conversationHistory]);
+
+  const handleSendChat = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (chatInput.trim() && onSendMessage) {
+      onSendMessage(chatInput.trim());
+      setChatInput("");
+    }
+  };
 
   const downloadJSON = () => {
     const dataStr = JSON.stringify(events, null, 2);
@@ -129,7 +165,6 @@ export const ResultsSection = ({ results, selectedMetrics = [], inputData }: Res
 
       if (error) throw error;
 
-      // Set editable ticket data
       setEditableTicket({
         title: data.ticketContent.title,
         description: data.ticketContent.description,
@@ -291,7 +326,6 @@ export const ResultsSection = ({ results, selectedMetrics = [], inputData }: Res
       setShowAmplitudeDialog(false);
       setShowAmplitudeResultDialog(true);
 
-      // Generate loader script if not dry run
       if (!amplitudeDryRun && data.projectName) {
         const projectUrl = window.location.origin;
         const script = generateLoaderScript(projectUrl, data.projectName);
@@ -387,72 +421,193 @@ export const ResultsSection = ({ results, selectedMetrics = [], inputData }: Res
   const avgConfidence = events.reduce((acc, e) => acc + (e.confidence || 0), 0) / events.length;
 
   return (
-    <div className="container mx-auto px-4 py-16">
-      <div className="max-w-7xl mx-auto space-y-8">
-        <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
-          <div>
-            <h2 className="text-3xl font-bold mb-2">Generated Taxonomy</h2>
-            <p className="text-muted-foreground">
-              {events.length} events identified with {(avgConfidence * 100).toFixed(0)}% avg
-              confidence
-            </p>
-          </div>
-
-          <div className="flex gap-2 flex-wrap">
-            <Button onClick={downloadJSON} variant="outline" className="gap-2">
-              <FileJson className="w-4 h-4" />
-              Export JSON
-            </Button>
-            <Button onClick={downloadCSV} variant="outline" className="gap-2">
-              <FileSpreadsheet className="w-4 h-4" />
-              Export CSV
-            </Button>
-            <Button 
-              onClick={() => setShowAmplitudeDialog(true)} 
-              variant="outline" 
-              className="gap-2"
-            >
-              <Upload className="w-4 h-4" />
-              Push to Amplitude
-            </Button>
-            <Button onClick={handlePrepareTicket} disabled={isSubmitting} className="gap-2">
-              <Send className="w-4 h-4" />
-              {isSubmitting ? "Preparing..." : "Submit Taxonomy"}
-            </Button>
-          </div>
+    <div className="h-screen flex flex-col bg-background">
+      {/* Header */}
+      <div className="p-4 border-b border-border bg-card flex items-center justify-between">
+        <div>
+          <h1 className="text-xl font-semibold text-foreground">Event Taxonomy</h1>
+          <p className="text-sm text-muted-foreground">
+            {events.length} events • {(avgConfidence * 100).toFixed(0)}% avg confidence
+          </p>
         </div>
-
-        <Card className="p-6 bg-accent/5 border-accent">
-          <div className="flex items-start gap-3">
-            <CheckCircle2 className="w-5 h-5 text-accent mt-0.5" />
-            <div>
-              <h3 className="font-semibold mb-2">Naming Convention</h3>
-              <p className="text-sm text-muted-foreground">
-                Events follow the <code className="px-2 py-1 bg-muted rounded">
-                  product_area_action_object
-                </code> pattern using snake_case for consistency
-              </p>
-            </div>
-          </div>
-        </Card>
-
-        <FieldManager fields={fields} onFieldsChange={setFields} />
-
-        <div className="flex justify-end">
-          <Button
-            onClick={handleRegenerateTaxonomy}
-            disabled={isRegenerating}
-            variant="outline"
+        <div className="flex gap-2">
+          <Button onClick={downloadJSON} variant="outline" size="sm" className="gap-2">
+            <FileJson className="w-4 h-4" />
+            JSON
+          </Button>
+          <Button onClick={downloadCSV} variant="outline" size="sm" className="gap-2">
+            <FileSpreadsheet className="w-4 h-4" />
+            CSV
+          </Button>
+          <Button 
+            onClick={() => setShowAmplitudeDialog(true)} 
+            variant="outline" 
+            size="sm"
             className="gap-2"
           >
-            <RefreshCw className={`w-4 h-4 ${isRegenerating ? 'animate-spin' : ''}`} />
-            {isRegenerating ? 'Regenerating...' : 'Regenerate with Custom Fields'}
+            <Upload className="w-4 h-4" />
+            Amplitude
+          </Button>
+          <Button onClick={handlePrepareTicket} disabled={isSubmitting} size="sm" className="gap-2">
+            <Send className="w-4 h-4" />
+            Create Ticket
           </Button>
         </div>
-
-        <EventTable events={events} fields={fields} onEventsChange={setEvents} />
       </div>
 
+      {/* Main Content */}
+      <div className="flex-1 flex overflow-hidden">
+        {/* Chat Panel */}
+        <div 
+          className={cn(
+            "border-r border-border bg-card flex flex-col transition-all duration-300",
+            isChatCollapsed ? "w-12" : "w-96"
+          )}
+        >
+          {isChatCollapsed ? (
+            <div className="flex flex-col items-center py-4">
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={() => setIsChatCollapsed(false)}
+                className="mb-2"
+              >
+                <ChevronRight className="h-4 w-4" />
+              </Button>
+              <div className="writing-mode-vertical text-xs text-muted-foreground flex items-center gap-2 rotate-180" style={{ writingMode: 'vertical-rl' }}>
+                <MessageSquare className="h-4 w-4 rotate-90" />
+                Instrumentation Architect
+              </div>
+            </div>
+          ) : (
+            <>
+              {/* Chat Header */}
+              <div className="p-4 border-b border-border flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                  <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center">
+                    <Bot className="w-4 h-4 text-primary" />
+                  </div>
+                  <div>
+                    <h3 className="font-medium text-sm">Instrumentation Architect</h3>
+                    <p className="text-xs text-muted-foreground">Ask about events or request changes</p>
+                  </div>
+                </div>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  onClick={() => setIsChatCollapsed(true)}
+                >
+                  <ChevronLeft className="h-4 w-4" />
+                </Button>
+              </div>
+
+              {/* Chat Messages */}
+              <ScrollArea className="flex-1 p-4" ref={scrollRef}>
+                <div className="space-y-4">
+                  {conversationHistory.length === 0 ? (
+                    <div className="text-center text-muted-foreground text-sm py-8">
+                      <Bot className="w-8 h-8 mx-auto mb-2 opacity-50" />
+                      <p>Ask me to modify events, add properties, or explain the taxonomy</p>
+                    </div>
+                  ) : (
+                    conversationHistory.map((message, index) => (
+                      <div
+                        key={index}
+                        className={cn(
+                          "flex gap-3",
+                          message.role === 'user' ? "flex-row-reverse" : "flex-row"
+                        )}
+                      >
+                        <div className={cn(
+                          "w-7 h-7 rounded-full flex items-center justify-center flex-shrink-0",
+                          message.role === 'user' 
+                            ? "bg-primary text-primary-foreground" 
+                            : "bg-muted"
+                        )}>
+                          {message.role === 'user' ? (
+                            <User className="w-4 h-4" />
+                          ) : (
+                            <Bot className="w-4 h-4" />
+                          )}
+                        </div>
+                        <div className={cn(
+                          "rounded-lg px-3 py-2 max-w-[85%] text-sm",
+                          message.role === 'user'
+                            ? "bg-primary text-primary-foreground"
+                            : "bg-muted"
+                        )}>
+                          {message.content}
+                        </div>
+                      </div>
+                    ))
+                  )}
+                  {isLoading && (
+                    <div className="flex gap-3">
+                      <div className="w-7 h-7 rounded-full bg-muted flex items-center justify-center">
+                        <Bot className="w-4 h-4" />
+                      </div>
+                      <div className="bg-muted rounded-lg px-3 py-2">
+                        <Loader2 className="w-4 h-4 animate-spin" />
+                      </div>
+                    </div>
+                  )}
+                </div>
+              </ScrollArea>
+
+              {/* Chat Input */}
+              <form onSubmit={handleSendChat} className="p-4 border-t border-border">
+                <div className="flex gap-2">
+                  <Input
+                    value={chatInput}
+                    onChange={(e) => setChatInput(e.target.value)}
+                    placeholder="Ask about events..."
+                    disabled={isLoading}
+                    className="flex-1"
+                  />
+                  <Button type="submit" size="icon" disabled={!chatInput.trim() || isLoading}>
+                    <Send className="w-4 h-4" />
+                  </Button>
+                </div>
+              </form>
+            </>
+          )}
+        </div>
+
+        {/* Taxonomy Panel */}
+        <div className="flex-1 flex flex-col overflow-hidden">
+          {/* Naming Convention Banner */}
+          <div className="px-6 py-3 bg-accent/5 border-b border-border flex items-center gap-3">
+            <CheckCircle2 className="w-4 h-4 text-accent" />
+            <span className="text-sm text-muted-foreground">
+              Events follow <code className="px-1.5 py-0.5 bg-muted rounded text-xs">product_area_action_object</code> pattern
+            </span>
+          </div>
+
+          {/* Field Manager */}
+          <div className="px-6 py-4 border-b border-border">
+            <div className="flex items-center justify-between">
+              <FieldManager fields={fields} onFieldsChange={setFields} />
+              <Button
+                onClick={handleRegenerateTaxonomy}
+                disabled={isRegenerating}
+                variant="outline"
+                size="sm"
+                className="gap-2"
+              >
+                <RefreshCw className={cn("w-4 h-4", isRegenerating && "animate-spin")} />
+                {isRegenerating ? 'Regenerating...' : 'Regenerate'}
+              </Button>
+            </div>
+          </div>
+
+          {/* Event Table */}
+          <div className="flex-1 overflow-auto p-6">
+            <EventTable events={events} fields={fields} onEventsChange={setEvents} />
+          </div>
+        </div>
+      </div>
+
+      {/* Dialogs */}
       <Dialog open={showEditDialog} onOpenChange={setShowEditDialog}>
         <DialogContent className="max-w-4xl max-h-[80vh] overflow-y-auto">
           <DialogHeader>
@@ -532,7 +687,7 @@ export const ResultsSection = ({ results, selectedMetrics = [], inputData }: Res
 
           {ticketData?.jiraTicket && (
             <div className="flex items-center gap-2 p-4 bg-accent/10 rounded-lg">
-              <CheckCircle2 className="w-5 h-5 text-success" />
+              <CheckCircle2 className="w-5 h-5 text-green-500" />
               <div className="flex-1">
                 <p className="font-medium">{ticketData.jiraTicket.key}</p>
                 <p className="text-sm text-muted-foreground">
@@ -688,14 +843,14 @@ export const ResultsSection = ({ results, selectedMetrics = [], inputData }: Res
           {amplitudeResult && (
             <div className="space-y-4">
               <div className="grid grid-cols-2 gap-4">
-              <Card className="p-4 bg-green-50 dark:bg-green-950">
+                <Card className="p-4 bg-green-500/10 border-green-500/20">
                   <h4 className="font-semibold mb-2 text-sm">Sample Events Sent</h4>
                   <p className="text-3xl font-bold text-green-600 dark:text-green-400">
                     {amplitudeResult.events_created || 0}
                   </p>
                 </Card>
 
-                <Card className="p-4 bg-red-50 dark:bg-red-950">
+                <Card className="p-4 bg-red-500/10 border-red-500/20">
                   <h4 className="font-semibold mb-2 text-sm">Events Failed</h4>
                   <p className="text-3xl font-bold text-red-600 dark:text-red-400">
                     {amplitudeResult.events_failed || 0}
@@ -763,7 +918,7 @@ export const ResultsSection = ({ results, selectedMetrics = [], inputData }: Res
           <div className="space-y-6">
             <Card className="p-6 bg-accent/10">
               <h3 className="font-semibold mb-4 flex items-center gap-2">
-                <CheckCircle2 className="w-5 h-5 text-success" />
+                <CheckCircle2 className="w-5 h-5 text-green-500" />
                 Setup Instructions
               </h3>
               <ol className="space-y-3 text-sm">
@@ -801,7 +956,7 @@ export const ResultsSection = ({ results, selectedMetrics = [], inputData }: Res
               </Card>
             </div>
 
-            <Card className="p-4 bg-blue-50 dark:bg-blue-950">
+            <Card className="p-4 bg-primary/5 border-primary/20">
               <h4 className="font-semibold mb-2 text-sm">Example Usage</h4>
               <pre className="text-xs overflow-x-auto whitespace-pre-wrap bg-background p-4 rounded-lg">
 {`<!-- Button with event tracking -->
