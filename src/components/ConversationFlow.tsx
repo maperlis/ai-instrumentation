@@ -5,7 +5,7 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { Loader2, ArrowLeft, Bot, Check, X } from "lucide-react";
 import { ConversationMessage, ApprovalType } from "@/types/orchestration";
 import { Metric, TaxonomyEvent } from "@/types/taxonomy";
-import { FrameworkRecommendation, ClarifyingQuestion } from "@/types/metricsFramework";
+import { FrameworkRecommendation, ClarifyingQuestion, FrameworkType } from "@/types/metricsFramework";
 import { AgentChat } from "./AgentChat";
 import { MetricSelectionPanel } from "./MetricSelectionPanel";
 import { MetricsFrameworkView } from "./metrics";
@@ -28,6 +28,7 @@ interface ConversationFlowProps {
   clarifyingQuestions?: ClarifyingQuestion[];
   onClarifyingAnswer?: (answers: Record<string, string>) => void;
   useFrameworkView?: boolean;
+  selectedFramework?: FrameworkType;
 }
 
 export function ConversationFlow({
@@ -48,6 +49,7 @@ export function ConversationFlow({
   clarifyingQuestions = [],
   onClarifyingAnswer,
   useFrameworkView = true,
+  selectedFramework = 'driver_tree',
 }: ConversationFlowProps) {
   const [selectedMetricIds, setSelectedMetricIds] = useState<string[]>([]);
 
@@ -112,9 +114,7 @@ export function ConversationFlow({
               conversationHistory={conversationHistory}
               onSendMessage={onSendMessage}
               newMetricIds={newMetricIds}
-              frameworkRecommendation={frameworkRecommendation}
-              clarifyingQuestions={clarifyingQuestions}
-              onClarifyingAnswer={onClarifyingAnswer}
+              initialFramework={selectedFramework}
             />
           </div>
         </div>
