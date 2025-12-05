@@ -55,8 +55,7 @@ export const LandingHero = () => {
 
         {/* Subheadline */}
         <p className="animate-fade-in [animation-delay:100ms] opacity-0 text-lg md:text-xl text-muted-foreground max-w-2xl mx-auto mb-10 leading-relaxed">
-          Replace spreadsheets and manual tracking. Every metric, schema, and
-          instrumentation in one AI-powered platform.
+          Build less, impact more—metrIQ AI ensures every feature has a measurable reason to exist.
         </p>
 
         {/* CTAs */}
