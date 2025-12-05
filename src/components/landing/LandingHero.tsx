@@ -2,19 +2,12 @@ import { ArrowRight, Sparkles, CheckCircle2, Play } from "lucide-react";
 import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/hooks/useAuth";
-
 export const LandingHero = () => {
-  const { user } = useAuth();
-  
-  const features = [
-    "Strategy Builder",
-    "Auto-Instrumentation",
-    "Schema Management",
-    "Team Collaboration",
-  ];
-
-  return (
-    <section className="relative pt-32 pb-24 md:pt-40 md:pb-32 px-6 overflow-hidden bg-background">
+  const {
+    user
+  } = useAuth();
+  const features = ["Strategy Builder", "Auto-Instrumentation", "Schema Management", "Team Collaboration"];
+  return <section className="relative pt-32 pb-24 md:pt-40 md:pb-32 px-6 overflow-hidden bg-background">
       {/* Floating Background Elements */}
       <div className="absolute inset-0 pointer-events-none select-none overflow-hidden">
         <div className="absolute top-32 left-[5%] text-xs font-bold tracking-widest uppercase text-foreground/5 animate-float">
@@ -47,11 +40,17 @@ export const LandingHero = () => {
 
         {/* Headline */}
         <h1 className="animate-fade-in text-5xl md:text-7xl lg:text-8xl font-bold text-foreground tracking-tighter leading-[1.05] mb-8">
-          Create your data strategy
+          
+          
+          
+          
+          A Data Strategy That Builds Itelf      
+                
+                
+                
+                
           <br className="hidden md:block" />
-          <span className="bg-gradient-to-r from-primary via-secondary to-primary bg-clip-text text-transparent">
-            with AI
-          </span>
+          
         </h1>
 
         {/* Subheadline */}
@@ -62,21 +61,13 @@ export const LandingHero = () => {
 
         {/* CTAs */}
         <div className="animate-fade-in [animation-delay:200ms] opacity-0 flex flex-col sm:flex-row items-center justify-center gap-4 mb-6">
-          <Button
-            asChild
-            size="lg"
-            className="w-full sm:w-auto h-14 px-8 rounded-xl bg-foreground text-background font-bold text-base hover:bg-foreground/90 transition-all transform hover:-translate-y-1 shadow-xl"
-          >
+          <Button asChild size="lg" className="w-full sm:w-auto h-14 px-8 rounded-xl bg-foreground text-background font-bold text-base hover:bg-foreground/90 transition-all transform hover:-translate-y-1 shadow-xl">
             <Link to={user ? "/app" : "/auth"}>
               {user ? "Go to Dashboard" : "Get started. It's FREE"}
               <ArrowRight className="ml-2 w-4 h-4" />
             </Link>
           </Button>
-          <Button
-            size="lg"
-            variant="outline"
-            className="w-full sm:w-auto h-14 px-8 rounded-xl font-bold text-base"
-          >
+          <Button size="lg" variant="outline" className="w-full sm:w-auto h-14 px-8 rounded-xl font-bold text-base">
             <Play className="mr-2 w-4 h-4" />
             Watch Demo
           </Button>
@@ -92,14 +83,11 @@ export const LandingHero = () => {
 
         {/* Feature List */}
         <div className="animate-fade-in [animation-delay:400ms] opacity-0 flex flex-wrap items-center justify-center gap-4 md:gap-6 text-sm text-muted-foreground">
-          {features.map((feature, index) => (
-            <div key={index} className="flex items-center gap-2">
+          {features.map((feature, index) => <div key={index} className="flex items-center gap-2">
               <div className="w-1.5 h-1.5 rounded-full bg-primary" />
               <span>{feature}</span>
-            </div>
-          ))}
+            </div>)}
         </div>
       </div>
-    </section>
-  );
+    </section>;
 };
