@@ -9,6 +9,8 @@ import { FrameworkType } from "@/types/metricsFramework";
 import { useOrchestration } from "@/hooks/useOrchestration";
 import { PageContainer } from "@/components/design-system";
 import { AppHeader } from "@/components/design-system/AppHeader";
+import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { BarChart3, FileSpreadsheet } from "lucide-react";
 
 type WorkflowStep = 'input' | 'framework-questions' | 'visualization' | 'taxonomy-review' | 'results';
 
@@ -123,41 +125,78 @@ const Index = () => {
         />
       )}
       
-      {(currentStep === 'visualization' || currentStep === 'taxonomy-review') && (
+      {(currentStep === 'visualization' || currentStep === 'results') && state.metrics.length > 0 && (
         <div className="min-h-[calc(100vh-4rem)]">
-          <ConversationFlow
-            conversationHistory={state.conversationHistory}
-            metrics={state.metrics}
-            events={state.events}
-            requiresApproval={state.requiresApproval}
-            approvalType={state.approvalType}
-            isLoading={isLoading}
-            onApprove={handleApprove}
-            onReject={handleReject}
-            onBack={handleBackToFrameworkQuestions}
-            onComplete={handleComplete}
-            onSendMessage={handleSendMessage}
-            status={state.status}
-            newMetricIds={newMetricIds}
-            frameworkRecommendation={state.frameworkRecommendation}
-            clarifyingQuestions={state.clarifyingQuestions}
-            selectedFramework={selectedFramework}
-            onClarifyingAnswer={(answers) => {
-              console.log("Clarifying answers:", answers);
-            }}
-          />
+          {/* Navigation Tabs */}
+          <div className="border-b border-border bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 sticky top-16 z-40">
+            <div className="container mx-auto px-4">
+              <Tabs 
+                value={currentStep === 'visualization' ? 'metrics' : 'taxonomy'} 
+                onValueChange={(value) => setCurrentStep(value === 'metrics' ? 'visualization' : 'results')}
+                className="w-full"
+              >
+                <TabsList className="h-12 bg-transparent border-none gap-2">
+                  <TabsTrigger 
+                    value="metrics" 
+                    className="data-[state=active]:bg-primary/10 data-[state=active]:text-primary gap-2 px-4"
+                  >
+                    <BarChart3 className="h-4 w-4" />
+                    Metrics & Visualization
+                  </TabsTrigger>
+                  <TabsTrigger 
+                    value="taxonomy" 
+                    className="data-[state=active]:bg-primary/10 data-[state=active]:text-primary gap-2 px-4"
+                    disabled={state.events.length === 0}
+                  >
+                    <FileSpreadsheet className="h-4 w-4" />
+                    Event Taxonomy
+                    {state.events.length > 0 && (
+                      <span className="ml-1 text-xs bg-primary/20 text-primary px-1.5 py-0.5 rounded-full">
+                        {state.events.length}
+                      </span>
+                    )}
+                  </TabsTrigger>
+                </TabsList>
+              </Tabs>
+            </div>
+          </div>
+
+          {/* Content */}
+          {currentStep === 'visualization' && (
+            <ConversationFlow
+              conversationHistory={state.conversationHistory}
+              metrics={state.metrics}
+              events={state.events}
+              requiresApproval={state.requiresApproval}
+              approvalType={state.approvalType}
+              isLoading={isLoading}
+              onApprove={handleApprove}
+              onReject={handleReject}
+              onBack={handleBackToFrameworkQuestions}
+              onComplete={handleComplete}
+              onSendMessage={handleSendMessage}
+              status={state.status}
+              newMetricIds={newMetricIds}
+              frameworkRecommendation={state.frameworkRecommendation}
+              clarifyingQuestions={state.clarifyingQuestions}
+              selectedFramework={selectedFramework}
+              onClarifyingAnswer={(answers) => {
+                console.log("Clarifying answers:", answers);
+              }}
+            />
+          )}
+
+          {currentStep === 'results' && state.events.length > 0 && (
+            <ResultsSection 
+              results={state.events}
+              selectedMetrics={state.metrics?.map(m => m.name) || []}
+              inputData={inputData || undefined}
+              conversationHistory={state.conversationHistory}
+              onSendMessage={handleSendMessage}
+              isLoading={isLoading}
+            />
+          )}
         </div>
-      )}
-      
-      {currentStep === 'results' && state.events.length > 0 && (
-        <ResultsSection 
-          results={state.events}
-          selectedMetrics={state.metrics?.map(m => m.name) || []}
-          inputData={inputData || undefined}
-          conversationHistory={state.conversationHistory}
-          onSendMessage={handleSendMessage}
-          isLoading={isLoading}
-        />
       )}
     </PageContainer>
   );
