@@ -214,6 +214,17 @@ All colors MUST be HSL.
     background: hsl(var(--surface-dark) / 0.8);
     backdrop-filter: blur(12px);
   }
+
+  /* Animation utilities */
+  .animate-float {
+    animation: float 6s ease-in-out infinite;
+  }
+
+  @keyframes float {
+    0% { transform: translateY(0px); opacity: 0.05; }
+    50% { transform: translateY(-10px); opacity: 0.1; }
+    100% { transform: translateY(0px); opacity: 0.05; }
+  }
 }
 
 @layer components {
@@ -240,5 +251,46 @@ All colors MUST be HSL.
 
   .landing-badge {
     @apply inline-flex items-center gap-2 px-3 py-1.5 rounded-full text-xs font-semibold uppercase tracking-wider;
+  }
+
+  /* App-specific component classes */
+  .app-card {
+    @apply rounded-2xl bg-card border border-border p-6 shadow-sm;
+  }
+
+  .app-card-elevated {
+    @apply rounded-2xl bg-card border border-border p-6 shadow-lg;
+  }
+
+  .app-card-dark {
+    @apply rounded-2xl bg-surface-dark-card border border-border/10 p-6;
+  }
+
+  .app-input {
+    @apply rounded-lg border border-input bg-background px-4 py-2 text-sm;
+  }
+
+  .app-badge {
+    @apply inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium;
+  }
+
+  .app-badge-primary {
+    @apply app-badge bg-primary/10 text-primary border border-primary/20;
+  }
+
+  .app-badge-secondary {
+    @apply app-badge bg-secondary/10 text-secondary border border-secondary/20;
+  }
+
+  .app-badge-success {
+    @apply app-badge bg-success/10 text-success border border-success/20;
+  }
+
+  .app-badge-warning {
+    @apply app-badge bg-warning/10 text-warning border border-warning/20;
+  }
+
+  .app-badge-destructive {
+    @apply app-badge bg-destructive/10 text-destructive border border-destructive/20;
   }
 }

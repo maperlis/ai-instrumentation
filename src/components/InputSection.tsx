@@ -2,13 +2,13 @@ import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
-import { Card } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Label } from "@/components/ui/label";
 import { Upload, Link2, Loader2, Video } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { TaxonomyEvent } from "@/types/taxonomy";
+import { SectionContainer, FeatureCard } from "@/components/design-system";
 
 interface InputSectionProps {
   onMetricsGenerated: (metrics: any[], data: any) => void;
@@ -71,18 +71,15 @@ export const InputSection = ({
       }
       setSelectedVideo(file);
       
-      // Create video URL for preview and frame extraction
       const videoUrl = URL.createObjectURL(file);
       setVideoPreview(videoUrl);
       
-      // Extract multiple frames from the video for AI analysis
       const video = document.createElement('video');
       video.preload = 'metadata';
       video.src = videoUrl;
       video.muted = true;
       
       video.onloadedmetadata = () => {
-        // Seek to middle of video for best frame
         video.currentTime = Math.min(3, video.duration / 2);
       };
       
@@ -94,13 +91,10 @@ export const InputSection = ({
         
         if (ctx) {
           ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
-          // Convert canvas to base64 JPEG image (more efficient than video data)
           const frameData = canvas.toDataURL('image/jpeg', 0.85);
-          // Store the frame for API call
           setVideoFrameData(frameData);
         }
         
-        // Clean up
         URL.revokeObjectURL(videoUrl);
       };
       
@@ -155,13 +149,11 @@ export const InputSection = ({
       requestData.videoData = videoFrameData;
     }
 
-    // Use orchestration flow if available
     if (onStartOrchestration) {
       onStartOrchestration(requestData);
       return;
     }
 
-    // Legacy flow (backwards compatibility)
     setIsLoading(true);
 
     try {
@@ -212,8 +204,8 @@ export const InputSection = ({
   };
 
   return (
-    <div className="container mx-auto px-4 pb-20">
-      <Card className="max-w-3xl mx-auto p-8 shadow-lg">
+    <SectionContainer size="md" className="pb-20">
+      <FeatureCard variant="elevated" hoverEffect="none" className="shadow-xl">
         <Tabs defaultValue="url" className="w-full">
           <TabsList className="grid w-full grid-cols-3 mb-6">
             <TabsTrigger value="url" className="gap-2">
@@ -275,7 +267,7 @@ export const InputSection = ({
           <TabsContent value="image" className="space-y-4">
             <div className="space-y-2">
               <Label htmlFor="image">Design Image</Label>
-              <div className="border-2 border-dashed border-border rounded-lg p-8 text-center hover:border-primary transition-colors cursor-pointer">
+              <div className="border-2 border-dashed border-border rounded-xl p-8 text-center hover:border-primary/50 hover:bg-primary/5 transition-all cursor-pointer">
                 <input
                   id="image"
                   type="file"
@@ -338,7 +330,7 @@ export const InputSection = ({
           <TabsContent value="video" className="space-y-4">
             <div className="space-y-2">
               <Label htmlFor="video">Feature Demo Video</Label>
-              <div className="border-2 border-dashed border-border rounded-lg p-8 text-center hover:border-primary transition-colors cursor-pointer">
+              <div className="border-2 border-dashed border-border rounded-xl p-8 text-center hover:border-primary/50 hover:bg-primary/5 transition-all cursor-pointer">
                 <input
                   id="video"
                   type="file"
@@ -398,7 +390,7 @@ export const InputSection = ({
             </Button>
           </TabsContent>
         </Tabs>
-      </Card>
-    </div>
+      </FeatureCard>
+    </SectionContainer>
   );
 };
