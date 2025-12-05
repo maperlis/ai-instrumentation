@@ -86,6 +86,15 @@ export function FrameworkQuestionsPage({ onBack, onComplete, isLoading: external
   const [showFrameworkSelection, setShowFrameworkSelection] = useState(false);
   const [selectedFramework, setSelectedFramework] = useState<FrameworkType | null>(null);
 
+  // Validate question has proper options
+  const isValidQuestion = (q: Question): boolean => {
+    if (q.type === 'text') return true;
+    if (q.type === 'single_choice' || q.type === 'multiple_choice') {
+      return Array.isArray(q.options) && q.options.length > 0 && q.options.every(opt => opt.value && opt.label);
+    }
+    return false;
+  };
+
   // Generate tailored questions based on input data
   useEffect(() => {
     async function generateQuestions() {
@@ -103,15 +112,27 @@ export function FrameworkQuestionsPage({ onBack, onComplete, isLoading: external
         if (error) throw error;
 
         if (data?.questions && data.questions.length > 0) {
-          // Add icons to options based on their values
-          const enhancedQuestions = data.questions.map((q: Question) => ({
-            ...q,
-            options: q.options?.map(opt => ({
-              ...opt,
-              icon: getIconForValue(opt.value)
+          // Add icons to options and filter out invalid questions
+          const enhancedQuestions = data.questions
+            .map((q: Question) => ({
+              ...q,
+              options: q.options?.map(opt => ({
+                ...opt,
+                icon: getIconForValue(opt.value)
+              }))
             }))
-          }));
-          setQuestions(enhancedQuestions);
+            .filter(isValidQuestion);
+          
+          if (enhancedQuestions.length > 0) {
+            setQuestions(enhancedQuestions);
+          } else {
+            // All generated questions were invalid, use fallback
+            console.warn('All generated questions were invalid, using fallback');
+            setQuestions(getFallbackQuestions());
+          }
+        } else {
+          // No questions returned, use fallback
+          setQuestions(getFallbackQuestions());
         }
 
         if (data?.productInsights) {
