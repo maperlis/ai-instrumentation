@@ -3,9 +3,10 @@ import { HeroSection } from "@/components/HeroSection";
 import { InputSection } from "@/components/InputSection";
 import { ConversationFlow } from "@/components/ConversationFlow";
 import { ResultsSection } from "@/components/ResultsSection";
-import { UserMenu } from "@/components/UserMenu";
 import { TaxonomyEvent, Metric } from "@/types/taxonomy";
 import { useOrchestration } from "@/hooks/useOrchestration";
+import { PageContainer } from "@/components/design-system";
+import { AppHeader } from "@/components/design-system/AppHeader";
 
 type WorkflowStep = 'input' | 'conversation' | 'results';
 
@@ -58,9 +59,8 @@ const Index = () => {
     await sendMessage(message);
   }, [sendMessage]);
 
-  // Legacy handlers for backwards compatibility with InputSection
   const handleMetricsGenerated = useCallback((generatedMetrics: Metric[], data: any) => {
-    // This is now handled by the orchestration flow
+    // Handled by orchestration flow
   }, []);
 
   const handleTaxonomyGenerated = useCallback((generatedResults: TaxonomyEvent[]) => {
@@ -69,12 +69,11 @@ const Index = () => {
   }, []);
 
   return (
-    <div className="min-h-screen bg-background relative">
-      <div className="absolute top-4 right-4 z-50">
-        <UserMenu />
-      </div>
+    <PageContainer>
+      <AppHeader />
+      
       {currentStep === 'input' && (
-        <div className="gradient-hero">
+        <div className="gradient-hero min-h-[calc(100vh-4rem)]">
           <HeroSection />
           <InputSection 
             onMetricsGenerated={handleMetricsGenerated}
@@ -88,7 +87,7 @@ const Index = () => {
       )}
       
       {currentStep === 'conversation' && (
-        <div className="min-h-screen">
+        <div className="min-h-[calc(100vh-4rem)]">
           <ConversationFlow
             conversationHistory={state.conversationHistory}
             metrics={state.metrics}
@@ -106,7 +105,6 @@ const Index = () => {
             frameworkRecommendation={state.frameworkRecommendation}
             clarifyingQuestions={state.clarifyingQuestions}
             onClarifyingAnswer={(answers) => {
-              // For now, just log - could send to backend for refined recommendations
               console.log("Clarifying answers:", answers);
             }}
           />
@@ -120,7 +118,7 @@ const Index = () => {
           inputData={inputData || undefined}
         />
       )}
-    </div>
+    </PageContainer>
   );
 };
 

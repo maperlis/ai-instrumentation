@@ -1,55 +1,62 @@
 import { Sparkles, Target, Zap } from "lucide-react";
+import { SectionContainer, FeatureCard, IconContainer } from "@/components/design-system";
 
 export const HeroSection = () => {
   return (
-    <div className="container mx-auto px-4 pt-20 pb-12 text-center">
-      <div className="inline-flex items-center gap-2 px-4 py-2 bg-primary/10 rounded-full mb-6">
+    <SectionContainer size="lg" className="pt-16 pb-12 text-center">
+      {/* Badge */}
+      <div className="inline-flex items-center gap-2 px-4 py-2 bg-primary/10 rounded-full mb-6 border border-primary/20">
         <Sparkles className="w-4 h-4 text-primary" />
-        <span className="text-sm font-medium text-primary">AI-Powered Analytics</span>
+        <span className="text-sm font-semibold text-primary">AI-Powered Analytics</span>
       </div>
       
-      <h1 className="text-5xl md:text-6xl font-bold mb-6 bg-gradient-to-r from-primary via-secondary to-primary bg-clip-text text-transparent">
-        Generate Product Instrumentation
+      {/* Headline */}
+      <h1 className="text-4xl md:text-5xl lg:text-6xl font-bold mb-6 tracking-tight">
+        <span className="bg-gradient-to-r from-primary via-secondary to-primary bg-clip-text text-transparent">
+          Generate Product Instrumentation
+        </span>
         <br />
-        Taxonomies Instantly
+        <span className="text-foreground">Taxonomies Instantly</span>
       </h1>
       
-      <p className="text-xl text-muted-foreground max-w-2xl mx-auto mb-8">
+      {/* Subheadline */}
+      <p className="text-xl text-muted-foreground max-w-2xl mx-auto mb-12 leading-relaxed">
         Transform designs and URLs into standardized event tracking schemas. 
         Eliminate data inconsistency and align your product teams.
       </p>
 
-      <div className="grid md:grid-cols-3 gap-6 max-w-4xl mx-auto mt-12">
-        <div className="flex flex-col items-center gap-3 p-6 rounded-lg bg-card/50 backdrop-blur-sm border border-border">
-          <div className="p-3 rounded-full bg-primary/10">
-            <Target className="w-6 h-6 text-primary" />
-          </div>
-          <h3 className="font-semibold">Consistent Naming</h3>
+      {/* Feature cards */}
+      <div className="grid md:grid-cols-3 gap-6 max-w-4xl mx-auto">
+        <FeatureCard variant="elevated" hoverEffect="lift" className="text-left">
+          <IconContainer variant="primary" size="md" className="mb-4">
+            <Target className="w-6 h-6" />
+          </IconContainer>
+          <h3 className="font-semibold text-foreground mb-2">Consistent Naming</h3>
           <p className="text-sm text-muted-foreground">
             Auto-generate standardized event names following best practices
           </p>
-        </div>
+        </FeatureCard>
 
-        <div className="flex flex-col items-center gap-3 p-6 rounded-lg bg-card/50 backdrop-blur-sm border border-border">
-          <div className="p-3 rounded-full bg-secondary/10">
-            <Zap className="w-6 h-6 text-secondary" />
-          </div>
-          <h3 className="font-semibold">Save Time</h3>
+        <FeatureCard variant="elevated" hoverEffect="lift" className="text-left">
+          <IconContainer variant="secondary" size="md" className="mb-4">
+            <Zap className="w-6 h-6" />
+          </IconContainer>
+          <h3 className="font-semibold text-foreground mb-2">Save Time</h3>
           <p className="text-sm text-muted-foreground">
             Generate complete taxonomies in seconds, not hours
           </p>
-        </div>
+        </FeatureCard>
 
-        <div className="flex flex-col items-center gap-3 p-6 rounded-lg bg-card/50 backdrop-blur-sm border border-border">
-          <div className="p-3 rounded-full bg-accent/10">
-            <Sparkles className="w-6 h-6 text-accent" />
-          </div>
-          <h3 className="font-semibold">AI Vision</h3>
+        <FeatureCard variant="elevated" hoverEffect="lift" className="text-left">
+          <IconContainer variant="accent" size="md" className="mb-4">
+            <Sparkles className="w-6 h-6" />
+          </IconContainer>
+          <h3 className="font-semibold text-foreground mb-2">AI Vision</h3>
           <p className="text-sm text-muted-foreground">
             Analyze designs and identify user interactions automatically
           </p>
-        </div>
+        </FeatureCard>
       </div>
-    </div>
+    </SectionContainer>
   );
 };
