@@ -4,17 +4,15 @@ import { Check, Eye, List, Star } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Checkbox } from "@/components/ui/checkbox";
-import { ScrollArea } from "@/components/ui/scroll-area";
 import { Badge } from "@/components/ui/badge";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
-import { FrameworkType, FrameworkData, MetricNode, MetricRelationship, FunnelStage, FlywheelLoop, FrameworkRecommendation, ClarifyingQuestion } from "@/types/metricsFramework";
+import { FrameworkType, FrameworkData, MetricNode, MetricRelationship, FunnelStage, FlywheelLoop } from "@/types/metricsFramework";
 import { Metric } from "@/types/taxonomy";
 import { FrameworkSelector } from "./FrameworkSelector";
 import { DriverTreeVisualization } from "./DriverTreeVisualization";
 import { ConversionFunnelVisualization } from "./ConversionFunnelVisualization";
 import { GrowthFlywheelVisualization } from "./GrowthFlywheelVisualization";
 import { AINarrativePanel } from "./AINarrativePanel";
-import { FrameworkRecommendationFlow } from "./FrameworkRecommendationFlow";
 import { AgentChat } from "@/components/AgentChat";
 import { ConversationMessage } from "@/types/orchestration";
 
@@ -27,9 +25,7 @@ interface MetricsFrameworkViewProps {
   conversationHistory: ConversationMessage[];
   onSendMessage: (message: string) => void;
   newMetricIds?: string[];
-  frameworkRecommendation?: FrameworkRecommendation | null;
-  clarifyingQuestions?: ClarifyingQuestion[];
-  onClarifyingAnswer?: (answers: Record<string, string>) => void;
+  initialFramework?: FrameworkType;
 }
 
 export function MetricsFrameworkView({
@@ -41,21 +37,16 @@ export function MetricsFrameworkView({
   conversationHistory,
   onSendMessage,
   newMetricIds = [],
-  frameworkRecommendation,
-  clarifyingQuestions = [],
-  onClarifyingAnswer,
+  initialFramework = 'driver_tree',
 }: MetricsFrameworkViewProps) {
-  const [selectedFramework, setSelectedFramework] = useState<FrameworkType>('driver_tree');
+  const [selectedFramework, setSelectedFramework] = useState<FrameworkType>(initialFramework);
   const [selectedMetric, setSelectedMetric] = useState<MetricNode | null>(null);
-  const [showRecommendationFlow, setShowRecommendationFlow] = useState(true);
   const [northStarId, setNorthStarId] = useState<string | null>(null);
 
-  // When framework recommendation comes in, use it
+  // Sync with initial framework if it changes
   useEffect(() => {
-    if (frameworkRecommendation?.recommendedFramework) {
-      setSelectedFramework(frameworkRecommendation.recommendedFramework);
-    }
-  }, [frameworkRecommendation]);
+    setSelectedFramework(initialFramework);
+  }, [initialFramework]);
 
   // Convert Metric[] to MetricNode[] with 3-level hierarchy
   const metricNodes: MetricNode[] = useMemo(() => {
@@ -148,10 +139,9 @@ export function MetricsFrameworkView({
       northStarMetric: metricNodes.find((m) => m.isNorthStar) || null,
       metrics: metricNodes,
       relationships,
-      aiNarrative: frameworkRecommendation?.reasoning || 
-        "Select your key metrics to see how they relate to each other and drive your North Star metric.",
+      aiNarrative: "Select your key metrics to see how they relate to each other and drive your North Star metric.",
     }),
-    [selectedFramework, metricNodes, relationships, frameworkRecommendation]
+    [selectedFramework, metricNodes, relationships]
   );
 
   // Convert to funnel stages
@@ -199,11 +189,6 @@ export function MetricsFrameworkView({
     })).filter((loop) => loop.metrics.length > 0);
   }, [metricNodes]);
 
-  const handleFrameworkSelect = useCallback((framework: FrameworkType) => {
-    setSelectedFramework(framework);
-    setShowRecommendationFlow(false);
-  }, []);
-
   const handleMetricSelect = useCallback((metric: MetricNode) => {
     setSelectedMetric(metric);
   }, []);
@@ -214,46 +199,16 @@ export function MetricsFrameworkView({
 
   return (
     <div className="h-full flex">
-      {/* Left Panel - Chat or Recommendation Flow */}
+      {/* Left Panel - Chat */}
       <div className="w-[380px] border-r flex flex-col bg-card">
-        <AnimatePresence mode="wait">
-          {showRecommendationFlow && (clarifyingQuestions.length > 0 || frameworkRecommendation) ? (
-            <motion.div
-              key="recommendation"
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              className="h-full"
-            >
-              <FrameworkRecommendationFlow
-                recommendation={frameworkRecommendation}
-                clarifyingQuestions={clarifyingQuestions}
-                isLoading={isLoading}
-                onAnswer={(answers) => {
-                  onClarifyingAnswer?.(answers);
-                }}
-                onFrameworkSelect={handleFrameworkSelect}
-              />
-            </motion.div>
-          ) : (
-            <motion.div
-              key="chat"
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              className="h-full flex flex-col"
-            >
-              <AgentChat
-                conversationHistory={conversationHistory}
-                agentName="Product Analyst"
-                agentDescription="Ask about metrics, frameworks, or request different recommendations"
-                isLoading={isLoading}
-                onSendMessage={onSendMessage}
-                placeholder="Ask about metrics or frameworks..."
-              />
-            </motion.div>
-          )}
-        </AnimatePresence>
+        <AgentChat
+          conversationHistory={conversationHistory}
+          agentName="Product Analyst"
+          agentDescription="Ask about metrics, frameworks, or request different recommendations"
+          isLoading={isLoading}
+          onSendMessage={onSendMessage}
+          placeholder="Ask about metrics or frameworks..."
+        />
       </div>
 
       {/* Center Panel - Visualization */}
@@ -279,7 +234,6 @@ export function MetricsFrameworkView({
               <FrameworkSelector
                 selectedFramework={selectedFramework}
                 onSelect={setSelectedFramework}
-                recommendedFramework={frameworkRecommendation?.recommendedFramework}
               />
             </div>
             
