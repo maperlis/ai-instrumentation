@@ -1,6 +1,6 @@
 import { useState, useEffect, useMemo } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { ArrowLeft, ArrowRight, Sparkles, Target, Users, TrendingUp, BarChart3, RefreshCw, GitBranch, Filter, Check, Loader2, Lightbulb } from "lucide-react";
+import { ArrowLeft, ArrowRight, Sparkles, Target, Users, TrendingUp, BarChart3, RefreshCw, GitBranch, Filter, Check, Loader2, Lightbulb, SkipForward } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
@@ -145,14 +145,16 @@ export function FrameworkQuestionsPage({ onBack, onComplete, isLoading: external
       growth_flywheel: 0,
     };
 
-    // Score based on answers
+    // Score based on answers (skip __skipped__ answers)
     Object.values(answers).forEach(answer => {
+      if (answer === '__skipped__') return;
       if (['hierarchical', 'cause_effect', 'dependencies'].includes(answer)) scores.driver_tree += 2;
-      if (['sequential', 'journey', 'funnel', 'conversion', 'ecommerce'].includes(answer)) scores.conversion_funnel += 2;
-      if (['cyclical', 'loops', 'flywheel', 'marketplace', 'network'].includes(answer)) scores.growth_flywheel += 2;
+      if (['sequential', 'journey', 'funnel', 'conversion', 'ecommerce', 'purchase'].includes(answer)) scores.conversion_funnel += 2;
+      if (['cyclical', 'loops', 'flywheel', 'marketplace', 'network', 'connection'].includes(answer)) scores.growth_flywheel += 2;
       if (['subscription', 'saas', 'retention'].includes(answer)) scores.driver_tree += 1;
       if (['growth', 'viral', 'referral'].includes(answer)) scores.growth_flywheel += 1;
-      if (['purchase', 'checkout', 'sales'].includes(answer)) scores.conversion_funnel += 1;
+      if (['checkout', 'sales', 'signup'].includes(answer)) scores.conversion_funnel += 1;
+      if (['engagement'].includes(answer)) scores.driver_tree += 1;
     });
 
     // Consider product insights
@@ -171,6 +173,16 @@ export function FrameworkQuestionsPage({ onBack, onComplete, isLoading: external
   };
 
   const handleNext = () => {
+    if (currentQuestionIndex < questions.length - 1) {
+      setCurrentQuestionIndex(prev => prev + 1);
+    } else {
+      setShowFrameworkSelection(true);
+    }
+  };
+
+  const handleSkip = () => {
+    // Mark question as skipped and move to next
+    setAnswers(prev => ({ ...prev, [currentQuestion.id]: '__skipped__' }));
     if (currentQuestionIndex < questions.length - 1) {
       setCurrentQuestionIndex(prev => prev + 1);
     } else {
@@ -360,7 +372,15 @@ export function FrameworkQuestionsPage({ onBack, onComplete, isLoading: external
                   )}
 
                   {/* Navigation */}
-                  <div className="flex justify-end pt-4">
+                  <div className="flex justify-between pt-4">
+                    <Button
+                      variant="ghost"
+                      onClick={handleSkip}
+                      className="text-muted-foreground hover:text-foreground"
+                    >
+                      <SkipForward className="w-4 h-4 mr-2" />
+                      Skip this question
+                    </Button>
                     <Button
                       size="lg"
                       onClick={handleNext}

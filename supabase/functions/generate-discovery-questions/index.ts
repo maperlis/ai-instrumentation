@@ -35,9 +35,12 @@ serve(async (req) => {
         role: "system",
         content: `You are a product analytics expert. Based on the provided product context (URL, screenshot, and/or description), generate 5-6 highly specific discovery questions that will help determine:
 1. The user's primary business objectives for this specific product/feature
-2. What stage this product/feature is at
-3. What metrics would be most valuable to track
-4. Which visualization framework (Driver Tree, Conversion Funnel, or Growth Flywheel) would work best
+2. What stage this product/feature is at (new, growing, mature)
+3. Key user actions and conversion points
+4. What metrics would be most valuable to track
+5. How users engage with the product
+
+IMPORTANT: Do NOT ask users which metrics framework they prefer or how they want to visualize metrics. We will determine the best framework based on their answers to business and product questions.
 
 The questions should reference specific elements from the product context when possible (e.g., "I see you have a search feature - is search conversion a key metric?" or "Based on your pricing page, is subscription revenue your primary goal?").
 
@@ -49,7 +52,7 @@ Return a JSON array of question objects with this structure:
       "question": "The specific question text",
       "description": "Why this question matters",
       "type": "single_choice",
-      "category": "business|product|metrics|framework",
+      "category": "business|product|metrics",
       "options": [
         { "value": "option_value", "label": "Display Label", "description": "Optional description" }
       ]
@@ -62,7 +65,7 @@ Return a JSON array of question objects with this structure:
   }
 }
 
-Make questions specific to what you observe. Avoid generic questions when you can make them specific to the product.`
+Make questions specific to what you observe. Avoid generic questions when you can make them specific to the product. Focus on business goals, user behavior, and success metrics - NOT visualization preferences.`
       }
     ];
 
@@ -182,15 +185,16 @@ function getFallbackQuestions() {
       ],
     },
     {
-      id: "metric_view",
-      question: "How do you prefer to view metric relationships?",
-      description: "This helps choose the right visualization",
+      id: "key_action",
+      question: "What is the most important action users take in your product?",
+      description: "This helps identify your core conversion metric",
       type: "single_choice",
-      category: "framework",
+      category: "metrics",
       options: [
-        { value: "hierarchical", label: "Cause & Effect", description: "Tree structure showing drivers" },
-        { value: "sequential", label: "User Journey", description: "Step-by-step progression" },
-        { value: "cyclical", label: "Feedback Loops", description: "Self-reinforcing cycles" },
+        { value: "purchase", label: "Making a Purchase", description: "Completing a transaction" },
+        { value: "signup", label: "Signing Up", description: "Creating an account" },
+        { value: "engagement", label: "Engaging with Content", description: "Consuming or creating content" },
+        { value: "connection", label: "Connecting with Others", description: "Social or marketplace interactions" },
       ],
     },
   ];
