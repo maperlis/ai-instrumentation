@@ -40,11 +40,15 @@ serve(async (req) => {
 4. What metrics would be most valuable to track
 5. How users engage with the product
 
-IMPORTANT: Do NOT ask users which metrics framework they prefer or how they want to visualize metrics. We will determine the best framework based on their answers to business and product questions.
+IMPORTANT RULES:
+- Do NOT ask users which metrics framework they prefer or how they want to visualize metrics. We will determine the best framework based on their answers.
+- EVERY question MUST have exactly 3-4 options with a "value", "label", and "description" field.
+- Options should be specific, mutually exclusive choices that the user can select from.
+- Do NOT create open-ended questions without options.
 
-The questions should reference specific elements from the product context when possible (e.g., "I see you have a search feature - is search conversion a key metric?" or "Based on your pricing page, is subscription revenue your primary goal?").
+The questions should reference specific elements from the product context when possible.
 
-Return a JSON array of question objects with this structure:
+Return a JSON object with this EXACT structure:
 {
   "questions": [
     {
@@ -54,18 +58,20 @@ Return a JSON array of question objects with this structure:
       "type": "single_choice",
       "category": "business|product|metrics",
       "options": [
-        { "value": "option_value", "label": "Display Label", "description": "Optional description" }
+        { "value": "option_value_snake_case", "label": "Display Label", "description": "Brief description of this option" },
+        { "value": "option_value_2", "label": "Label 2", "description": "Description 2" },
+        { "value": "option_value_3", "label": "Label 3", "description": "Description 3" }
       ]
     }
   ],
   "productInsights": {
-    "detectedType": "e-commerce|saas|marketplace|content|social|other",
+    "detectedType": "e-commerce|saas|marketplace|content|social|portfolio|other",
     "keyFeatures": ["feature1", "feature2"],
     "suggestedNorthStar": "suggested metric name"
   }
 }
 
-Make questions specific to what you observe. Avoid generic questions when you can make them specific to the product. Focus on business goals, user behavior, and success metrics - NOT visualization preferences.`
+CRITICAL: Each question in the "questions" array MUST have an "options" array with at least 3 options. Never return a question without options.`
       }
     ];
 
