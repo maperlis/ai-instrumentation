@@ -86,13 +86,21 @@ export function FrameworkQuestionsPage({ onBack, onComplete, isLoading: external
   const [showFrameworkSelection, setShowFrameworkSelection] = useState(false);
   const [selectedFramework, setSelectedFramework] = useState<FrameworkType | null>(null);
 
-  // Validate question has proper options
-  const isValidQuestion = (q: Question): boolean => {
-    if (q.type === 'text') return true;
-    if (q.type === 'single_choice' || q.type === 'multiple_choice') {
-      return Array.isArray(q.options) && q.options.length > 0 && q.options.every(opt => opt.value && opt.label);
+  // Validate and fix question - convert to text if no options
+  const normalizeQuestion = (q: Question): Question => {
+    const hasValidOptions = Array.isArray(q.options) && 
+      q.options.length > 0 && 
+      q.options.every(opt => opt.value && opt.label);
+    
+    // If single_choice but no valid options, convert to text input
+    if ((q.type === 'single_choice' || q.type === 'multiple_choice') && !hasValidOptions) {
+      return {
+        ...q,
+        type: 'text',
+        options: undefined
+      };
     }
-    return false;
+    return q;
   };
 
   // Generate tailored questions based on input data
@@ -112,16 +120,16 @@ export function FrameworkQuestionsPage({ onBack, onComplete, isLoading: external
         if (error) throw error;
 
         if (data?.questions && data.questions.length > 0) {
-          // Add icons to options and filter out invalid questions
+          // Normalize questions (fix those without options) and add icons
           const enhancedQuestions = data.questions
+            .map((q: Question) => normalizeQuestion(q))
             .map((q: Question) => ({
               ...q,
               options: q.options?.map(opt => ({
                 ...opt,
                 icon: getIconForValue(opt.value)
               }))
-            }))
-            .filter(isValidQuestion);
+            }));
           
           if (enhancedQuestions.length > 0) {
             setQuestions(enhancedQuestions);
