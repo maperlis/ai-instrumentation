@@ -118,6 +118,7 @@ const Index = () => {
           onBack={handleBackToInput}
           onComplete={handleFrameworkQuestionsComplete}
           isLoading={isLoading}
+          inputData={inputData}
         />
       )}
       
