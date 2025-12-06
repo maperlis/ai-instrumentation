@@ -6,3 +6,6 @@ export { FrameworkSelector } from './FrameworkSelector';
 export { AINarrativePanel } from './AINarrativePanel';
 export { FrameworkRecommendationFlow } from './FrameworkRecommendationFlow';
 export { MetricsFrameworkView } from './MetricsFrameworkView';
+export { EditableDriverTree } from './EditableDriverTree';
+export { EditableMetricNode } from './EditableMetricNode';
+export { CanvasToolbar } from './CanvasToolbar';

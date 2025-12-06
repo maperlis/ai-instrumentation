@@ -9,7 +9,7 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/comp
 import { FrameworkType, FrameworkData, MetricNode, MetricRelationship, FunnelStage, FlywheelLoop } from "@/types/metricsFramework";
 import { Metric } from "@/types/taxonomy";
 import { FrameworkSelector } from "./FrameworkSelector";
-import { DriverTreeVisualization } from "./DriverTreeVisualization";
+import { EditableDriverTree } from "./EditableDriverTree";
 import { ConversionFunnelVisualization } from "./ConversionFunnelVisualization";
 import { GrowthFlywheelVisualization } from "./GrowthFlywheelVisualization";
 import { AINarrativePanel } from "./AINarrativePanel";
@@ -267,10 +267,11 @@ export function MetricsFrameworkView({
                   exit={{ opacity: 0 }}
                   className="absolute inset-0"
                 >
-                  <DriverTreeVisualization
+                  <EditableDriverTree
                     data={frameworkData}
                     onMetricSelect={handleMetricSelect}
                     selectedMetricId={selectedMetric?.id}
+                    storageKey="metrics-driver-tree"
                   />
                 </motion.div>
               )}
