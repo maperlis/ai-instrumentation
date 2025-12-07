@@ -30,6 +30,7 @@ import {
   MarkerType,
   SelectionMode,
   OnSelectionChangeParams,
+  addEdge,
 } from '@xyflow/react';
 import '@xyflow/react/dist/style.css';
 import { motion } from 'framer-motion';
@@ -53,6 +54,7 @@ interface EditableDriverTreeProps {
   onMetricSelect?: (metric: MetricNodeType) => void;
   onMetricDelete?: (metricId: string) => void;
   onMetricAdd?: (metric: Partial<MetricNodeType>) => void;
+  onDataChange?: (data: FrameworkData) => void;
   selectedMetricId?: string;
   storageKey?: string;
 }
@@ -88,18 +90,25 @@ function EditableDriverTreeContent({
   onMetricSelect,
   onMetricDelete,
   onMetricAdd,
+  onDataChange,
   selectedMetricId,
   storageKey,
-}: EditableDriverTreeProps & { onMetricAdd?: (metric: Partial<MetricNodeType>) => void }) {
+}: EditableDriverTreeProps) {
   const [collapsedNodes, setCollapsedNodes] = useState<Set<string>>(new Set());
   const [activeTool, setActiveTool] = useState<CanvasTool>('pointer');
   const [showAddDialog, setShowAddDialog] = useState(false);
   const [addPosition, setAddPosition] = useState({ x: 0, y: 0 });
+  const [localMetrics, setLocalMetrics] = useState<MetricNodeType[]>(data.metrics);
   const { zoomIn, zoomOut, fitView, getNodes, screenToFlowPosition } = useReactFlow();
   const fileInputRef = useRef<HTMLInputElement>(null);
   
   // Canvas state management
   const canvasState = useCanvasState(storageKey || 'driver-tree-canvas');
+
+  // Sync local metrics with data prop
+  useEffect(() => {
+    setLocalMetrics(data.metrics);
+  }, [data.metrics]);
 
   const toggleExpand = useCallback((nodeId: string) => {
     setCollapsedNodes((prev) => {
@@ -113,19 +122,67 @@ function EditableDriverTreeContent({
     });
   }, []);
 
+  // Handle adding a new metric to the canvas
+  const handleAddMetric = useCallback((metricData: Partial<MetricNodeType>) => {
+    const newMetric: MetricNodeType = {
+      id: metricData.id || `metric-${Date.now()}`,
+      name: metricData.name || 'New Metric',
+      description: metricData.description || '',
+      category: metricData.category || 'Driver',
+      isNorthStar: metricData.isNorthStar || false,
+      level: metricData.isNorthStar ? 0 : 1,
+      calculation: metricData.calculation,
+      businessQuestions: metricData.businessQuestions,
+      status: 'healthy',
+      trend: 'stable',
+    };
+
+    // Add to local metrics
+    setLocalMetrics(prev => [...prev, newMetric]);
+    
+    // Store position for the new metric
+    canvasState.updateNodePosition(newMetric.id, addPosition.x, addPosition.y);
+    
+    // Notify parent if callback provided
+    onMetricAdd?.(newMetric);
+    
+    // Close dialog and reset tool
+    setShowAddDialog(false);
+    setActiveTool('pointer');
+    
+    toast.success(`Metric "${newMetric.name}" added to canvas`);
+  }, [addPosition, canvasState, onMetricAdd]);
+
+  // Handle deleting a metric
+  const handleDeleteMetric = useCallback((metricId: string) => {
+    setLocalMetrics(prev => prev.filter(m => m.id !== metricId));
+    
+    // Remove from canvas state
+    canvasState.removeConnections(
+      canvasState.state.connections
+        .filter(c => c.sourceId === metricId || c.targetId === metricId)
+        .map(c => c.id)
+    );
+    
+    // Notify parent
+    onMetricDelete?.(metricId);
+    
+    toast.success('Metric deleted');
+  }, [canvasState, onMetricDelete]);
+
   // Build hierarchical tree and compute default positions
   const { computedNodes, dataEdges } = useMemo(() => {
     const nodes: Node[] = [];
     const edges: Edge[] = [];
 
-    if (!data.metrics.length) return { computedNodes: nodes, dataEdges: edges };
+    if (!localMetrics.length) return { computedNodes: nodes, dataEdges: edges };
 
     const NODE_WIDTH = 260;
     const NODE_HEIGHT = 120;
     const HORIZONTAL_GAP = 80;
     const VERTICAL_GAP = 160;
 
-    const northStar = data.northStarMetric || data.metrics.find(m => m.isNorthStar);
+    const northStar = data.northStarMetric || localMetrics.find(m => m.isNorthStar);
     
     // Build parent-child map
     const childrenMap = new Map<string, string[]>();
@@ -139,7 +196,7 @@ function EditableDriverTreeContent({
       parentMap.set(rel.targetId, rel.sourceId);
     });
 
-    data.metrics.forEach(metric => {
+    localMetrics.forEach(metric => {
       if (metric.parentId) {
         if (!childrenMap.has(metric.parentId)) {
           childrenMap.set(metric.parentId, []);
@@ -155,7 +212,7 @@ function EditableDriverTreeContent({
       if (visited.has(metricId)) return null;
       visited.add(metricId);
       
-      const metric = data.metrics.find(m => m.id === metricId);
+      const metric = localMetrics.find(m => m.id === metricId);
       if (!metric) return null;
 
       const childIds = childrenMap.get(metricId) || [];
@@ -176,9 +233,9 @@ function EditableDriverTreeContent({
     if (northStar) {
       rootMetrics = [northStar];
     } else {
-      rootMetrics = data.metrics.filter(m => !parentMap.has(m.id));
+      rootMetrics = localMetrics.filter(m => !parentMap.has(m.id));
       if (rootMetrics.length === 0) {
-        rootMetrics = [data.metrics[0]];
+        rootMetrics = [localMetrics[0]];
       }
     }
 
@@ -236,12 +293,14 @@ function EditableDriverTreeContent({
           hasChildren,
           onSelect: onMetricSelect,
           onToggleExpand: toggleExpand,
+          onDelete: handleDeleteMetric,
           isMultiSelected: canvasState.state.selectedNodeIds.includes(node.metric.id),
+          isConnectMode: activeTool === 'connect',
         },
         selected: node.metric.id === selectedMetricId || canvasState.state.selectedNodeIds.includes(node.metric.id),
         sourcePosition: Position.Bottom,
         targetPosition: Position.Top,
-        draggable: true,
+        draggable: activeTool === 'pointer',
       });
 
       node.children.forEach(child => {
@@ -275,9 +334,9 @@ function EditableDriverTreeContent({
       }
     });
 
-    // Add orphan metrics
+    // Add orphan metrics (those not in the tree)
     const placedIds = new Set(nodes.map(n => n.id));
-    const orphans = data.metrics.filter(m => !placedIds.has(m.id));
+    const orphans = localMetrics.filter(m => !placedIds.has(m.id));
     
     if (orphans.length > 0) {
       const maxY = Math.max(...nodes.map(n => n.position.y), 0);
@@ -298,19 +357,21 @@ function EditableDriverTreeContent({
             hasChildren: false,
             onSelect: onMetricSelect,
             onToggleExpand: toggleExpand,
+            onDelete: handleDeleteMetric,
             isMultiSelected: canvasState.state.selectedNodeIds.includes(metric.id),
+            isConnectMode: activeTool === 'connect',
           },
           selected: metric.id === selectedMetricId || canvasState.state.selectedNodeIds.includes(metric.id),
           sourcePosition: Position.Bottom,
           targetPosition: Position.Top,
-          draggable: true,
+          draggable: activeTool === 'pointer',
         });
         orphanX += NODE_WIDTH + HORIZONTAL_GAP;
       });
     }
 
     return { computedNodes: nodes, dataEdges: edges };
-  }, [data, collapsedNodes, selectedMetricId, onMetricSelect, toggleExpand, canvasState]);
+  }, [localMetrics, data.northStarMetric, data.relationships, collapsedNodes, selectedMetricId, onMetricSelect, toggleExpand, handleDeleteMetric, canvasState, activeTool]);
 
   // Merge user-created connections with data edges
   const allEdges = useMemo(() => {
@@ -347,9 +408,9 @@ function EditableDriverTreeContent({
     setEdges(allEdges);
   }, [allEdges, setEdges]);
 
-  // Handle connection creation
+  // Handle connection creation - works in any mode now
   const onConnect = useCallback((connection: Connection) => {
-    if (connection.source && connection.target) {
+    if (connection.source && connection.target && connection.source !== connection.target) {
       canvasState.addConnection(connection.source, connection.target);
       toast.success('Connection created');
     }
@@ -357,12 +418,15 @@ function EditableDriverTreeContent({
 
   // Handle canvas click for adding metrics
   const onPaneClick = useCallback((event: React.MouseEvent) => {
+    // Clear selection on pane click
+    canvasState.clearSelection();
+    
     if (activeTool === 'add-node') {
       const position = screenToFlowPosition({ x: event.clientX, y: event.clientY });
       setAddPosition(position);
       setShowAddDialog(true);
     }
-  }, [activeTool, screenToFlowPosition]);
+  }, [activeTool, screenToFlowPosition, canvasState]);
 
   // Handle node drag end - save positions
   const onNodeDragStop = useCallback(() => {
@@ -371,16 +435,24 @@ function EditableDriverTreeContent({
   }, [getNodes, canvasState]);
 
   // Handle selection changes
-  const onSelectionChange = useCallback(({ nodes, edges }: OnSelectionChangeParams) => {
-    canvasState.setSelectedNodes(nodes.map(n => n.id));
-    // Handle edge selection
-    const selectedEdgeIds = edges
-      .filter(e => e.selected)
-      .map(e => e.id)
-      .filter(id => !id.startsWith('data-edge-')); // Only select user edges
+  const onSelectionChange = useCallback(({ nodes: selectedNodes, edges: selectedEdges }: OnSelectionChangeParams) => {
+    // Update selected nodes
+    canvasState.setSelectedNodes(selectedNodes.map(n => n.id));
     
-    if (selectedEdgeIds.length > 0) {
-      selectedEdgeIds.forEach(id => canvasState.selectEdge(id, true));
+    // Handle edge selection - only user-created edges
+    const userSelectedEdgeIds = selectedEdges
+      .filter(e => !e.id.startsWith('data-edge-'))
+      .map(e => e.id);
+    
+    if (userSelectedEdgeIds.length > 0) {
+      userSelectedEdgeIds.forEach(id => canvasState.selectEdge(id, true));
+    }
+  }, [canvasState]);
+
+  // Handle edge click for selection
+  const onEdgeClick = useCallback((_: React.MouseEvent, edge: Edge) => {
+    if (!edge.id.startsWith('data-edge-')) {
+      canvasState.selectEdge(edge.id, false);
     }
   }, [canvasState]);
 
@@ -401,26 +473,20 @@ function EditableDriverTreeContent({
 
       // Delete
       if (e.key === 'Delete' || e.key === 'Backspace') {
-        if (canvasState.state.selectedEdgeIds.length > 0) {
-          canvasState.deleteSelectedEdges();
-          toast.success('Connection deleted');
-        }
-        if (canvasState.state.selectedNodeIds.length > 0 && onMetricDelete) {
-          canvasState.deleteSelectedNodes(onMetricDelete);
-          toast.success('Metric(s) deleted');
-        }
+        handleDeleteSelected();
       }
       
       // Escape to clear selection or reset to pointer
       if (e.key === 'Escape') {
         canvasState.clearSelection();
         setActiveTool('pointer');
+        setShowAddDialog(false);
       }
     };
 
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [canvasState, onMetricDelete]);
+  }, [canvasState]);
 
   // Toolbar handlers
   const handleZoomIn = useCallback(() => zoomIn({ duration: 200 }), [zoomIn]);
@@ -428,15 +494,27 @@ function EditableDriverTreeContent({
   const handleFitView = useCallback(() => fitView({ padding: 0.4, duration: 200 }), [fitView]);
 
   const handleDeleteSelected = useCallback(() => {
+    let deleted = false;
+    
+    // Delete selected edges first
     if (canvasState.state.selectedEdgeIds.length > 0) {
       canvasState.deleteSelectedEdges();
-      toast.success('Connection(s) deleted');
+      deleted = true;
     }
-    if (canvasState.state.selectedNodeIds.length > 0 && onMetricDelete) {
-      canvasState.deleteSelectedNodes(onMetricDelete);
-      toast.success('Metric(s) deleted');
+    
+    // Delete selected nodes
+    if (canvasState.state.selectedNodeIds.length > 0) {
+      canvasState.state.selectedNodeIds.forEach(nodeId => {
+        handleDeleteMetric(nodeId);
+      });
+      canvasState.clearSelection();
+      deleted = true;
     }
-  }, [canvasState, onMetricDelete]);
+    
+    if (deleted) {
+      toast.success('Deleted successfully');
+    }
+  }, [canvasState, handleDeleteMetric]);
 
   const handleExport = useCallback(() => {
     const json = canvasState.exportState();
@@ -473,6 +551,8 @@ function EditableDriverTreeContent({
     e.target.value = '';
   }, [canvasState]);
 
+  const hasSelection = canvasState.state.selectedNodeIds.length > 0 || canvasState.state.selectedEdgeIds.length > 0;
+
   return (
     <div className="w-full h-full relative bg-gradient-to-b from-background to-muted/20">
       {/* Hidden file input for import */}
@@ -492,7 +572,7 @@ function EditableDriverTreeContent({
         onZoomOut={handleZoomOut}
         onFitView={handleFitView}
         onDeleteSelected={handleDeleteSelected}
-        hasSelection={canvasState.state.selectedNodeIds.length > 0 || canvasState.state.selectedEdgeIds.length > 0}
+        hasSelection={hasSelection}
       />
 
       {/* Top-right Export/Import Controls */}
@@ -522,11 +602,7 @@ function EditableDriverTreeContent({
       <AddMetricDialog
         open={showAddDialog}
         onOpenChange={setShowAddDialog}
-        onAdd={(metric) => {
-          onMetricAdd?.(metric);
-          setActiveTool('pointer');
-          toast.success('Metric added');
-        }}
+        onAdd={handleAddMetric}
         position={addPosition}
       />
 
@@ -540,7 +616,7 @@ function EditableDriverTreeContent({
       )}
 
       {/* Empty State */}
-      {!data.metrics.length && (
+      {localMetrics.length === 0 && (
         <div className="absolute inset-0 flex items-center justify-center z-10">
           <motion.div
             initial={{ opacity: 0, y: 20 }}
@@ -551,44 +627,53 @@ function EditableDriverTreeContent({
               <Sparkles className="w-10 h-10 text-primary" />
             </div>
             <h3 className="text-xl font-semibold mb-3">No metrics selected yet</h3>
-            <p className="text-muted-foreground text-sm max-w-sm mx-auto leading-relaxed">
+            <p className="text-muted-foreground text-sm max-w-sm mx-auto leading-relaxed mb-4">
               Select a North Star metric and add contributing metrics to visualize your driver tree.
               Use the toolbar on the left to add metrics and draw connections.
             </p>
+            <Button 
+              onClick={() => {
+                setActiveTool('add-node');
+                setAddPosition({ x: 0, y: 0 });
+                setShowAddDialog(true);
+              }}
+            >
+              Add Your First Metric
+            </Button>
           </motion.div>
         </div>
       )}
 
       {/* React Flow Canvas */}
-      {data.metrics.length > 0 && (
-        <ReactFlow
-          nodes={nodes}
-          edges={edges}
-          onNodesChange={onNodesChange}
-          onEdgesChange={onEdgesChange}
-          onConnect={onConnect}
-          onPaneClick={onPaneClick}
-          onNodeDragStop={onNodeDragStop}
-          onSelectionChange={onSelectionChange}
-          nodeTypes={nodeTypes}
-          connectionMode={ConnectionMode.Loose}
-          selectionMode={SelectionMode.Partial}
-          selectNodesOnDrag={activeTool === 'pointer'}
-          selectionOnDrag={activeTool === 'pointer'}
-          panOnDrag={activeTool === 'hand' ? true : [1, 2]}
-          selectionKeyCode={activeTool === 'pointer' ? 'Shift' : null}
-          multiSelectionKeyCode={['Meta', 'Control']}
-          deleteKeyCode={null}
-          fitView
-          fitViewOptions={{ padding: 0.4, maxZoom: 1 }}
-          minZoom={0.2}
-          maxZoom={2}
-          className={`bg-transparent ${activeTool === 'add-node' ? 'cursor-crosshair' : activeTool === 'hand' ? 'cursor-grab' : ''}`}
-          proOptions={{ hideAttribution: true }}
-        >
-          <Background color="hsl(var(--border))" gap={24} size={1} />
-        </ReactFlow>
-      )}
+      <ReactFlow
+        nodes={nodes}
+        edges={edges}
+        onNodesChange={onNodesChange}
+        onEdgesChange={onEdgesChange}
+        onConnect={onConnect}
+        onPaneClick={onPaneClick}
+        onNodeDragStop={onNodeDragStop}
+        onSelectionChange={onSelectionChange}
+        onEdgeClick={onEdgeClick}
+        nodeTypes={nodeTypes}
+        connectionMode={ConnectionMode.Loose}
+        selectionMode={SelectionMode.Partial}
+        selectNodesOnDrag={activeTool === 'pointer'}
+        selectionOnDrag={activeTool === 'pointer'}
+        panOnDrag={activeTool === 'hand' ? true : activeTool === 'pointer' ? [1, 2] : false}
+        selectionKeyCode={activeTool === 'pointer' ? 'Shift' : null}
+        multiSelectionKeyCode={['Meta', 'Control']}
+        deleteKeyCode={null}
+        connectOnClick={activeTool === 'connect'}
+        fitView
+        fitViewOptions={{ padding: 0.4, maxZoom: 1 }}
+        minZoom={0.2}
+        maxZoom={2}
+        className={`bg-transparent ${activeTool === 'add-node' ? 'cursor-crosshair' : activeTool === 'hand' ? 'cursor-grab' : ''}`}
+        proOptions={{ hideAttribution: true }}
+      >
+        <Background color="hsl(var(--border))" gap={24} size={1} />
+      </ReactFlow>
 
       {/* Legend - simplified since toolbar is prominent */}
       <div className="absolute bottom-6 right-6 bg-card/95 backdrop-blur-sm rounded-lg p-3 border shadow-lg z-30">

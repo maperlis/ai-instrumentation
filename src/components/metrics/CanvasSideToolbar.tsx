@@ -12,13 +12,13 @@
 import { 
   MousePointer2, 
   Hand, 
-  Link2, 
   Plus, 
   ZoomIn, 
   ZoomOut, 
   Maximize2,
   Trash2,
   Square,
+  Spline,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import {
@@ -46,8 +46,8 @@ interface CanvasSideToolbarProps {
 const tools = [
   { id: 'pointer' as CanvasTool, icon: MousePointer2, label: 'Select & Move', shortcut: 'V' },
   { id: 'hand' as CanvasTool, icon: Hand, label: 'Pan Canvas', shortcut: 'H' },
-  { id: 'connect' as CanvasTool, icon: Link2, label: 'Draw Connection', shortcut: 'C' },
-  { id: 'add-node' as CanvasTool, icon: Square, label: 'Add Metric', shortcut: 'N' },
+  { id: 'connect' as CanvasTool, icon: Spline, label: 'Draw Connection', shortcut: 'C' },
+  { id: 'add-node' as CanvasTool, icon: Plus, label: 'Add Metric', shortcut: 'N' },
 ];
 
 export function CanvasSideToolbar({
