@@ -27,24 +27,32 @@ import {
   useReactFlow,
   ReactFlowProvider,
   Connection,
-  addEdge,
   MarkerType,
   SelectionMode,
   OnSelectionChangeParams,
 } from '@xyflow/react';
 import '@xyflow/react/dist/style.css';
 import { motion } from 'framer-motion';
-import { Sparkles } from 'lucide-react';
+import { Sparkles, Download, Upload } from 'lucide-react';
 import { MetricNode as MetricNodeType, FrameworkData } from '@/types/metricsFramework';
 import { EditableMetricNode } from './EditableMetricNode';
-import { CanvasToolbar } from './CanvasToolbar';
+import { CanvasSideToolbar, CanvasTool } from './CanvasSideToolbar';
+import { AddMetricDialog } from './AddMetricDialog';
 import { useCanvasState } from '@/hooks/useCanvasState';
 import { toast } from 'sonner';
+import { Button } from '@/components/ui/button';
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from '@/components/ui/tooltip';
 
 interface EditableDriverTreeProps {
   data: FrameworkData;
   onMetricSelect?: (metric: MetricNodeType) => void;
   onMetricDelete?: (metricId: string) => void;
+  onMetricAdd?: (metric: Partial<MetricNodeType>) => void;
   selectedMetricId?: string;
   storageKey?: string;
 }
@@ -79,12 +87,15 @@ function EditableDriverTreeContent({
   data,
   onMetricSelect,
   onMetricDelete,
+  onMetricAdd,
   selectedMetricId,
   storageKey,
-}: EditableDriverTreeProps) {
+}: EditableDriverTreeProps & { onMetricAdd?: (metric: Partial<MetricNodeType>) => void }) {
   const [collapsedNodes, setCollapsedNodes] = useState<Set<string>>(new Set());
-  const [isConnecting, setIsConnecting] = useState(false);
-  const { zoomIn, zoomOut, fitView, getNodes } = useReactFlow();
+  const [activeTool, setActiveTool] = useState<CanvasTool>('pointer');
+  const [showAddDialog, setShowAddDialog] = useState(false);
+  const [addPosition, setAddPosition] = useState({ x: 0, y: 0 });
+  const { zoomIn, zoomOut, fitView, getNodes, screenToFlowPosition } = useReactFlow();
   const fileInputRef = useRef<HTMLInputElement>(null);
   
   // Canvas state management
@@ -342,16 +353,16 @@ function EditableDriverTreeContent({
       canvasState.addConnection(connection.source, connection.target);
       toast.success('Connection created');
     }
-    setIsConnecting(false);
   }, [canvasState]);
 
-  const onConnectStart = useCallback(() => {
-    setIsConnecting(true);
-  }, []);
-
-  const onConnectEnd = useCallback(() => {
-    setIsConnecting(false);
-  }, []);
+  // Handle canvas click for adding metrics
+  const onPaneClick = useCallback((event: React.MouseEvent) => {
+    if (activeTool === 'add-node') {
+      const position = screenToFlowPosition({ x: event.clientX, y: event.clientY });
+      setAddPosition(position);
+      setShowAddDialog(true);
+    }
+  }, [activeTool, screenToFlowPosition]);
 
   // Handle node drag end - save positions
   const onNodeDragStop = useCallback(() => {
@@ -373,16 +384,23 @@ function EditableDriverTreeContent({
     }
   }, [canvasState]);
 
-  // Keyboard shortcuts
+  // Keyboard shortcuts for tools and deletion
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
+      // Don't handle if focus is on an input
+      if ((e.target as HTMLElement).tagName === 'INPUT' || 
+          (e.target as HTMLElement).tagName === 'TEXTAREA') {
+        return;
+      }
+
+      // Tool shortcuts
+      if (e.key === 'v' || e.key === 'V') setActiveTool('pointer');
+      if (e.key === 'h' || e.key === 'H') setActiveTool('hand');
+      if (e.key === 'c' || e.key === 'C') setActiveTool('connect');
+      if (e.key === 'n' || e.key === 'N') setActiveTool('add-node');
+
+      // Delete
       if (e.key === 'Delete' || e.key === 'Backspace') {
-        // Don't delete if focus is on an input
-        if ((e.target as HTMLElement).tagName === 'INPUT' || 
-            (e.target as HTMLElement).tagName === 'TEXTAREA') {
-          return;
-        }
-        
         if (canvasState.state.selectedEdgeIds.length > 0) {
           canvasState.deleteSelectedEdges();
           toast.success('Connection deleted');
@@ -393,9 +411,10 @@ function EditableDriverTreeContent({
         }
       }
       
-      // Escape to clear selection
+      // Escape to clear selection or reset to pointer
       if (e.key === 'Escape') {
         canvasState.clearSelection();
+        setActiveTool('pointer');
       }
     };
 
@@ -465,18 +484,60 @@ function EditableDriverTreeContent({
         onChange={handleFileChange}
       />
 
-      {/* Toolbar */}
-      <CanvasToolbar
+      {/* Figma-style Side Toolbar */}
+      <CanvasSideToolbar
+        activeTool={activeTool}
+        onToolChange={setActiveTool}
         onZoomIn={handleZoomIn}
         onZoomOut={handleZoomOut}
-        onResetView={handleFitView}
-        selectedNodeCount={canvasState.state.selectedNodeIds.length}
-        selectedEdgeCount={canvasState.state.selectedEdgeIds.length}
+        onFitView={handleFitView}
         onDeleteSelected={handleDeleteSelected}
-        onExport={handleExport}
-        onImport={handleImport}
-        isConnecting={isConnecting}
+        hasSelection={canvasState.state.selectedNodeIds.length > 0 || canvasState.state.selectedEdgeIds.length > 0}
       />
+
+      {/* Top-right Export/Import Controls */}
+      <TooltipProvider>
+        <div className="absolute top-4 right-4 z-40 flex gap-1 bg-card/95 backdrop-blur-sm border rounded-lg p-1 shadow-sm">
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button variant="ghost" size="icon" className="h-8 w-8" onClick={handleExport}>
+                <Download className="w-4 h-4" />
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent>Export canvas state</TooltipContent>
+          </Tooltip>
+          
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button variant="ghost" size="icon" className="h-8 w-8" onClick={handleImport}>
+                <Upload className="w-4 h-4" />
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent>Import canvas state</TooltipContent>
+          </Tooltip>
+        </div>
+      </TooltipProvider>
+
+      {/* Add Metric Dialog */}
+      <AddMetricDialog
+        open={showAddDialog}
+        onOpenChange={setShowAddDialog}
+        onAdd={(metric) => {
+          onMetricAdd?.(metric);
+          setActiveTool('pointer');
+          toast.success('Metric added');
+        }}
+        position={addPosition}
+      />
+
+      {/* Tool Mode Indicator */}
+      {activeTool !== 'pointer' && (
+        <div className="absolute top-4 left-1/2 -translate-x-1/2 z-40 bg-primary text-primary-foreground px-4 py-2 rounded-lg shadow-lg text-sm font-medium">
+          {activeTool === 'hand' && '🖐 Pan Mode - Click and drag to pan'}
+          {activeTool === 'connect' && '🔗 Connect Mode - Drag from a handle to another node'}
+          {activeTool === 'add-node' && '➕ Add Mode - Click anywhere to add a metric'}
+        </div>
+      )}
 
       {/* Empty State */}
       {!data.metrics.length && (
@@ -492,7 +553,7 @@ function EditableDriverTreeContent({
             <h3 className="text-xl font-semibold mb-3">No metrics selected yet</h3>
             <p className="text-muted-foreground text-sm max-w-sm mx-auto leading-relaxed">
               Select a North Star metric and add contributing metrics to visualize your driver tree.
-              Drag from connection points to create relationships.
+              Use the toolbar on the left to add metrics and draw connections.
             </p>
           </motion.div>
         </div>
@@ -506,57 +567,39 @@ function EditableDriverTreeContent({
           onNodesChange={onNodesChange}
           onEdgesChange={onEdgesChange}
           onConnect={onConnect}
-          onConnectStart={onConnectStart}
-          onConnectEnd={onConnectEnd}
+          onPaneClick={onPaneClick}
           onNodeDragStop={onNodeDragStop}
           onSelectionChange={onSelectionChange}
           nodeTypes={nodeTypes}
           connectionMode={ConnectionMode.Loose}
           selectionMode={SelectionMode.Partial}
-          selectNodesOnDrag={false}
-          selectionOnDrag
-          panOnDrag={[1, 2]} // Middle click or right click to pan
-          selectionKeyCode="Shift"
+          selectNodesOnDrag={activeTool === 'pointer'}
+          selectionOnDrag={activeTool === 'pointer'}
+          panOnDrag={activeTool === 'hand' ? true : [1, 2]}
+          selectionKeyCode={activeTool === 'pointer' ? 'Shift' : null}
           multiSelectionKeyCode={['Meta', 'Control']}
-          deleteKeyCode={null} // We handle delete ourselves
+          deleteKeyCode={null}
           fitView
           fitViewOptions={{ padding: 0.4, maxZoom: 1 }}
           minZoom={0.2}
           maxZoom={2}
-          className="bg-transparent"
+          className={`bg-transparent ${activeTool === 'add-node' ? 'cursor-crosshair' : activeTool === 'hand' ? 'cursor-grab' : ''}`}
           proOptions={{ hideAttribution: true }}
         >
           <Background color="hsl(var(--border))" gap={24} size={1} />
         </ReactFlow>
       )}
 
-      {/* Legend */}
-      <div className="absolute bottom-6 left-6 bg-card/95 backdrop-blur-sm rounded-xl p-4 border shadow-lg z-30">
-        <p className="text-xs font-semibold mb-3 text-foreground">Canvas Controls</p>
-        <div className="flex flex-col gap-2 text-xs text-muted-foreground">
+      {/* Legend - simplified since toolbar is prominent */}
+      <div className="absolute bottom-6 right-6 bg-card/95 backdrop-blur-sm rounded-lg p-3 border shadow-lg z-30">
+        <div className="flex items-center gap-4 text-xs text-muted-foreground">
           <div className="flex items-center gap-2">
-            <kbd className="px-1.5 py-0.5 rounded bg-muted text-[10px] font-mono">Drag</kbd>
-            <span>Move metrics</span>
+            <div className="w-6 h-0.5 bg-primary rounded-full" />
+            <span>Custom</span>
           </div>
           <div className="flex items-center gap-2">
-            <kbd className="px-1.5 py-0.5 rounded bg-muted text-[10px] font-mono">Shift+Drag</kbd>
-            <span>Box select</span>
-          </div>
-          <div className="flex items-center gap-2">
-            <kbd className="px-1.5 py-0.5 rounded bg-muted text-[10px] font-mono">⌘/Ctrl+Click</kbd>
-            <span>Multi-select</span>
-          </div>
-          <div className="flex items-center gap-2">
-            <kbd className="px-1.5 py-0.5 rounded bg-muted text-[10px] font-mono">Del</kbd>
-            <span>Delete selected</span>
-          </div>
-          <div className="flex items-center gap-2 pt-2 border-t mt-1">
-            <div className="w-4 h-0.5 bg-primary rounded-full" />
-            <span>User connection</span>
-          </div>
-          <div className="flex items-center gap-2">
-            <div className="w-4 h-0.5 bg-muted-foreground rounded-full border-dashed border-t-2 border-muted-foreground" />
-            <span>Data relationship</span>
+            <div className="w-6 h-0.5 bg-muted-foreground border-dashed border-t-2 border-muted-foreground" />
+            <span>Data</span>
           </div>
         </div>
       </div>

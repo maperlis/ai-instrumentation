@@ -8,4 +8,5 @@ export { FrameworkRecommendationFlow } from './FrameworkRecommendationFlow';
 export { MetricsFrameworkView } from './MetricsFrameworkView';
 export { EditableDriverTree } from './EditableDriverTree';
 export { EditableMetricNode } from './EditableMetricNode';
-export { CanvasToolbar } from './CanvasToolbar';
+export { CanvasSideToolbar } from './CanvasSideToolbar';
+export { AddMetricDialog } from './AddMetricDialog';
