@@ -102,8 +102,11 @@ function EditableDriverTreeContent({
   const [localMetrics, setLocalMetrics] = useState<MetricNodeType[]>(data.metrics);
   const [isDragging, setIsDragging] = useState(false);
   const [activeTier, setActiveTier] = useState<TierLevel | null>(null);
+  const [dragTargetNodeId, setDragTargetNodeId] = useState<string | null>(null);
   const { zoomIn, zoomOut, fitView, getNodes, screenToFlowPosition } = useReactFlow();
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const selectionUpdateRef = useRef(false);
+  const lastSelectionRef = useRef<string[]>([]);
   
   // Canvas state management
   const canvasState = useCanvasState(storageKey || 'driver-tree-canvas');
@@ -287,24 +290,25 @@ function EditableDriverTreeContent({
         y: node.y || 0 
       };
       
-      nodes.push({
-        id: node.metric.id,
-        type: 'editableMetricNode',
-        position,
-        data: {
-          metric: node.metric,
-          hasChildren,
-          onSelect: onMetricSelect,
-          onToggleExpand: toggleExpand,
-          onDelete: handleDeleteMetric,
-          isMultiSelected: canvasState.state.selectedNodeIds.includes(node.metric.id),
-          isConnectMode: activeTool === 'connect',
-        },
-        selected: node.metric.id === selectedMetricId || canvasState.state.selectedNodeIds.includes(node.metric.id),
-        sourcePosition: Position.Bottom,
-        targetPosition: Position.Top,
-        draggable: activeTool === 'pointer',
-      });
+        nodes.push({
+          id: node.metric.id,
+          type: 'editableMetricNode',
+          position,
+          data: {
+            metric: node.metric,
+            hasChildren,
+            onSelect: onMetricSelect,
+            onToggleExpand: toggleExpand,
+            onDelete: handleDeleteMetric,
+            isMultiSelected: canvasState.state.selectedNodeIds.includes(node.metric.id),
+            isConnectMode: activeTool === 'connect',
+            isDragTarget: dragTargetNodeId === node.metric.id,
+          },
+          selected: node.metric.id === selectedMetricId || canvasState.state.selectedNodeIds.includes(node.metric.id),
+          sourcePosition: Position.Bottom,
+          targetPosition: Position.Top,
+          draggable: activeTool === 'pointer',
+        });
 
       node.children.forEach(child => {
         edges.push({
@@ -363,6 +367,7 @@ function EditableDriverTreeContent({
             onDelete: handleDeleteMetric,
             isMultiSelected: canvasState.state.selectedNodeIds.includes(metric.id),
             isConnectMode: activeTool === 'connect',
+            isDragTarget: dragTargetNodeId === metric.id,
           },
           selected: metric.id === selectedMetricId || canvasState.state.selectedNodeIds.includes(metric.id),
           sourcePosition: Position.Bottom,
@@ -374,7 +379,7 @@ function EditableDriverTreeContent({
     }
 
     return { computedNodes: nodes, dataEdges: edges };
-  }, [localMetrics, data.northStarMetric, data.relationships, collapsedNodes, selectedMetricId, onMetricSelect, toggleExpand, handleDeleteMetric, canvasState, activeTool]);
+  }, [localMetrics, data.northStarMetric, data.relationships, collapsedNodes, selectedMetricId, onMetricSelect, toggleExpand, handleDeleteMetric, canvasState, activeTool, dragTargetNodeId]);
 
   // Merge user-created connections with data edges
   const allEdges = useMemo(() => {
@@ -432,20 +437,58 @@ function EditableDriverTreeContent({
   }, [activeTool, screenToFlowPosition, canvasState]);
 
   // Handle node drag start
-  const onNodeDragStart = useCallback(() => {
+  const onNodeDragStart = useCallback((_: React.MouseEvent, node: Node) => {
     setIsDragging(true);
+    setDragTargetNodeId(null);
   }, []);
 
-  // Handle node dragging - detect tier and show visual feedback
+  // Handle node dragging - detect tier and nearby nodes for connection
   const onNodeDrag = useCallback((_: React.MouseEvent, node: Node) => {
     const tier = getTierFromY(node.position.y);
     setActiveTier(tier);
-  }, []);
+    
+    // Find nearby nodes in the tier above for drag-to-connect
+    const currentNodes = getNodes();
+    const draggedNodeTier = tier;
+    
+    // Determine which tier is "above" the current tier
+    const tierAbove: TierLevel | null = 
+      draggedNodeTier === 'sub-driver' ? 'driver' :
+      draggedNodeTier === 'driver' ? 'north-star' : null;
+    
+    if (!tierAbove) {
+      setDragTargetNodeId(null);
+      return;
+    }
+    
+    // Find closest node in the tier above within 150px horizontal distance
+    let closestNode: Node | null = null;
+    let closestDistance = Infinity;
+    const HORIZONTAL_THRESHOLD = 150;
+    
+    currentNodes.forEach(n => {
+      if (n.id === node.id) return;
+      
+      const nodeTier = getTierFromY(n.position.y);
+      if (nodeTier !== tierAbove) return;
+      
+      const horizontalDistance = Math.abs(n.position.x - node.position.x);
+      if (horizontalDistance < HORIZONTAL_THRESHOLD && horizontalDistance < closestDistance) {
+        closestDistance = horizontalDistance;
+        closestNode = n;
+      }
+    });
+    
+    setDragTargetNodeId(closestNode?.id || null);
+  }, [getNodes]);
 
-  // Handle node drag end - save positions and update tier/connections
+  // Handle node drag end - save positions, update tier/connections, and connect to target
   const onNodeDragStop = useCallback((_: React.MouseEvent, node: Node) => {
+    const targetNodeId = dragTargetNodeId;
+    
     setIsDragging(false);
     setActiveTier(null);
+    setDragTargetNodeId(null);
     
     const tier = getTierFromY(node.position.y);
     const newLevel = getLevelFromTier(tier);
@@ -481,15 +524,41 @@ function EditableDriverTreeContent({
     // Snap position to tier y-level (keep x, adjust y)
     const snappedY = snapToTierY(tier);
     const currentNodes = getNodes();
+    
+    // If we have a drag target, snap horizontally to align with it
+    let finalX = node.position.x;
+    if (targetNodeId) {
+      const targetNode = currentNodes.find(n => n.id === targetNodeId);
+      if (targetNode) {
+        finalX = targetNode.position.x;
+      }
+    }
+    
     const updatedNodes = currentNodes.map(n => {
       if (n.id === node.id) {
-        return { ...n, position: { x: n.position.x, y: snappedY } };
+        return { ...n, position: { x: finalX, y: snappedY } };
       }
       return n;
     });
     canvasState.updatePositions(updatedNodes);
     
-    // Auto-create connections based on tier
+    // Connect to the specific target node if one was found during drag
+    if (targetNodeId && targetNodeId !== node.id) {
+      // Remove any existing connection from this node to other nodes in the tier above
+      const existingConnections = canvasState.state.connections.filter(
+        c => c.targetId === node.id
+      );
+      if (existingConnections.length > 0) {
+        canvasState.removeConnections(existingConnections.map(c => c.id));
+      }
+      
+      // Create connection from target (parent) to this node (child)
+      canvasState.addConnection(targetNodeId, node.id);
+      toast.success('Connected to metric');
+      return;
+    }
+    
+    // Auto-create connections based on tier if no specific target
     const northStarMetric = localMetrics.find(m => m.isNorthStar || m.level === 0);
     if (tier === 'driver' && northStarMetric && northStarMetric.id !== node.id) {
       // Connect driver to North Star if not already connected
@@ -501,12 +570,33 @@ function EditableDriverTreeContent({
         canvasState.addConnection(northStarMetric.id, node.id);
       }
     }
-  }, [getNodes, canvasState, localMetrics]);
+  }, [getNodes, canvasState, localMetrics, dragTargetNodeId]);
 
-  // Handle selection changes
+  // Handle selection changes - with debounce to prevent blinking
   const onSelectionChange = useCallback(({ nodes: selectedNodes, edges: selectedEdges }: OnSelectionChangeParams) => {
+    // Prevent rapid updates by checking if selection actually changed
+    const newSelectedIds = selectedNodes.map(n => n.id).sort();
+    const currentSelectedIds = lastSelectionRef.current.sort();
+    
+    const selectionChanged = 
+      newSelectedIds.length !== currentSelectedIds.length ||
+      newSelectedIds.some((id, i) => id !== currentSelectedIds[i]);
+    
+    if (!selectionChanged && selectedEdges.length === 0) return;
+    
+    // Update ref before state to prevent re-entry
+    lastSelectionRef.current = newSelectedIds;
+    
     // Update selected nodes
-    canvasState.setSelectedNodes(selectedNodes.map(n => n.id));
+    canvasState.setSelectedNodes(newSelectedIds);
+    
+    // Call onMetricSelect for the first selected node
+    if (selectedNodes.length === 1 && onMetricSelect) {
+      const metric = localMetrics.find(m => m.id === selectedNodes[0].id);
+      if (metric) {
+        onMetricSelect(metric);
+      }
+    }
     
     // Handle edge selection - only user-created edges
     const userSelectedEdgeIds = selectedEdges
@@ -516,7 +606,7 @@ function EditableDriverTreeContent({
     if (userSelectedEdgeIds.length > 0) {
       userSelectedEdgeIds.forEach(id => canvasState.selectEdge(id, true));
     }
-  }, [canvasState]);
+  }, [canvasState, localMetrics, onMetricSelect]);
 
   // Handle edge click for selection
   const onEdgeClick = useCallback((_: React.MouseEvent, edge: Edge) => {
