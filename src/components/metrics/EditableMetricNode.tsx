@@ -28,6 +28,7 @@ interface EditableMetricNodeData {
   onDelete?: (metricId: string) => void;
   isMultiSelected?: boolean;
   isConnectMode?: boolean;
+  isDragTarget?: boolean;
 }
 
 /**
@@ -54,15 +55,18 @@ export const EditableMetricNode = memo(function EditableMetricNode({
 }: NodeProps & { data: EditableMetricNodeData }) {
   const [isHovered, setIsHovered] = useState(false);
   const [isExpanded, setIsExpanded] = useState(true);
-  const { metric, hasChildren, onSelect, onToggleExpand, onDelete, isMultiSelected, isConnectMode } = data;
+  const { metric, hasChildren, onSelect, onToggleExpand, onDelete, isMultiSelected, isConnectMode, isDragTarget } = data;
 
   // Always show handles when hovered, selected, or in connect mode for easier connection
   const showHandles = isHovered || selected || isMultiSelected || isConnectMode;
 
+  // Handle click - don't call onSelect here as ReactFlow handles selection via onSelectionChange
+  // This prevents the blinking issue from double selection updates
   const handleClick = useCallback((e: React.MouseEvent) => {
+    // Only stop propagation to prevent pane click, but let ReactFlow handle selection
     e.stopPropagation();
-    onSelect?.(metric);
-  }, [metric, onSelect]);
+    // Don't call onSelect here - it's called via onSelectionChange to avoid double updates
+  }, []);
 
   const handleDeleteClick = useCallback((e: React.MouseEvent) => {
     e.stopPropagation();
@@ -72,9 +76,11 @@ export const EditableMetricNode = memo(function EditableMetricNode({
   return (
     <div 
       className={cn(
-        "relative group cursor-pointer",
+        "relative group cursor-pointer transition-all duration-150",
         // Visual feedback for selection
-        (selected || isMultiSelected) && "ring-2 ring-primary ring-offset-2 ring-offset-background rounded-xl"
+        (selected || isMultiSelected) && "ring-2 ring-primary ring-offset-2 ring-offset-background rounded-xl",
+        // Visual feedback for being a drag target
+        isDragTarget && "ring-2 ring-accent ring-offset-2 ring-offset-background rounded-xl scale-105 shadow-lg"
       )}
       onMouseEnter={() => setIsHovered(true)}
       onMouseLeave={() => setIsHovered(false)}
