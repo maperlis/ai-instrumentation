@@ -10,3 +10,5 @@ export { EditableDriverTree } from './EditableDriverTree';
 export { EditableMetricNode } from './EditableMetricNode';
 export { CanvasSideToolbar } from './CanvasSideToolbar';
 export { AddMetricDialog } from './AddMetricDialog';
+export { TierSnapZones, getTierFromY, getLevelFromTier, snapToTierY } from './TierSnapZones';
+export type { TierLevel } from './TierSnapZones';

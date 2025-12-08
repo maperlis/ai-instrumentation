@@ -2,12 +2,13 @@
  * Editable Driver Tree Visualization
  * 
  * An enhanced version of DriverTreeVisualization that supports:
- * - Dragging nodes to reposition them
+ * - Dragging nodes to reposition them with tier-based snapping
  * - Drawing connections between metrics by dragging from handles
  * - Multi-select with Ctrl/Cmd+click
  * - Deleting nodes/edges with Delete/Backspace
  * - Panning (drag on empty space) and zooming (mouse wheel)
  * - Export/import of canvas state
+ * - Tier zones: North Star → Core Drivers → Sub-Drivers
  * 
  * Canvas logic location: This component + useCanvasState hook
  * Node positions: Stored in useCanvasState, merged with computed positions
@@ -30,7 +31,6 @@ import {
   MarkerType,
   SelectionMode,
   OnSelectionChangeParams,
-  addEdge,
 } from '@xyflow/react';
 import '@xyflow/react/dist/style.css';
 import { motion } from 'framer-motion';
@@ -39,6 +39,7 @@ import { MetricNode as MetricNodeType, FrameworkData } from '@/types/metricsFram
 import { EditableMetricNode } from './EditableMetricNode';
 import { CanvasSideToolbar, CanvasTool } from './CanvasSideToolbar';
 import { AddMetricDialog } from './AddMetricDialog';
+import { TierSnapZones, TierLevel, getTierFromY, getLevelFromTier, snapToTierY } from './TierSnapZones';
 import { useCanvasState } from '@/hooks/useCanvasState';
 import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
@@ -99,6 +100,8 @@ function EditableDriverTreeContent({
   const [showAddDialog, setShowAddDialog] = useState(false);
   const [addPosition, setAddPosition] = useState({ x: 0, y: 0 });
   const [localMetrics, setLocalMetrics] = useState<MetricNodeType[]>(data.metrics);
+  const [isDragging, setIsDragging] = useState(false);
+  const [activeTier, setActiveTier] = useState<TierLevel | null>(null);
   const { zoomIn, zoomOut, fitView, getNodes, screenToFlowPosition } = useReactFlow();
   const fileInputRef = useRef<HTMLInputElement>(null);
   
@@ -428,11 +431,77 @@ function EditableDriverTreeContent({
     }
   }, [activeTool, screenToFlowPosition, canvasState]);
 
-  // Handle node drag end - save positions
-  const onNodeDragStop = useCallback(() => {
+  // Handle node drag start
+  const onNodeDragStart = useCallback(() => {
+    setIsDragging(true);
+  }, []);
+
+  // Handle node dragging - detect tier and show visual feedback
+  const onNodeDrag = useCallback((_: React.MouseEvent, node: Node) => {
+    const tier = getTierFromY(node.position.y);
+    setActiveTier(tier);
+  }, []);
+
+  // Handle node drag end - save positions and update tier/connections
+  const onNodeDragStop = useCallback((_: React.MouseEvent, node: Node) => {
+    setIsDragging(false);
+    setActiveTier(null);
+    
+    const tier = getTierFromY(node.position.y);
+    const newLevel = getLevelFromTier(tier);
+    
+    // Update metric level and connections based on new tier
+    setLocalMetrics(prev => {
+      const updatedMetrics = prev.map(m => {
+        if (m.id === node.id) {
+          const wasNorthStar = m.isNorthStar;
+          const isNowNorthStar = tier === 'north-star';
+          
+          // If becoming North Star, make sure only one exists
+          if (isNowNorthStar && !wasNorthStar) {
+            toast.success(`"${m.name}" is now the North Star metric`);
+          }
+          
+          return {
+            ...m,
+            level: newLevel,
+            isNorthStar: isNowNorthStar,
+            category: tier === 'north-star' ? 'North Star' : tier === 'driver' ? 'Driver' : 'Sub-Driver',
+          };
+        }
+        // If another metric becomes North Star, demote this one
+        if (tier === 'north-star' && m.isNorthStar && m.id !== node.id) {
+          return { ...m, isNorthStar: false, level: 1, category: 'Driver' };
+        }
+        return m;
+      });
+      return updatedMetrics;
+    });
+    
+    // Snap position to tier y-level (keep x, adjust y)
+    const snappedY = snapToTierY(tier);
     const currentNodes = getNodes();
-    canvasState.updatePositions(currentNodes);
-  }, [getNodes, canvasState]);
+    const updatedNodes = currentNodes.map(n => {
+      if (n.id === node.id) {
+        return { ...n, position: { x: n.position.x, y: snappedY } };
+      }
+      return n;
+    });
+    canvasState.updatePositions(updatedNodes);
+    
+    // Auto-create connections based on tier
+    const northStarMetric = localMetrics.find(m => m.isNorthStar || m.level === 0);
+    if (tier === 'driver' && northStarMetric && northStarMetric.id !== node.id) {
+      // Connect driver to North Star if not already connected
+      const existingConnection = canvasState.state.connections.find(
+        c => (c.sourceId === northStarMetric.id && c.targetId === node.id) ||
+             (c.sourceId === node.id && c.targetId === northStarMetric.id)
+      );
+      if (!existingConnection) {
+        canvasState.addConnection(northStarMetric.id, node.id);
+      }
+    }
+  }, [getNodes, canvasState, localMetrics]);
 
   // Handle selection changes
   const onSelectionChange = useCallback(({ nodes: selectedNodes, edges: selectedEdges }: OnSelectionChangeParams) => {
@@ -644,6 +713,9 @@ function EditableDriverTreeContent({
         </div>
       )}
 
+      {/* Tier Snap Zones - Visual guides when dragging */}
+      <TierSnapZones activeTier={activeTier} isDragging={isDragging} />
+
       {/* React Flow Canvas */}
       <ReactFlow
         nodes={nodes}
@@ -652,6 +724,8 @@ function EditableDriverTreeContent({
         onEdgesChange={onEdgesChange}
         onConnect={onConnect}
         onPaneClick={onPaneClick}
+        onNodeDragStart={onNodeDragStart}
+        onNodeDrag={onNodeDrag}
         onNodeDragStop={onNodeDragStop}
         onSelectionChange={onSelectionChange}
         onEdgeClick={onEdgeClick}
