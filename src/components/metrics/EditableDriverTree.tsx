@@ -426,15 +426,19 @@ function EditableDriverTreeContent({
 
   // Handle canvas click for adding metrics
   const onPaneClick = useCallback((event: React.MouseEvent) => {
-    // Clear selection on pane click
+    // Clear selection on pane click and hide the definition panel
     canvasState.clearSelection();
+    lastSelectionRef.current = [];
+    
+    // Call onMetricSelect with undefined to hide the panel
+    onMetricSelect?.(undefined as unknown as MetricNodeType);
     
     if (activeTool === 'add-node') {
       const position = screenToFlowPosition({ x: event.clientX, y: event.clientY });
       setAddPosition(position);
       setShowAddDialog(true);
     }
-  }, [activeTool, screenToFlowPosition, canvasState]);
+  }, [activeTool, screenToFlowPosition, canvasState, onMetricSelect]);
 
   // Handle node drag start
   const onNodeDragStart = useCallback((_: React.MouseEvent, node: Node) => {
