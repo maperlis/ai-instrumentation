@@ -826,8 +826,8 @@ function EditableDriverTreeContent({
         nodeTypes={nodeTypes}
         connectionMode={ConnectionMode.Loose}
         selectionMode={SelectionMode.Partial}
-        selectNodesOnDrag={activeTool === 'pointer'}
-        selectionOnDrag={activeTool === 'pointer'}
+        selectNodesOnDrag={false}
+        selectionOnDrag={false}
         panOnDrag={activeTool === 'hand' ? true : activeTool === 'pointer' ? [1, 2] : false}
         selectionKeyCode={activeTool === 'pointer' ? 'Shift' : null}
         multiSelectionKeyCode={['Meta', 'Control']}
