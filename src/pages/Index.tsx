@@ -120,7 +120,7 @@ const Index = () => {
             <div className="flex items-center justify-center gap-2 mb-8">
               <span className="inline-flex items-center gap-2 px-3 py-1.5 bg-primary/10 text-primary text-sm font-medium rounded-full border border-primary/20">
                 <span className="w-5 h-5 rounded-full bg-primary text-primary-foreground text-xs flex items-center justify-center font-semibold">1</span>
-                Step 1 of 3: Share your context
+                Step 1 of 4: Share your context
               </span>
             </div>
 
@@ -140,7 +140,7 @@ const Index = () => {
                 <Sparkles className="w-4 h-4 text-primary" />
                 What happens next?
               </h3>
-              <div className="flex flex-col sm:flex-row gap-4 sm:gap-8">
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
                 <div className="flex items-start gap-3">
                   <div className="w-6 h-6 rounded-full bg-primary/10 text-primary text-xs flex items-center justify-center font-semibold shrink-0">1</div>
                   <p className="text-sm text-muted-foreground">I'll analyze your product context</p>
@@ -152,6 +152,10 @@ const Index = () => {
                 <div className="flex items-start gap-3">
                   <div className="w-6 h-6 rounded-full bg-primary/10 text-primary text-xs flex items-center justify-center font-semibold shrink-0">3</div>
                   <p className="text-sm text-muted-foreground">Get your personalized metrics framework</p>
+                </div>
+                <div className="flex items-start gap-3">
+                  <div className="w-6 h-6 rounded-full bg-primary/10 text-primary text-xs flex items-center justify-center font-semibold shrink-0">4</div>
+                  <p className="text-sm text-muted-foreground">Get your Instrumentation Plan</p>
                 </div>
               </div>
             </div>
@@ -170,10 +174,22 @@ const Index = () => {
       
       {(currentStep === 'visualization' || currentStep === 'results') && state.metrics.length > 0 && (
         <div className="min-h-[calc(100vh-4rem)]">
+          {/* Progress indicator */}
+          <div className="bg-background border-b border-border py-3">
+            <div className="container mx-auto px-4 flex items-center justify-center">
+              <span className="inline-flex items-center gap-2 px-3 py-1.5 bg-primary/10 text-primary text-sm font-medium rounded-full border border-primary/20">
+                <span className="w-5 h-5 rounded-full bg-primary text-primary-foreground text-xs flex items-center justify-center font-semibold">
+                  {currentStep === 'visualization' ? '3' : '4'}
+                </span>
+                Step {currentStep === 'visualization' ? '3' : '4'} of 4: {currentStep === 'visualization' ? 'Your metrics framework' : 'Your Instrumentation Plan'}
+              </span>
+            </div>
+          </div>
+
           {/* Navigation Tabs */}
           <div className="border-b border-border bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 sticky top-16 z-40">
             <div className="container mx-auto px-4">
-              <Tabs 
+              <Tabs
                 value={currentStep === 'visualization' ? 'metrics' : 'taxonomy'} 
                 onValueChange={(value) => setCurrentStep(value === 'metrics' ? 'visualization' : 'results')}
                 className="w-full"
