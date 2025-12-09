@@ -304,7 +304,7 @@ function EditableDriverTreeContent({
             isConnectMode: activeTool === 'connect',
             isDragTarget: dragTargetNodeId === node.metric.id,
           },
-          selected: node.metric.id === selectedMetricId || canvasState.state.selectedNodeIds.includes(node.metric.id),
+          selected: canvasState.state.selectedNodeIds.includes(node.metric.id),
           sourcePosition: Position.Bottom,
           targetPosition: Position.Top,
           draggable: activeTool === 'pointer',
@@ -369,7 +369,7 @@ function EditableDriverTreeContent({
             isConnectMode: activeTool === 'connect',
             isDragTarget: dragTargetNodeId === metric.id,
           },
-          selected: metric.id === selectedMetricId || canvasState.state.selectedNodeIds.includes(metric.id),
+          selected: canvasState.state.selectedNodeIds.includes(metric.id),
           sourcePosition: Position.Bottom,
           targetPosition: Position.Top,
           draggable: activeTool === 'pointer',
@@ -379,7 +379,7 @@ function EditableDriverTreeContent({
     }
 
     return { computedNodes: nodes, dataEdges: edges };
-  }, [localMetrics, data.northStarMetric, data.relationships, collapsedNodes, selectedMetricId, onMetricSelect, toggleExpand, handleDeleteMetric, canvasState, activeTool, dragTargetNodeId]);
+  }, [localMetrics, data.northStarMetric, data.relationships, collapsedNodes, onMetricSelect, toggleExpand, handleDeleteMetric, canvasState, activeTool, dragTargetNodeId]);
 
   // Merge user-created connections with data edges
   const allEdges = useMemo(() => {
@@ -576,11 +576,11 @@ function EditableDriverTreeContent({
     }
   }, [getNodes, canvasState, localMetrics, dragTargetNodeId]);
 
-  // Handle selection changes - with debounce to prevent blinking
+  // Handle selection changes - with guard to prevent feedback loop
   const onSelectionChange = useCallback(({ nodes: selectedNodes, edges: selectedEdges }: OnSelectionChangeParams) => {
     // Prevent rapid updates by checking if selection actually changed
     const newSelectedIds = selectedNodes.map(n => n.id).sort();
-    const currentSelectedIds = lastSelectionRef.current.sort();
+    const currentSelectedIds = [...lastSelectionRef.current].sort();
     
     const selectionChanged = 
       newSelectedIds.length !== currentSelectedIds.length ||
@@ -594,11 +594,19 @@ function EditableDriverTreeContent({
     // Update selected nodes
     canvasState.setSelectedNodes(newSelectedIds);
     
-    // Call onMetricSelect for the first selected node
-    if (selectedNodes.length === 1 && onMetricSelect) {
+    // Only call onMetricSelect if:
+    // 1. Exactly one node is selected
+    // 2. It's different from the current selectedMetricId
+    // 3. We're not in the middle of an update (prevent re-entry)
+    if (selectedNodes.length === 1 && onMetricSelect && !selectionUpdateRef.current) {
       const metric = localMetrics.find(m => m.id === selectedNodes[0].id);
-      if (metric) {
+      if (metric && metric.id !== selectedMetricId) {
+        selectionUpdateRef.current = true;
         onMetricSelect(metric);
+        // Reset flag after a short delay
+        setTimeout(() => {
+          selectionUpdateRef.current = false;
+        }, 100);
       }
     }
     
@@ -610,7 +618,7 @@ function EditableDriverTreeContent({
     if (userSelectedEdgeIds.length > 0) {
       userSelectedEdgeIds.forEach(id => canvasState.selectEdge(id, true));
     }
-  }, [canvasState, localMetrics, onMetricSelect]);
+  }, [canvasState, localMetrics, onMetricSelect, selectedMetricId]);
 
   // Handle edge click for selection
   const onEdgeClick = useCallback((_: React.MouseEvent, edge: Edge) => {
