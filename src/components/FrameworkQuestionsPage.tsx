@@ -272,6 +272,14 @@ export function FrameworkQuestionsPage({ onBack, onComplete, isLoading: external
   return (
     <div className="min-h-[calc(100vh-4rem)] bg-gradient-to-b from-background to-muted/30">
       <SectionContainer size="md" className="py-8">
+        {/* Progress indicator */}
+        <div className="flex items-center justify-center gap-2 mb-6">
+          <span className="inline-flex items-center gap-2 px-3 py-1.5 bg-primary/10 text-primary text-sm font-medium rounded-full border border-primary/20">
+            <span className="w-5 h-5 rounded-full bg-primary text-primary-foreground text-xs flex items-center justify-center font-semibold">2</span>
+            Step 2 of 4: Answer a few questions
+          </span>
+        </div>
+
         {/* Header */}
         <div className="mb-8">
           <Button variant="ghost" onClick={handlePrevious} className="mb-4">
