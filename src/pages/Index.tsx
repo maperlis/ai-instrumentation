@@ -1,5 +1,4 @@
 import { useState, useCallback, useEffect } from "react";
-import { HeroSection } from "@/components/HeroSection";
 import { InputSection } from "@/components/InputSection";
 import { ResultsSection } from "@/components/ResultsSection";
 import { FrameworkQuestionsPage } from "@/components/FrameworkQuestionsPage";
@@ -10,7 +9,7 @@ import { useOrchestration } from "@/hooks/useOrchestration";
 import { PageContainer } from "@/components/design-system";
 import { AppHeader } from "@/components/design-system/AppHeader";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { BarChart3, FileSpreadsheet } from "lucide-react";
+import { BarChart3, FileSpreadsheet, Sparkles, MessageSquare, LayoutDashboard } from "lucide-react";
 
 type WorkflowStep = 'input' | 'framework-questions' | 'visualization' | 'results';
 
@@ -105,16 +104,58 @@ const Index = () => {
       <AppHeader />
       
       {currentStep === 'input' && (
-        <div className="gradient-hero min-h-[calc(100vh-4rem)]">
-          <HeroSection />
-          <InputSection 
-            onMetricsGenerated={handleMetricsGenerated}
-            onTaxonomyGenerated={handleTaxonomyGenerated}
-            isLoading={isLoading}
-            setIsLoading={() => {}}
-            inputData={inputData}
-            onStartOrchestration={handleStartAnalysis}
-          />
+        <div className="min-h-[calc(100vh-4rem)] flex items-center justify-center py-12 bg-background">
+          <div className="w-full max-w-2xl px-4">
+            {/* Welcoming intro */}
+            <div className="text-center mb-8">
+              <h1 className="text-3xl md:text-4xl font-bold text-foreground mb-3">
+                Let's understand your product
+              </h1>
+              <p className="text-lg text-muted-foreground max-w-lg mx-auto">
+                Share a quick snapshot of what you're building, and I'll recommend the best metrics framework and ask tailored follow-up questions.
+              </p>
+            </div>
+
+            {/* Progress indicator */}
+            <div className="flex items-center justify-center gap-2 mb-8">
+              <span className="inline-flex items-center gap-2 px-3 py-1.5 bg-primary/10 text-primary text-sm font-medium rounded-full border border-primary/20">
+                <span className="w-5 h-5 rounded-full bg-primary text-primary-foreground text-xs flex items-center justify-center font-semibold">1</span>
+                Step 1 of 3: Share your context
+              </span>
+            </div>
+
+            {/* Input form */}
+            <InputSection 
+              onMetricsGenerated={handleMetricsGenerated}
+              onTaxonomyGenerated={handleTaxonomyGenerated}
+              isLoading={isLoading}
+              setIsLoading={() => {}}
+              inputData={inputData}
+              onStartOrchestration={handleStartAnalysis}
+            />
+
+            {/* What happens next */}
+            <div className="mt-8 p-6 bg-muted/50 rounded-xl border border-border">
+              <h3 className="font-semibold text-foreground mb-4 flex items-center gap-2">
+                <Sparkles className="w-4 h-4 text-primary" />
+                What happens next?
+              </h3>
+              <div className="flex flex-col sm:flex-row gap-4 sm:gap-8">
+                <div className="flex items-start gap-3">
+                  <div className="w-6 h-6 rounded-full bg-primary/10 text-primary text-xs flex items-center justify-center font-semibold shrink-0">1</div>
+                  <p className="text-sm text-muted-foreground">I'll analyze your product context</p>
+                </div>
+                <div className="flex items-start gap-3">
+                  <div className="w-6 h-6 rounded-full bg-primary/10 text-primary text-xs flex items-center justify-center font-semibold shrink-0">2</div>
+                  <p className="text-sm text-muted-foreground">You'll answer a few quick questions</p>
+                </div>
+                <div className="flex items-start gap-3">
+                  <div className="w-6 h-6 rounded-full bg-primary/10 text-primary text-xs flex items-center justify-center font-semibold shrink-0">3</div>
+                  <p className="text-sm text-muted-foreground">Get your personalized metrics framework</p>
+                </div>
+              </div>
+            </div>
+          </div>
         </div>
       )}
 

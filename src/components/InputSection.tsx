@@ -8,7 +8,7 @@ import { Upload, Link2, Loader2, Video } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { TaxonomyEvent } from "@/types/taxonomy";
-import { SectionContainer, FeatureCard } from "@/components/design-system";
+import { FeatureCard } from "@/components/design-system";
 
 interface InputSectionProps {
   onMetricsGenerated: (metrics: any[], data: any) => void;
@@ -204,49 +204,50 @@ export const InputSection = ({
   };
 
   return (
-    <SectionContainer size="md" className="pb-20">
-      <FeatureCard variant="elevated" hoverEffect="none" className="shadow-xl">
-        <Tabs defaultValue="url" className="w-full">
-          <TabsList className="grid w-full grid-cols-3 mb-6">
-            <TabsTrigger value="url" className="gap-2">
-              <Link2 className="w-4 h-4" />
-              URL
-            </TabsTrigger>
-            <TabsTrigger value="image" className="gap-2">
-              <Upload className="w-4 h-4" />
-              Image
-            </TabsTrigger>
-            <TabsTrigger value="video" className="gap-2">
-              <Video className="w-4 h-4" />
-              Video
-            </TabsTrigger>
-          </TabsList>
+    <FeatureCard variant="elevated" hoverEffect="none" className="shadow-lg">
+      <Tabs defaultValue="url" className="w-full">
+        <TabsList className="grid w-full grid-cols-3 mb-6">
+          <TabsTrigger value="url" className="gap-2">
+            <Link2 className="w-4 h-4" />
+            URL
+          </TabsTrigger>
+          <TabsTrigger value="image" className="gap-2">
+            <Upload className="w-4 h-4" />
+            Image
+          </TabsTrigger>
+          <TabsTrigger value="video" className="gap-2">
+            <Video className="w-4 h-4" />
+            Video
+          </TabsTrigger>
+        </TabsList>
 
-          <TabsContent value="url" className="space-y-4">
-            <div className="space-y-2">
-              <Label htmlFor="url">Product URL</Label>
-              <Input
-                id="url"
-                type="url"
-                placeholder="https://yourproduct.com"
-                value={url}
-                onChange={(e) => setUrl(e.target.value)}
-                disabled={isLoading}
-              />
-            </div>
+        <TabsContent value="url" className="space-y-4">
+          <div className="space-y-2">
+            <Label htmlFor="url">Your Product URL</Label>
+            <Input
+              id="url"
+              type="url"
+              placeholder="https://yourproduct.com"
+              value={url}
+              onChange={(e) => setUrl(e.target.value)}
+              disabled={isLoading}
+            />
+          </div>
 
-            <div className="space-y-2">
-              <Label htmlFor="details-url">Product Details (Optional)</Label>
-              <Textarea
-                id="details-url"
-                placeholder="Describe your product, main features, or user journey goals..."
-                value={productDetails}
-                onChange={(e) => setProductDetails(e.target.value)}
-                disabled={isLoading}
-                rows={3}
-              />
-            </div>
+          <div className="space-y-2">
+            <Label htmlFor="details-url">Tell us about your product <span className="text-muted-foreground font-normal">(optional but helpful)</span></Label>
+            <Textarea
+              id="details-url"
+              placeholder="E.g., 'SaaS tool for project management' or 'E-commerce marketplace connecting local artisans'"
+              value={productDetails}
+              onChange={(e) => setProductDetails(e.target.value)}
+              disabled={isLoading}
+              rows={3}
+            />
+            <p className="text-xs text-muted-foreground">This helps me ask better follow-up questions</p>
+          </div>
 
+          <div className="space-y-2">
             <Button
               onClick={() => handleGenerate("url")}
               disabled={isLoading}
@@ -259,57 +260,61 @@ export const InputSection = ({
                   Analyzing...
                 </>
               ) : (
-                "Generate Taxonomy"
+                "Start Analysis"
               )}
             </Button>
-          </TabsContent>
+            <p className="text-xs text-muted-foreground text-center">I'll analyze this and ask tailored follow-up questions next</p>
+          </div>
+        </TabsContent>
 
-          <TabsContent value="image" className="space-y-4">
-            <div className="space-y-2">
-              <Label htmlFor="image">Design Image</Label>
-              <div className="border-2 border-dashed border-border rounded-xl p-8 text-center hover:border-primary/50 hover:bg-primary/5 transition-all cursor-pointer">
-                <input
-                  id="image"
-                  type="file"
-                  accept="image/*"
-                  onChange={handleImageSelect}
-                  className="hidden"
-                  disabled={isLoading}
-                />
-                <label htmlFor="image" className="cursor-pointer">
-                  {imagePreview ? (
-                    <img
-                      src={imagePreview}
-                      alt="Preview"
-                      className="max-h-64 mx-auto rounded-lg"
-                    />
-                  ) : (
-                    <div className="space-y-2">
-                      <Upload className="w-12 h-12 mx-auto text-muted-foreground" />
-                      <p className="text-sm text-muted-foreground">
-                        Click to upload or drag and drop
-                      </p>
-                      <p className="text-xs text-muted-foreground">
-                        PNG, JPG up to 5MB
-                      </p>
-                    </div>
-                  )}
-                </label>
-              </div>
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="details-image">Product Details (Optional)</Label>
-              <Textarea
-                id="details-image"
-                placeholder="Describe your product, main features, or user journey goals..."
-                value={productDetails}
-                onChange={(e) => setProductDetails(e.target.value)}
+        <TabsContent value="image" className="space-y-4">
+          <div className="space-y-2">
+            <Label htmlFor="image">Upload a Design or Screenshot</Label>
+            <div className="border-2 border-dashed border-border rounded-xl p-8 text-center hover:border-primary/50 hover:bg-primary/5 transition-all cursor-pointer">
+              <input
+                id="image"
+                type="file"
+                accept="image/*"
+                onChange={handleImageSelect}
+                className="hidden"
                 disabled={isLoading}
-                rows={3}
               />
+              <label htmlFor="image" className="cursor-pointer">
+                {imagePreview ? (
+                  <img
+                    src={imagePreview}
+                    alt="Preview"
+                    className="max-h-64 mx-auto rounded-lg"
+                  />
+                ) : (
+                  <div className="space-y-2">
+                    <Upload className="w-12 h-12 mx-auto text-muted-foreground" />
+                    <p className="text-sm text-muted-foreground">
+                      Click to upload or drag and drop
+                    </p>
+                    <p className="text-xs text-muted-foreground">
+                      PNG, JPG up to 5MB
+                    </p>
+                  </div>
+                )}
+              </label>
             </div>
+          </div>
 
+          <div className="space-y-2">
+            <Label htmlFor="details-image">Tell us about your product <span className="text-muted-foreground font-normal">(optional but helpful)</span></Label>
+            <Textarea
+              id="details-image"
+              placeholder="E.g., 'SaaS tool for project management' or 'E-commerce marketplace connecting local artisans'"
+              value={productDetails}
+              onChange={(e) => setProductDetails(e.target.value)}
+              disabled={isLoading}
+              rows={3}
+            />
+            <p className="text-xs text-muted-foreground">This helps me ask better follow-up questions</p>
+          </div>
+
+          <div className="space-y-2">
             <Button
               onClick={() => handleGenerate("image")}
               disabled={isLoading || !selectedImage}
@@ -322,57 +327,61 @@ export const InputSection = ({
                   Analyzing...
                 </>
               ) : (
-                "Generate Taxonomy"
+                "Start Analysis"
               )}
             </Button>
-          </TabsContent>
+            <p className="text-xs text-muted-foreground text-center">I'll analyze this and ask tailored follow-up questions next</p>
+          </div>
+        </TabsContent>
 
-          <TabsContent value="video" className="space-y-4">
-            <div className="space-y-2">
-              <Label htmlFor="video">Feature Demo Video</Label>
-              <div className="border-2 border-dashed border-border rounded-xl p-8 text-center hover:border-primary/50 hover:bg-primary/5 transition-all cursor-pointer">
-                <input
-                  id="video"
-                  type="file"
-                  accept="video/*"
-                  onChange={handleVideoSelect}
-                  className="hidden"
-                  disabled={isLoading}
-                />
-                <label htmlFor="video" className="cursor-pointer">
-                  {videoPreview ? (
-                    <video
-                      src={videoPreview}
-                      controls
-                      className="max-h-64 mx-auto rounded-lg"
-                    />
-                  ) : (
-                    <div className="space-y-2">
-                      <Video className="w-12 h-12 mx-auto text-muted-foreground" />
-                      <p className="text-sm text-muted-foreground">
-                        Click to upload or drag and drop
-                      </p>
-                      <p className="text-xs text-muted-foreground">
-                        MP4, MOV, WebM up to 50MB
-                      </p>
-                    </div>
-                  )}
-                </label>
-              </div>
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="details-video">Product Details (Optional)</Label>
-              <Textarea
-                id="details-video"
-                placeholder="Describe your product, main features, or user journey goals..."
-                value={productDetails}
-                onChange={(e) => setProductDetails(e.target.value)}
+        <TabsContent value="video" className="space-y-4">
+          <div className="space-y-2">
+            <Label htmlFor="video">Upload a Feature Demo Video</Label>
+            <div className="border-2 border-dashed border-border rounded-xl p-8 text-center hover:border-primary/50 hover:bg-primary/5 transition-all cursor-pointer">
+              <input
+                id="video"
+                type="file"
+                accept="video/*"
+                onChange={handleVideoSelect}
+                className="hidden"
                 disabled={isLoading}
-                rows={3}
               />
+              <label htmlFor="video" className="cursor-pointer">
+                {videoPreview ? (
+                  <video
+                    src={videoPreview}
+                    controls
+                    className="max-h-64 mx-auto rounded-lg"
+                  />
+                ) : (
+                  <div className="space-y-2">
+                    <Video className="w-12 h-12 mx-auto text-muted-foreground" />
+                    <p className="text-sm text-muted-foreground">
+                      Click to upload or drag and drop
+                    </p>
+                    <p className="text-xs text-muted-foreground">
+                      MP4, MOV, WebM up to 50MB
+                    </p>
+                  </div>
+                )}
+              </label>
             </div>
+          </div>
 
+          <div className="space-y-2">
+            <Label htmlFor="details-video">Tell us about your product <span className="text-muted-foreground font-normal">(optional but helpful)</span></Label>
+            <Textarea
+              id="details-video"
+              placeholder="E.g., 'SaaS tool for project management' or 'E-commerce marketplace connecting local artisans'"
+              value={productDetails}
+              onChange={(e) => setProductDetails(e.target.value)}
+              disabled={isLoading}
+              rows={3}
+            />
+            <p className="text-xs text-muted-foreground">This helps me ask better follow-up questions</p>
+          </div>
+
+          <div className="space-y-2">
             <Button
               onClick={() => handleGenerate("video")}
               disabled={isLoading || !selectedVideo}
@@ -385,12 +394,13 @@ export const InputSection = ({
                   Analyzing...
                 </>
               ) : (
-                "Generate Taxonomy"
+                "Start Analysis"
               )}
             </Button>
-          </TabsContent>
-        </Tabs>
-      </FeatureCard>
-    </SectionContainer>
+            <p className="text-xs text-muted-foreground text-center">I'll analyze this and ask tailored follow-up questions next</p>
+          </div>
+        </TabsContent>
+      </Tabs>
+    </FeatureCard>
   );
 };
