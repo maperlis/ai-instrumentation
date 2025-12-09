@@ -60,11 +60,10 @@ export const EditableMetricNode = memo(function EditableMetricNode({
   // Always show handles when hovered, selected, or in connect mode for easier connection
   const showHandles = isHovered || selected || isMultiSelected || isConnectMode;
 
-  // Handle click - don't call onSelect here as ReactFlow handles selection via onSelectionChange
-  // This prevents the blinking issue from double selection updates
+  // Handle click - let ReactFlow handle selection via onSelectionChange
+  // Don't stop propagation so ReactFlow can detect the click for selection
   const handleClick = useCallback((e: React.MouseEvent) => {
-    // Only stop propagation to prevent pane click, but let ReactFlow handle selection
-    e.stopPropagation();
+    // Let the event bubble up to ReactFlow for selection handling
     // Don't call onSelect here - it's called via onSelectionChange to avoid double updates
   }, []);
 
@@ -142,7 +141,7 @@ export const EditableMetricNode = memo(function EditableMetricNode({
       )}
 
       {/* The actual metric card */}
-      <div className="min-w-[200px] max-w-[260px] pointer-events-none">
+      <div className="min-w-[200px] max-w-[260px]">
         <MetricCard
           metric={metric}
           isSelected={selected || isMultiSelected}
