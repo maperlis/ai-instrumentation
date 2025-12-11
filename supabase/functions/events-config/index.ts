@@ -7,6 +7,12 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
+// Validate project name format: alphanumeric, hyphens, underscores, 1-100 chars
+const isValidProjectName = (name: string): boolean => {
+  if (!name || name.length < 1 || name.length > 100) return false;
+  return /^[a-zA-Z0-9_-]+$/.test(name);
+};
+
 serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
@@ -19,6 +25,17 @@ serve(async (req) => {
     if (!projectName) {
       return new Response(
         JSON.stringify({ error: 'Missing project name parameter' }),
+        { 
+          status: 400,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
+        }
+      );
+    }
+
+    // SECURITY: Validate project name format to prevent enumeration attacks
+    if (!isValidProjectName(projectName)) {
+      return new Response(
+        JSON.stringify({ error: 'Invalid project name format' }),
         { 
           status: 400,
           headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
