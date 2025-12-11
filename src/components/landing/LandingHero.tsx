@@ -5,8 +5,13 @@ import { useAuth } from "@/hooks/useAuth";
 
 export const LandingHero = () => {
   const { user } = useAuth();
-  const features = ["AI Metric Recommendations", "Visual Metric Frameworks", "Event Taxonomy Generation", "Amplitude Integration"];
-  
+  const features = [
+    "AI Metric Recommendations",
+    "Visual Metric Frameworks",
+    "Event Taxonomy Generation",
+    "Amplitude Integration",
+  ];
+
   return (
     <section className="relative pt-32 pb-24 md:pt-40 md:pb-32 px-6 overflow-hidden bg-background">
       {/* Floating Background Elements */}
@@ -41,14 +46,13 @@ export const LandingHero = () => {
 
         {/* Headline */}
         <h1 className="animate-fade-in text-5xl md:text-7xl lg:text-8xl font-bold text-foreground tracking-tighter leading-[1.05] mb-8">
-          From Product to
-          <br className="hidden md:block" />
-          Instrumentation Plan
+          A Data Strategy That Builds Itelf
         </h1>
 
         {/* Subheadline */}
         <p className="animate-fade-in [animation-delay:100ms] opacity-0 text-lg md:text-xl text-muted-foreground max-w-2xl mx-auto mb-10 leading-relaxed">
-          Upload a URL, screenshot, or video of your product. Get AI-recommended metrics, visual frameworks, and a complete event taxonomy—ready for Amplitude.
+          Upload a URL, screenshot, or video of your product. Get AI-recommended metrics, visual frameworks, and a
+          complete event taxonomy—ready for Amplitude.
         </p>
 
         {/* CTAs */}
