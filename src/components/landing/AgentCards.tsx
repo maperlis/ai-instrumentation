@@ -1,127 +1,73 @@
-import { Sparkles, CheckCircle2, MessageSquare, Bot } from "lucide-react";
+import { Sparkles, BarChart3, FileSpreadsheet, Send } from "lucide-react";
 
 export const AgentCards = () => {
   return (
     <section className="px-6 pb-24 bg-background">
       <div className="max-w-5xl mx-auto">
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 text-left">
-          {/* Card 1 - Strategy Agent */}
-          <div className="group relative overflow-hidden rounded-3xl bg-zinc-950 border border-zinc-800 hover:ring-2 hover:ring-primary/50 transition-all duration-500 h-[420px] flex flex-col shadow-2xl">
-            <div className="absolute inset-0 bg-gradient-to-b from-white/[0.05] to-transparent pointer-events-none" />
-
-            <div className="p-8 flex-1">
-              <div className="text-[11px] font-bold text-primary uppercase tracking-widest mb-4 flex items-center gap-2">
-                <div className="w-1.5 h-1.5 rounded-full bg-primary" />
-                @Strategy Agent
-              </div>
-              <h3 className="text-2xl font-semibold text-white tracking-tight leading-tight">
-                A 24/7 intelligent data strategist.
-              </h3>
+        <div className="text-center mb-12">
+          <h2 className="text-2xl md:text-3xl font-bold text-foreground mb-3">
+            Your AI-powered instrumentation workflow
+          </h2>
+          <p className="text-muted-foreground">
+            Four steps from product input to analytics-ready taxonomy
+          </p>
+        </div>
+        
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-6 text-left">
+          {/* Step 1 - Input */}
+          <div className="group relative overflow-hidden rounded-2xl bg-card border border-border hover:border-primary/50 transition-all duration-300 p-6">
+            <div className="text-[11px] font-bold text-primary uppercase tracking-widest mb-4 flex items-center gap-2">
+              <div className="w-5 h-5 rounded-full bg-primary/10 flex items-center justify-center text-primary text-xs font-bold">1</div>
+              Input
             </div>
-
-            <div className="p-6 pt-0 mt-auto">
-              <div className="bg-zinc-900/50 rounded-2xl p-4 border border-white/5 relative overflow-hidden backdrop-blur-sm">
-                <div className="flex items-start gap-3 mb-3">
-                  <div className="w-6 h-6 rounded-full bg-zinc-700 flex-shrink-0" />
-                  <div>
-                    <div className="text-[11px] text-zinc-400 font-medium">
-                      Sarah <span className="text-zinc-600 ml-1">2:15pm</span>
-                    </div>
-                    <div className="text-[13px] text-zinc-300 mt-1 leading-relaxed">
-                      <span className="text-primary font-medium">@Strategy</span>{" "}
-                      Recommend metrics for checkout flow.
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </div>
+            <h3 className="text-lg font-semibold text-foreground mb-2">
+              Share your product
+            </h3>
+            <p className="text-sm text-muted-foreground">
+              Upload a URL, screenshot, or video of your feature
+            </p>
           </div>
 
-          {/* Card 2 - Code Agent */}
-          <div className="group relative overflow-hidden rounded-3xl bg-zinc-950 border border-zinc-800 hover:ring-2 hover:ring-pink-500/50 transition-all duration-500 h-[420px] flex flex-col shadow-2xl translate-y-0 md:-translate-y-8">
-            <div className="absolute inset-0 bg-gradient-to-b from-white/[0.05] to-transparent pointer-events-none" />
-
-            <div className="p-8 flex-1">
-              <div className="text-[11px] font-bold text-pink-400 uppercase tracking-widest mb-4 flex items-center gap-2">
-                <div className="w-1.5 h-1.5 rounded-full bg-pink-400" />
-                Code Agent
-              </div>
-              <h3 className="text-2xl font-semibold text-white tracking-tight leading-tight">
-                Humans no longer write tracking code.
-              </h3>
+          {/* Step 2 - Questions */}
+          <div className="group relative overflow-hidden rounded-2xl bg-card border border-border hover:border-primary/50 transition-all duration-300 p-6">
+            <div className="text-[11px] font-bold text-primary uppercase tracking-widest mb-4 flex items-center gap-2">
+              <div className="w-5 h-5 rounded-full bg-primary/10 flex items-center justify-center text-primary text-xs font-bold">2</div>
+              Discovery
             </div>
-
-            <div className="p-6 pt-0 mt-auto">
-              <div className="bg-zinc-900/50 rounded-2xl p-4 border border-white/5 relative overflow-hidden backdrop-blur-sm">
-                <div className="flex items-start gap-3 mb-4 opacity-50">
-                  <div className="w-6 h-6 rounded-full bg-pink-900/30 flex-shrink-0" />
-                  <div>
-                    <div className="text-[11px] text-zinc-400 font-medium">
-                      Mike
-                    </div>
-                    <div className="text-[13px] text-zinc-500 mt-1">
-                      Need tracking for new signup?
-                    </div>
-                  </div>
-                </div>
-                <div className="flex items-start gap-3">
-                  <div className="w-6 h-6 rounded-md bg-gradient-to-br from-pink-500 to-purple-600 flex items-center justify-center flex-shrink-0">
-                    <Sparkles className="w-3 h-3 text-white" />
-                  </div>
-                  <div>
-                    <div className="text-[11px] text-zinc-400 font-medium">
-                      metrIQ Code Agent
-                    </div>
-                    <div className="text-[13px] text-zinc-300 mt-1">
-                      Generated in{" "}
-                      <span className="text-white underline decoration-zinc-700">
-                        signup_events.ts
-                      </span>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </div>
+            <h3 className="text-lg font-semibold text-foreground mb-2">
+              Answer tailored questions
+            </h3>
+            <p className="text-sm text-muted-foreground">
+              AI generates context-specific questions about your goals
+            </p>
           </div>
 
-          {/* Card 3 - Governance Agent */}
-          <div className="group relative overflow-hidden rounded-3xl bg-zinc-950 border border-zinc-800 hover:ring-2 hover:ring-emerald-500/50 transition-all duration-500 h-[420px] flex flex-col shadow-2xl">
-            <div className="absolute inset-0 bg-gradient-to-b from-white/[0.05] to-transparent pointer-events-none" />
-
-            <div className="p-8 flex-1">
-              <div className="text-[11px] font-bold text-emerald-400 uppercase tracking-widest mb-4 flex items-center gap-2">
-                <div className="w-1.5 h-1.5 rounded-full bg-emerald-400" />
-                Governance Agent
-              </div>
-              <h3 className="text-2xl font-semibold text-white tracking-tight leading-tight">
-                Never deploy inconsistent schemas again.
-              </h3>
+          {/* Step 3 - Metrics */}
+          <div className="group relative overflow-hidden rounded-2xl bg-card border border-border hover:border-primary/50 transition-all duration-300 p-6">
+            <div className="text-[11px] font-bold text-primary uppercase tracking-widest mb-4 flex items-center gap-2">
+              <div className="w-5 h-5 rounded-full bg-primary/10 flex items-center justify-center text-primary text-xs font-bold">3</div>
+              Metrics
             </div>
+            <h3 className="text-lg font-semibold text-foreground mb-2">
+              Review your framework
+            </h3>
+            <p className="text-sm text-muted-foreground">
+              Get AI-recommended metrics in visual Driver Tree, Funnel, or Flywheel views
+            </p>
+          </div>
 
-            <div className="p-6 pt-0 mt-auto">
-              <div className="bg-zinc-900/50 rounded-2xl p-4 border border-white/5 relative overflow-hidden backdrop-blur-sm">
-                <div className="flex items-start gap-3">
-                  <div className="w-6 h-6 rounded-full bg-zinc-700 flex-shrink-0" />
-                  <div className="flex-1">
-                    <div className="text-[11px] text-zinc-400 font-medium">
-                      Alex
-                    </div>
-                    <div className="text-[13px] text-zinc-300 mt-1 mb-2">
-                      Schema conflict detected
-                    </div>
-
-                    <div className="flex items-center gap-2 px-2 py-1.5 bg-emerald-500/10 rounded border border-emerald-500/20">
-                      <div className="w-4 h-4 rounded-full bg-emerald-500 flex items-center justify-center">
-                        <CheckCircle2 className="w-2.5 h-2.5 text-white" />
-                      </div>
-                      <span className="text-[10px] text-emerald-200 uppercase tracking-wide font-semibold">
-                        Auto-resolved
-                      </span>
-                    </div>
-                  </div>
-                </div>
-              </div>
+          {/* Step 4 - Taxonomy */}
+          <div className="group relative overflow-hidden rounded-2xl bg-card border border-border hover:border-primary/50 transition-all duration-300 p-6">
+            <div className="text-[11px] font-bold text-primary uppercase tracking-widest mb-4 flex items-center gap-2">
+              <div className="w-5 h-5 rounded-full bg-primary/10 flex items-center justify-center text-primary text-xs font-bold">4</div>
+              Taxonomy
             </div>
+            <h3 className="text-lg font-semibold text-foreground mb-2">
+              Export to Amplitude
+            </h3>
+            <p className="text-sm text-muted-foreground">
+              Get a complete event taxonomy and push directly to Amplitude
+            </p>
           </div>
         </div>
       </div>

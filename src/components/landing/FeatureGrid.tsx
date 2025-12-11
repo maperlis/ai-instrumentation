@@ -1,70 +1,64 @@
 import {
   Workflow,
   MessageSquare,
-  Code2,
-  GitBranch,
-  Shield,
-  Zap,
   BarChart3,
-  Users,
-  Layers,
-  RefreshCw,
-  Target,
-  Database,
+  Zap,
+  Image,
+  Video,
 } from "lucide-react";
 
 export const FeatureGrid = () => {
   const features = [
     {
       icon: Workflow,
-      title: "Metric Trees",
+      title: "Visual Metric Frameworks",
       description:
-        "Visually map inputs to outputs. Deconstruct high-level goals into actionable metrics.",
+        "View your metrics as Driver Trees, Conversion Funnels, or Growth Flywheels. Drag, connect, and organize metrics visually.",
       color: "text-primary",
       bgColor: "bg-primary/10",
       borderColor: "border-primary/20",
     },
     {
       icon: MessageSquare,
-      title: "Collaborative Approval",
+      title: "Conversational Refinement",
       description:
-        "Align stakeholders before writing code. Comment, upvote, and approve definitions.",
+        "Chat with the AI to refine metrics and taxonomy. Ask questions, suggest changes, and iterate in real-time.",
       color: "text-pink-400",
       bgColor: "bg-pink-400/10",
       borderColor: "border-pink-400/20",
     },
     {
-      icon: Code2,
-      title: "Auto-Instrumentation",
+      icon: BarChart3,
+      title: "Amplitude Integration",
       description:
-        "Generate type-safe code snippets and JSON schemas for any analytics platform.",
+        "Push your event taxonomy directly to Amplitude. Events are automatically seeded for immediate use.",
       color: "text-emerald-400",
       bgColor: "bg-emerald-400/10",
       borderColor: "border-emerald-400/20",
     },
     {
-      icon: GitBranch,
-      title: "Version Control",
+      icon: Zap,
+      title: "Instant Generation",
       description:
-        "Track every change to your schema with full history and rollback capabilities.",
+        "Go from product input to complete instrumentation plan in minutes, not days.",
       color: "text-amber-400",
       bgColor: "bg-amber-400/10",
       borderColor: "border-amber-400/20",
     },
     {
-      icon: Shield,
-      title: "Schema Validation",
+      icon: Image,
+      title: "Screenshot Analysis",
       description:
-        "Detect anomalies and enforce schemas at build time before they reach production.",
+        "Upload Figma designs, UI mockups, or screenshots. AI analyzes the interface to recommend relevant events.",
       color: "text-cyan-400",
       bgColor: "bg-cyan-400/10",
       borderColor: "border-cyan-400/20",
     },
     {
-      icon: Zap,
-      title: "Instant Generation",
+      icon: Video,
+      title: "Video Input Support",
       description:
-        "Go from product design to instrumented code in seconds, not hours.",
+        "Upload video walkthroughs of your features. AI extracts key frames to understand user flows.",
       color: "text-yellow-400",
       bgColor: "bg-yellow-400/10",
       borderColor: "border-yellow-400/20",
@@ -76,11 +70,11 @@ export const FeatureGrid = () => {
       <div className="max-w-7xl mx-auto">
         <div className="mb-16 text-center max-w-3xl mx-auto">
           <h2 className="text-4xl md:text-5xl font-bold text-white tracking-tight mb-6">
-            From idea to instrumented.
+            Everything you need for instrumentation
           </h2>
           <p className="text-zinc-400 text-xl leading-relaxed">
-            Stop using spreadsheets to manage your tracking plan. metrIQ AI provides
-            a purpose-built workflow for defining and maintaining your data strategy.
+            metrIQ AI helps you define metrics and generate event taxonomies
+            from any product input—URLs, screenshots, or videos.
           </p>
         </div>
 
