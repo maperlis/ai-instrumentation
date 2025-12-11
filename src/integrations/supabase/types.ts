@@ -23,7 +23,7 @@ export type Database = {
           id: string
           project_name: string
           updated_at: string
-          user_id: string | null
+          user_id: string
         }
         Insert: {
           amplitude_api_key: string
@@ -33,7 +33,7 @@ export type Database = {
           id?: string
           project_name: string
           updated_at?: string
-          user_id?: string | null
+          user_id: string
         }
         Update: {
           amplitude_api_key?: string
@@ -43,7 +43,7 @@ export type Database = {
           id?: string
           project_name?: string
           updated_at?: string
-          user_id?: string | null
+          user_id?: string
         }
         Relationships: []
       }
