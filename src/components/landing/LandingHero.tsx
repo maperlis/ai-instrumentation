@@ -46,7 +46,7 @@ export const LandingHero = () => {
 
         {/* Headline */}
         <h1 className="animate-fade-in text-5xl md:text-7xl lg:text-8xl font-bold text-foreground tracking-tighter leading-[1.05] mb-8">
-          A Data Strategy That Builds Itelf
+          A Data Strategy That Builds Itself
         </h1>
 
         {/* Subheadline */}
