@@ -51,8 +51,7 @@ export const LandingHero = () => {
 
         {/* Subheadline */}
         <p className="animate-fade-in [animation-delay:100ms] opacity-0 text-lg md:text-xl text-muted-foreground max-w-2xl mx-auto mb-10 leading-relaxed">
-          Upload a URL, screenshot, or video of your product. Get AI-recommended metrics, visual frameworks, and a
-          complete event taxonomy—ready for Amplitude.
+          Build less, impact more—metrIQ AI ensures every feature has a measurable reason to exist.
         </p>
 
         {/* CTAs */}
