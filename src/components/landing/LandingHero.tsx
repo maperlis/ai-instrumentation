@@ -1,22 +1,24 @@
-import { ArrowRight, Sparkles, CheckCircle2, Play } from "lucide-react";
+import { ArrowRight, Sparkles, CheckCircle2 } from "lucide-react";
 import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/hooks/useAuth";
+
 export const LandingHero = () => {
   const { user } = useAuth();
-  const features = ["Data Strategy Builder", "Auto-Instrumentation", "Schema Management", "Team Collaboration"];
+  const features = ["AI Metric Recommendations", "Visual Metric Frameworks", "Event Taxonomy Generation", "Amplitude Integration"];
+  
   return (
     <section className="relative pt-32 pb-24 md:pt-40 md:pb-32 px-6 overflow-hidden bg-background">
       {/* Floating Background Elements */}
       <div className="absolute inset-0 pointer-events-none select-none overflow-hidden">
         <div className="absolute top-32 left-[5%] text-xs font-bold tracking-widest uppercase text-foreground/5 animate-float">
-          CREATE EVENT
+          DEFINE METRICS
         </div>
         <div className="absolute top-48 right-[10%] text-xs font-bold tracking-widest uppercase text-foreground/5 animate-float [animation-delay:2s]">
-          DEFINE METRIC
+          BUILD TAXONOMY
         </div>
         <div className="absolute bottom-1/3 left-[15%] text-xs font-bold tracking-widest uppercase text-foreground/5 animate-float [animation-delay:4s]">
-          AUDIT SCHEMA
+          PUSH TO AMPLITUDE
         </div>
       </div>
 
@@ -33,19 +35,20 @@ export const LandingHero = () => {
         <div className="flex items-center justify-center gap-2 mb-6">
           <span className="landing-badge bg-primary/10 text-primary border border-primary/20">
             <Sparkles className="w-3 h-3" />
-            AI-Powered Analytics
+            AI-Powered Analytics Strategy
           </span>
         </div>
 
         {/* Headline */}
         <h1 className="animate-fade-in text-5xl md:text-7xl lg:text-8xl font-bold text-foreground tracking-tighter leading-[1.05] mb-8">
-          A Data Strategy That Builds Itelf
+          From Product to
           <br className="hidden md:block" />
+          Instrumentation Plan
         </h1>
 
         {/* Subheadline */}
         <p className="animate-fade-in [animation-delay:100ms] opacity-0 text-lg md:text-xl text-muted-foreground max-w-2xl mx-auto mb-10 leading-relaxed">
-          Build less, impact more—metrIQ AI ensures every feature has a measurable reason to exist.
+          Upload a URL, screenshot, or video of your product. Get AI-recommended metrics, visual frameworks, and a complete event taxonomy—ready for Amplitude.
         </p>
 
         {/* CTAs */}
@@ -56,13 +59,9 @@ export const LandingHero = () => {
             className="w-full sm:w-auto h-14 px-8 rounded-xl bg-foreground text-background font-bold text-base hover:bg-foreground/90 transition-all transform hover:-translate-y-1 shadow-xl"
           >
             <Link to={user ? "/app" : "/auth"}>
-              {user ? "Go to Dashboard" : "Get started. It's FREE"}
+              {user ? "Go to Dashboard" : "Get started free"}
               <ArrowRight className="ml-2 w-4 h-4" />
             </Link>
-          </Button>
-          <Button size="lg" variant="outline" className="w-full sm:w-auto h-14 px-8 rounded-xl font-bold text-base">
-            <Play className="mr-2 w-4 h-4" />
-            Watch Demo
           </Button>
         </div>
 
@@ -70,7 +69,7 @@ export const LandingHero = () => {
         <p className="animate-fade-in [animation-delay:300ms] opacity-0 text-sm text-muted-foreground mb-16">
           <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-accent/10 text-accent border border-accent/20">
             <CheckCircle2 className="w-3.5 h-3.5" />
-            Free forever. No credit card.
+            Free to use. No credit card required.
           </span>
         </p>
 

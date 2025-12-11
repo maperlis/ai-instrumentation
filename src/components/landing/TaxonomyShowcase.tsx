@@ -7,22 +7,21 @@ export const TaxonomyShowcase = () => {
         <div className="flex-1 space-y-8">
           <div className="inline-flex items-center gap-2 text-primary font-semibold text-sm bg-primary/10 px-3 py-1 rounded-full border border-primary/20">
             <Sparkles className="w-4 h-4" />
-            <span>Taxonomy Management</span>
+            <span>Event Taxonomy</span>
           </div>
           <h2 className="text-4xl md:text-5xl font-bold text-white tracking-tight leading-[1.1]">
-            Standardize your event schema.
+            Structured event schemas, ready to use
           </h2>
           <p className="text-zinc-400 text-xl leading-relaxed">
-            Define properties once, use everywhere. metrIQ AI ensures your event
-            naming conventions are consistent across web, mobile, and backend.
-            Detect anomalies and enforce schemas at build time.
+            metrIQ AI generates complete event taxonomies with standardized naming,
+            detailed properties, and clear documentation for every event.
           </p>
 
           <ul className="space-y-5 pt-4">
             {[
-              "Centralized Property Dictionary",
-              "Version Control for Analytics",
-              "Integration with Amplitude, Segment, Mixpanel",
+              "Snake_case naming conventions",
+              "Property type definitions",
+              "Metrics traceability (which metric each event supports)",
             ].map((item, index) => (
               <li key={index} className="flex items-start gap-4 group">
                 <div className="h-6 w-6 rounded-full bg-primary/20 flex items-center justify-center mt-0.5 group-hover:bg-primary/30 transition-colors">
@@ -40,7 +39,7 @@ export const TaxonomyShowcase = () => {
             <div className="flex items-center justify-between px-5 py-4 border-b border-white/5 bg-white/[0.02]">
               <span className="text-sm text-zinc-500 font-mono flex items-center gap-2">
                 <FileJson className="w-4 h-4" />
-                schema.json
+                event_taxonomy.json
               </span>
               <div className="flex gap-2">
                 <span className="h-2.5 w-2.5 rounded-full bg-zinc-800 border border-white/10" />
@@ -54,18 +53,16 @@ export const TaxonomyShowcase = () => {
               </div>
               <div className="flex">
                 <span className="text-zinc-700 w-8 select-none">2</span>
-                <span className="pl-6 text-sky-300">"event"</span>
+                <span className="pl-6 text-sky-300">"event_name"</span>
                 <span className="text-zinc-500">:</span>{" "}
                 <span className="text-emerald-400">"checkout_completed"</span>
                 <span className="text-zinc-500">,</span>
               </div>
               <div className="flex">
                 <span className="text-zinc-700 w-8 select-none">3</span>
-                <span className="pl-6 text-sky-300">"description"</span>
+                <span className="pl-6 text-sky-300">"trigger"</span>
                 <span className="text-zinc-500">:</span>{" "}
-                <span className="text-orange-300">
-                  "User successfully purchases items"
-                </span>
+                <span className="text-orange-300">"Form submit on checkout page"</span>
                 <span className="text-zinc-500">,</span>
               </div>
               <div className="flex">
@@ -76,35 +73,37 @@ export const TaxonomyShowcase = () => {
               </div>
               <div className="flex bg-primary/10 border-l-2 border-primary">
                 <span className="text-zinc-700 w-8 select-none">5</span>
-                <span className="pl-10 text-sky-300">"revenue"</span>
+                <span className="pl-10 text-sky-300">"order_id"</span>
                 <span className="text-zinc-500">:</span>{" "}
-                <span className="text-purple-400">{"{"}</span>{" "}
-                <span className="text-sky-300">"type"</span>
+                <span className="text-emerald-400">"string"</span>
+                <span className="text-zinc-500">,</span>
+              </div>
+              <div className="flex bg-primary/10 border-l-2 border-primary">
+                <span className="text-zinc-700 w-8 select-none">6</span>
+                <span className="pl-10 text-sky-300">"total_value"</span>
                 <span className="text-zinc-500">:</span>{" "}
                 <span className="text-emerald-400">"number"</span>
-                <span className="text-zinc-500">,</span>{" "}
-                <span className="text-sky-300">"required"</span>
-                <span className="text-zinc-500">:</span>{" "}
-                <span className="text-red-400">true</span>{" "}
-                <span className="text-purple-400">{"}"}</span>
                 <span className="text-zinc-500">,</span>
               </div>
               <div className="flex">
-                <span className="text-zinc-700 w-8 select-none">6</span>
+                <span className="text-zinc-700 w-8 select-none">7</span>
                 <span className="pl-10 text-sky-300">"currency"</span>
                 <span className="text-zinc-500">:</span>{" "}
-                <span className="text-purple-400">{"{"}</span>{" "}
-                <span className="text-sky-300">"type"</span>
-                <span className="text-zinc-500">:</span>{" "}
-                <span className="text-emerald-400">"string"</span>{" "}
-                <span className="text-purple-400">{"}"}</span>
-              </div>
-              <div className="flex">
-                <span className="text-zinc-700 w-8 select-none">7</span>
-                <span className="pl-6 text-purple-400">{"}"}</span>
+                <span className="text-emerald-400">"string"</span>
               </div>
               <div className="flex">
                 <span className="text-zinc-700 w-8 select-none">8</span>
+                <span className="pl-6 text-purple-400">{"}"}</span>
+                <span className="text-zinc-500">,</span>
+              </div>
+              <div className="flex">
+                <span className="text-zinc-700 w-8 select-none">9</span>
+                <span className="pl-6 text-sky-300">"related_metric"</span>
+                <span className="text-zinc-500">:</span>{" "}
+                <span className="text-emerald-400">"Checkout Completion Rate"</span>
+              </div>
+              <div className="flex">
+                <span className="text-zinc-700 w-8 select-none">10</span>
                 <span className="text-purple-400">{"}"}</span>
               </div>
             </div>

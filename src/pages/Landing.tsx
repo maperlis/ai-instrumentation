@@ -2,16 +2,11 @@ import {
   LandingNav,
   LandingHero,
   AgentCards,
-  SocialProof,
   ProblemSection,
   FeatureGrid,
   TaxonomyShowcase,
   Integrations,
-  AgentShowcase,
-  UseCases,
-  StatsSection,
-  Testimonials,
-  TrustSection,
+  ProductShowcase,
   FinalCTA,
   LandingFooter,
 } from "@/components/landing";
@@ -22,16 +17,11 @@ const Landing = () => {
       <LandingNav />
       <LandingHero />
       <AgentCards />
-      <SocialProof />
       <ProblemSection />
+      <ProductShowcase />
       <FeatureGrid />
       <TaxonomyShowcase />
       <Integrations />
-      <AgentShowcase />
-      <UseCases />
-      <StatsSection />
-      <Testimonials />
-      <TrustSection />
       <FinalCTA />
       <LandingFooter />
     </div>
