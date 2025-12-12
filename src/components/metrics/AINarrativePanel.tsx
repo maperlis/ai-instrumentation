@@ -86,14 +86,12 @@ export function AINarrativePanel({
       <ScrollArea className="flex-1">
         <div className="p-4 space-y-5">
           {/* Selected Metric Details - Now First */}
-          <AnimatePresence mode="wait">
-            {selectedMetric && (
-              <motion.div
-                initial={{ opacity: 0, y: 10 }}
-                animate={{ opacity: 1, y: 0 }}
-                exit={{ opacity: 0, y: -10 }}
-                className="space-y-4"
-              >
+          {selectedMetric && (
+            <motion.div
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              className="space-y-4"
+            >
                 <div className="flex items-center justify-between">
                   <h4 className="text-xs font-medium text-muted-foreground uppercase tracking-wide flex items-center gap-2">
                     <Settings2 className="w-3 h-3" />
@@ -263,8 +261,7 @@ export function AINarrativePanel({
                   </div>
                 )}
               </motion.div>
-            )}
-          </AnimatePresence>
+          )}
 
           {/* Empty state when no metric selected */}
           {!selectedMetric && (

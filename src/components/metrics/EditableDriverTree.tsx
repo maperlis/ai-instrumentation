@@ -575,23 +575,23 @@ function EditableDriverTreeContent({
 
   // Handle selection changes - simplified to prevent race conditions
   const onSelectionChange = useCallback(({ nodes: selectedNodes, edges: selectedEdges }: OnSelectionChangeParams) => {
-    // Update canvas state with selected node IDs
+    // Sync selection state
     const selectedNodeIds = selectedNodes.map(n => n.id);
     canvasState.setSelectedNodes(selectedNodeIds);
     
-    // Call onMetricSelect if exactly one node is selected
+    // Handle Metric Selection
     if (selectedNodes.length === 1 && onMetricSelect) {
       const metric = localMetrics.find(m => m.id === selectedNodes[0].id);
-      if (metric) {
-        onMetricSelect(metric);
-      }
+      if (metric) onMetricSelect(metric);
+    } else if (selectedNodes.length === 0 && onMetricSelect) {
+      // Clear selection panel
+      onMetricSelect(undefined as unknown as MetricNodeType);
     }
     
-    // Handle edge selection - only user-created edges
+    // Handle Edge Selection
     const userSelectedEdgeIds = selectedEdges
       .filter(e => !e.id.startsWith('data-edge-'))
       .map(e => e.id);
-    
     if (userSelectedEdgeIds.length > 0) {
       userSelectedEdgeIds.forEach(id => canvasState.selectEdge(id, true));
     }
