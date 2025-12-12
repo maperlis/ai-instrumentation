@@ -105,8 +105,6 @@ function EditableDriverTreeContent({
   const [dragTargetNodeId, setDragTargetNodeId] = useState<string | null>(null);
   const { zoomIn, zoomOut, fitView, getNodes, screenToFlowPosition } = useReactFlow();
   const fileInputRef = useRef<HTMLInputElement>(null);
-  const selectionUpdateRef = useRef(false);
-  const lastSelectionRef = useRef<string[]>([]);
   
   // Canvas state management
   const canvasState = useCanvasState(storageKey || 'driver-tree-canvas');
@@ -428,7 +426,6 @@ function EditableDriverTreeContent({
   const onPaneClick = useCallback((event: React.MouseEvent) => {
     // Clear selection on pane click and hide the definition panel
     canvasState.clearSelection();
-    lastSelectionRef.current = [];
     
     // Call onMetricSelect with undefined to hide the panel
     onMetricSelect?.(undefined as unknown as MetricNodeType);
@@ -576,37 +573,17 @@ function EditableDriverTreeContent({
     }
   }, [getNodes, canvasState, localMetrics, dragTargetNodeId]);
 
-  // Handle selection changes - with guard to prevent feedback loop
+  // Handle selection changes - simplified to prevent race conditions
   const onSelectionChange = useCallback(({ nodes: selectedNodes, edges: selectedEdges }: OnSelectionChangeParams) => {
-    // Prevent rapid updates by checking if selection actually changed
-    const newSelectedIds = selectedNodes.map(n => n.id).sort();
-    const currentSelectedIds = [...lastSelectionRef.current].sort();
+    // Update canvas state with selected node IDs
+    const selectedNodeIds = selectedNodes.map(n => n.id);
+    canvasState.setSelectedNodes(selectedNodeIds);
     
-    const selectionChanged = 
-      newSelectedIds.length !== currentSelectedIds.length ||
-      newSelectedIds.some((id, i) => id !== currentSelectedIds[i]);
-    
-    if (!selectionChanged && selectedEdges.length === 0) return;
-    
-    // Update ref before state to prevent re-entry
-    lastSelectionRef.current = newSelectedIds;
-    
-    // Update selected nodes
-    canvasState.setSelectedNodes(newSelectedIds);
-    
-    // Only call onMetricSelect if:
-    // 1. Exactly one node is selected
-    // 2. It's different from the current selectedMetricId
-    // 3. We're not in the middle of an update (prevent re-entry)
-    if (selectedNodes.length === 1 && onMetricSelect && !selectionUpdateRef.current) {
+    // Call onMetricSelect if exactly one node is selected
+    if (selectedNodes.length === 1 && onMetricSelect) {
       const metric = localMetrics.find(m => m.id === selectedNodes[0].id);
-      if (metric && metric.id !== selectedMetricId) {
-        selectionUpdateRef.current = true;
+      if (metric) {
         onMetricSelect(metric);
-        // Reset flag after a short delay
-        setTimeout(() => {
-          selectionUpdateRef.current = false;
-        }, 100);
       }
     }
     
@@ -618,7 +595,7 @@ function EditableDriverTreeContent({
     if (userSelectedEdgeIds.length > 0) {
       userSelectedEdgeIds.forEach(id => canvasState.selectEdge(id, true));
     }
-  }, [canvasState, localMetrics, onMetricSelect, selectedMetricId]);
+  }, [canvasState, localMetrics, onMetricSelect]);
 
   // Handle edge click for selection
   const onEdgeClick = useCallback((_: React.MouseEvent, edge: Edge) => {
