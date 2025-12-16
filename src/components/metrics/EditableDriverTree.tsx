@@ -422,13 +422,13 @@ function EditableDriverTreeContent({
     }
   }, [canvasState]);
 
-  // Handle canvas click for adding metrics
+  // Handle canvas click for adding metrics or clearing panel
   const onPaneClick = useCallback((event: React.MouseEvent) => {
-    // Clear selection on pane click and hide the definition panel
+    // Clear canvas selection
     canvasState.clearSelection();
     
-    // Call onMetricSelect with undefined to hide the panel
-    onMetricSelect?.(undefined as unknown as MetricNodeType);
+    // Clear the metric definition panel
+    onMetricSelect?.(null as unknown as MetricNodeType);
     
     if (activeTool === 'add-node') {
       const position = screenToFlowPosition({ x: event.clientX, y: event.clientY });
@@ -573,20 +573,11 @@ function EditableDriverTreeContent({
     }
   }, [getNodes, canvasState, localMetrics, dragTargetNodeId]);
 
-  // Handle selection changes - simplified to prevent race conditions
+  // Handle canvas selection changes - only for multi-select and edge selection (NOT metric panel)
   const onSelectionChange = useCallback(({ nodes: selectedNodes, edges: selectedEdges }: OnSelectionChangeParams) => {
-    // Sync selection state
+    // Sync canvas selection state (for multi-select visual feedback only)
     const selectedNodeIds = selectedNodes.map(n => n.id);
     canvasState.setSelectedNodes(selectedNodeIds);
-    
-    // Handle Metric Selection
-    if (selectedNodes.length === 1 && onMetricSelect) {
-      const metric = localMetrics.find(m => m.id === selectedNodes[0].id);
-      if (metric) onMetricSelect(metric);
-    } else if (selectedNodes.length === 0 && onMetricSelect) {
-      // Clear selection panel
-      onMetricSelect(undefined as unknown as MetricNodeType);
-    }
     
     // Handle Edge Selection
     const userSelectedEdgeIds = selectedEdges
@@ -595,7 +586,7 @@ function EditableDriverTreeContent({
     if (userSelectedEdgeIds.length > 0) {
       userSelectedEdgeIds.forEach(id => canvasState.selectEdge(id, true));
     }
-  }, [canvasState, localMetrics, onMetricSelect]);
+  }, [canvasState]);
 
   // Handle edge click for selection
   const onEdgeClick = useCallback((_: React.MouseEvent, edge: Edge) => {

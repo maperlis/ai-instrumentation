@@ -197,7 +197,8 @@ export function MetricsFrameworkView({
     })).filter((loop) => loop.metrics.length > 0);
   }, [metricNodes]);
 
-  const handleMetricSelect = useCallback((metric: MetricNode) => {
+  // Handle metric click from visualization - directly set or clear
+  const handleMetricSelect = useCallback((metric: MetricNode | null) => {
     setSelectedMetric(metric);
   }, []);
 
