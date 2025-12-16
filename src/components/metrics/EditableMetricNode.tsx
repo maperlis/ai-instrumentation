@@ -60,12 +60,11 @@ export const EditableMetricNode = memo(function EditableMetricNode({
   // Always show handles when hovered, selected, or in connect mode for easier connection
   const showHandles = isHovered || selected || isMultiSelected || isConnectMode;
 
-  // Handle click - let ReactFlow handle selection via onSelectionChange
-  // Don't stop propagation so ReactFlow can detect the click for selection
+  // Handle click - directly call onSelect to open the definition panel
   const handleClick = useCallback((e: React.MouseEvent) => {
-    // Let the event bubble up to ReactFlow for selection handling
-    // Don't call onSelect here - it's called via onSelectionChange to avoid double updates
-  }, []);
+    e.stopPropagation(); // Prevent ReactFlow from handling this
+    onSelect?.(metric);
+  }, [metric, onSelect]);
 
   const handleDeleteClick = useCallback((e: React.MouseEvent) => {
     e.stopPropagation();
