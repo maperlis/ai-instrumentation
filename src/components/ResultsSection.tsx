@@ -3,7 +3,7 @@ import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { TaxonomyEvent, TaxonomyField, DEFAULT_TAXONOMY_FIELDS } from "@/types/taxonomy";
 import { ConversationMessage } from "@/types/orchestration";
-import { Download, FileJson, FileSpreadsheet, CheckCircle2, Send, Copy, ExternalLink, RefreshCw, Upload, Bot, User, ChevronLeft, ChevronRight, Loader2, MessageSquare } from "lucide-react";
+import { Download, FileJson, FileSpreadsheet, CheckCircle2, Send, Copy, ExternalLink, RefreshCw, Upload, Bot, User, ChevronLeft, ChevronRight, Loader2, MessageSquare, AlertCircle } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { EventTable } from "@/components/EventTable";
 import { FieldManager } from "@/components/FieldManager";
@@ -914,6 +914,22 @@ export const ResultsSection = ({
           </DialogHeader>
 
           <div className="space-y-6">
+            {/* Security Warning */}
+            <Card className="p-4 bg-amber-500/10 border-amber-500/30">
+              <h4 className="font-semibold mb-2 text-sm flex items-center gap-2 text-amber-700 dark:text-amber-400">
+                <AlertCircle className="w-4 h-4" />
+                Security Notice
+              </h4>
+              <p className="text-sm text-muted-foreground mb-2">
+                This script contains your Amplitude API key in plain text. While this is <strong>standard practice</strong> for client-side analytics (Amplitude's SDK requires it), be aware that:
+              </p>
+              <ul className="text-sm text-muted-foreground list-disc list-inside space-y-1 ml-2">
+                <li>Anyone viewing your page source can see the API key</li>
+                <li>This is Amplitude's publishable/browser key, not a secret key</li>
+                <li>For additional security, consider using Amplitude's server-side SDK or a proxy endpoint in production</li>
+              </ul>
+            </Card>
+
             <Card className="p-6 bg-accent/10">
               <h3 className="font-semibold mb-4 flex items-center gap-2">
                 <CheckCircle2 className="w-5 h-5 text-green-500" />
