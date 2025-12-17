@@ -113,9 +113,18 @@ CRITICAL: Each question in the "questions" array MUST have an "options" array wi
       const errorText = await response.text();
       console.error("AI gateway error:", response.status, errorText);
       
-      if (response.status === 429) {
-        return new Response(JSON.stringify({ error: "Rate limit exceeded. Please try again later." }), {
-          status: 429,
+      // For 402 (payment required) and 429 (rate limit), return fallback with 200 so user can proceed
+      if (response.status === 402 || response.status === 429) {
+        const errorMessage = response.status === 402 
+          ? "AI credits exhausted. Using default questions." 
+          : "Rate limit exceeded. Using default questions.";
+        console.log(errorMessage, "Returning fallback questions.");
+        return new Response(JSON.stringify({ 
+          questions: getFallbackQuestions(),
+          productInsights: null,
+          fallbackReason: errorMessage
+        }), {
+          status: 200,
           headers: { ...corsHeaders, "Content-Type": "application/json" },
         });
       }
@@ -137,13 +146,13 @@ CRITICAL: Each question in the "questions" array MUST have an "options" array wi
 
   } catch (error) {
     console.error("Error generating discovery questions:", error);
+    // Return fallback questions with 200 status so user can still proceed
     return new Response(JSON.stringify({ 
-      error: error instanceof Error ? error.message : "Failed to generate questions",
-      // Return fallback questions
       questions: getFallbackQuestions(),
-      productInsights: null
+      productInsights: null,
+      fallbackReason: "Failed to generate tailored questions. Using defaults."
     }), {
-      status: 500,
+      status: 200,
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   }

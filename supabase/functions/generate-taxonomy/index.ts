@@ -225,6 +225,14 @@ Return ONLY a valid JSON object with this structure:
 If no changes to the taxonomy, set hasChanges to false and return the current events in updatedEvents.
 Keep your response concise and helpful.`;
 
+// Custom error class for AI credit/rate limit issues
+class AICreditsError extends Error {
+  constructor(public statusCode: number, message: string) {
+    super(message);
+    this.name = 'AICreditsError';
+  }
+}
+
 async function callLovableAI(systemPrompt: string, userContent: any[], apiKey: string) {
   const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
     method: "POST",
@@ -245,6 +253,15 @@ async function callLovableAI(systemPrompt: string, userContent: any[], apiKey: s
   if (!response.ok) {
     const errorText = await response.text();
     console.error("AI API error:", response.status, errorText);
+    
+    // Throw special error for credit/rate limit issues
+    if (response.status === 402 || response.status === 429) {
+      const message = response.status === 402 
+        ? "AI credits exhausted" 
+        : "Rate limit exceeded";
+      throw new AICreditsError(response.status, message);
+    }
+    
     throw new Error(`AI API error: ${response.status}`);
   }
 
@@ -263,6 +280,72 @@ async function callLovableAI(systemPrompt: string, userContent: any[], apiKey: s
   }
 
   return JSON.parse(cleanedContent);
+}
+
+// Fallback metrics when AI is unavailable
+function getFallbackMetrics() {
+  return [
+    {
+      id: "monthly_active_users",
+      name: "Monthly Active Users",
+      description: "Users who have performed at least one action in the last 30 days",
+      category: "Engagement",
+      example_events: ["user_session_started"],
+      level: 0,
+      influenceDescription: "North Star metric indicating overall product health",
+      calculation: "count(distinct user_id) where timestamp > now() - 30 days",
+      businessQuestions: [
+        "How is our user base growing over time?",
+        "What percentage of signups become active users?",
+        "Which features drive the most engagement?"
+      ]
+    },
+    {
+      id: "signup_conversion_rate",
+      name: "Signup Conversion Rate",
+      description: "Percentage of visitors who complete signup",
+      category: "Acquisition",
+      example_events: ["signup_completed", "page_viewed"],
+      level: 1,
+      influenceDescription: "Higher signup conversion increases active user count",
+      calculation: "signup_completed_count / page_viewed_count * 100",
+      businessQuestions: [
+        "Which traffic sources have the highest conversion?",
+        "How does conversion vary by device type?",
+        "What is the impact of form changes?"
+      ]
+    },
+    {
+      id: "feature_adoption_rate",
+      name: "Feature Adoption Rate",
+      description: "Percentage of users who use key features",
+      category: "Product Usage",
+      example_events: ["feature_used", "user_session_started"],
+      level: 1,
+      influenceDescription: "Higher feature adoption leads to better retention",
+      calculation: "users_with_feature_use / total_active_users * 100",
+      businessQuestions: [
+        "Which features are most popular?",
+        "How long until users discover key features?",
+        "What drives feature discovery?"
+      ]
+    },
+    {
+      id: "retention_rate",
+      name: "7-Day Retention Rate",
+      description: "Users who return within 7 days of first use",
+      category: "Retention",
+      example_events: ["user_session_started"],
+      level: 1,
+      influenceDescription: "Retained users drive sustainable growth",
+      calculation: "users_returning_day_7 / cohort_size * 100",
+      businessQuestions: [
+        "What actions predict strong retention?",
+        "How does retention vary by acquisition channel?",
+        "What causes users to churn?"
+      ]
+    }
+  ];
 }
 
 function generateSessionId(): string {
@@ -573,6 +656,41 @@ serve(async (req) => {
 
   } catch (error: any) {
     console.error("Error in generate-taxonomy:", error);
+    
+    // Handle AI credit/rate limit errors gracefully with fallback data
+    if (error instanceof AICreditsError) {
+      const fallbackReason = error.statusCode === 402 
+        ? "AI credits exhausted. Using default metrics." 
+        : "Rate limit exceeded. Using default metrics.";
+      console.log(fallbackReason, "Returning fallback metrics.");
+      
+      return new Response(
+        JSON.stringify({
+          sessionId: `fallback_${Date.now()}`,
+          status: 'waiting_approval',
+          requiresApproval: true,
+          approvalType: 'metrics',
+          metrics: getFallbackMetrics(),
+          analysis: "We're using default metrics because AI generation is temporarily unavailable. You can still proceed with selecting and customizing these metrics.",
+          inputData: {},
+          frameworkRecommendation: {
+            recommendedFramework: 'driver_tree',
+            confidence: 0.7,
+            reasoning: "Default framework recommendation. Driver Tree is a versatile choice for understanding metric relationships.",
+          },
+          clarifyingQuestions: [],
+          conversationHistory: [
+            { role: 'assistant', agent: 'Product Analyst', content: fallbackReason + " Here are recommended default metrics to get you started." }
+          ],
+          fallbackReason
+        }),
+        {
+          status: 200,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        }
+      );
+    }
+    
     return new Response(
       JSON.stringify({
         error: error.message || "Failed to generate taxonomy",
