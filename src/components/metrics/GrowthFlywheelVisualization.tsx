@@ -228,7 +228,7 @@ export function GrowthFlywheelVisualization({
 
             {/* Arrow: Higher Activation → Richer AI Context (curved left side) */}
             <motion.path
-              d="M 85 276 C 40 180, 150 70, 306 52"
+              d="M 70 276 C 90 160, 230 100, 290 62"
               fill="none"
               stroke="hsl(var(--muted-foreground))"
               strokeWidth="2"
