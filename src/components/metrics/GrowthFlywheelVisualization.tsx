@@ -425,7 +425,7 @@ export function GrowthFlywheelVisualization({
             isSelected={selectedStage === "richer-ai-context"}
             isDimmed={!!selectedStage && selectedStage !== "richer-ai-context"}
             onClick={(loop) => handleStageClick("richer-ai-context", loop)}
-            style={{ position: "absolute", left: "50%", top: "0px", transform: "translateX(-50%)", marginTop: "12px" }}
+            style={{ position: "absolute", left: "50%", top: "12px", transform: "translateX(calc(-50% - 40px))" }}
           />
 
           {/* Stage: Higher Activation (Left) */}
@@ -456,7 +456,7 @@ export function GrowthFlywheelVisualization({
             isDimmed={!!selectedStage && selectedStage !== "ai-model"}
             onClick={(loop) => handleStageClick("ai-model", loop)}
             isCenter
-            style={{ position: "absolute", left: "50%", top: "270px", transform: "translateX(-50%)" }}
+            style={{ position: "absolute", left: "50%", top: "270px", transform: "translateX(calc(-50% - 40px))" }}
           />
 
           {/* Stage: More Consumption (Bottom Center) */}
@@ -466,7 +466,7 @@ export function GrowthFlywheelVisualization({
             isSelected={selectedStage === "more-consumption"}
             isDimmed={!!selectedStage && selectedStage !== "more-consumption"}
             onClick={(loop) => handleStageClick("more-consumption", loop)}
-            style={{ position: "absolute", left: "50%", bottom: "80px", transform: "translateX(-50%)" }}
+            style={{ position: "absolute", left: "50%", bottom: "80px", transform: "translateX(calc(-50% - 40px))" }}
           />
 
           {/* North Star Section (Right Side) */}
