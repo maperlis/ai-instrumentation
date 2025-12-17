@@ -214,7 +214,7 @@ export function GrowthFlywheelVisualization({
         }}
       >
         {/* Main flywheel container */}
-        <div className="relative" style={{ width: "900px", height: "650px" }}>
+        <div className="relative" style={{ width: "900px", height: "650px",  transform: "translateX(-40px) }}>
           {/* SVG for arrows */}
           <svg className="absolute inset-0 w-full h-full pointer-events-none" style={{ overflow: "visible" }}>
             <defs>
@@ -425,7 +425,7 @@ export function GrowthFlywheelVisualization({
             isSelected={selectedStage === "richer-ai-context"}
             isDimmed={!!selectedStage && selectedStage !== "richer-ai-context"}
             onClick={(loop) => handleStageClick("richer-ai-context", loop)}
-            style={{ position: "absolute", left: "50%", top: "12px", transform: "translateX(calc(-50% - 40px))" }}
+            style={{ position: "absolute", left: "50%", top: "12px", transform: "translateX(-50%)" }}
           />
 
           {/* Stage: Higher Activation (Left) */}
@@ -456,7 +456,7 @@ export function GrowthFlywheelVisualization({
             isDimmed={!!selectedStage && selectedStage !== "ai-model"}
             onClick={(loop) => handleStageClick("ai-model", loop)}
             isCenter
-            style={{ position: "absolute", left: "50%", top: "270px", transform: "translateX(calc(-50% - 40px))" }}
+            style={{ position: "absolute", left: "50%", top: "270px", transform: "translateX(-50%)" }}
           />
 
           {/* Stage: More Consumption (Bottom Center) */}
@@ -466,7 +466,7 @@ export function GrowthFlywheelVisualization({
             isSelected={selectedStage === "more-consumption"}
             isDimmed={!!selectedStage && selectedStage !== "more-consumption"}
             onClick={(loop) => handleStageClick("more-consumption", loop)}
-            style={{ position: "absolute", left: "50%", bottom: "80px", transform: "translateX(calc(-50% - 40px))" }}
+            style={{ position: "absolute", left: "50%", bottom: "80px", transform: "translateX(-50%)" }}
           />
 
           {/* North Star Section (Right Side) */}
