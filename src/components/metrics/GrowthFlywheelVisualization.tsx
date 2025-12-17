@@ -5,13 +5,7 @@ import { FlywheelLoop, MetricNode } from "@/types/metricsFramework";
 import { ZoomControls } from "./ZoomControls";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogTrigger,
-} from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 
 interface GrowthFlywheelVisualizationProps {
   loops: FlywheelLoop[];
@@ -116,19 +110,11 @@ export function GrowthFlywheelVisualization({
 
   // Map loops to stages for data binding
   const getLoopForStage = (stageId: string) => {
-    return loops.find(
-      (l) =>
-        l.id === stageId ||
-        l.name.toLowerCase().includes(stageId.split("-").join(" "))
-    );
+    return loops.find((l) => l.id === stageId || l.name.toLowerCase().includes(stageId.split("-").join(" ")));
   };
 
-  const selectedStageData = selectedStage
-    ? loops.find((l) => l.id === selectedStage)
-    : null;
-  const selectedStageInfo = selectedStage
-    ? flywheelStages.find((s) => s.id === selectedStage)
-    : null;
+  const selectedStageData = selectedStage ? loops.find((l) => l.id === selectedStage) : null;
+  const selectedStageInfo = selectedStage ? flywheelStages.find((s) => s.id === selectedStage) : null;
 
   const handleStageClick = (stageId: string, loop?: FlywheelLoop) => {
     setSelectedStage(selectedStage === stageId ? null : stageId);
@@ -158,21 +144,13 @@ export function GrowthFlywheelVisualization({
         cursor: isPanning ? "grabbing" : selectedStage ? "default" : "grab",
       }}
     >
-      <ZoomControls
-        onZoomIn={handleZoomIn}
-        onZoomOut={handleZoomOut}
-        onResetView={handleResetView}
-      />
+      <ZoomControls onZoomIn={handleZoomIn} onZoomOut={handleZoomOut} onResetView={handleResetView} />
 
       {/* Title and How It Works Button */}
       <div className="absolute top-6 left-6 z-20 flex items-start gap-4">
         <div>
-          <h2 className="text-2xl font-bold text-foreground">
-            AI Growth Flywheel Framework
-          </h2>
-          <p className="text-sm text-muted-foreground mt-1">
-            Click any stage to explore its metrics
-          </p>
+          <h2 className="text-2xl font-bold text-foreground">AI Growth Flywheel Framework</h2>
+          <p className="text-sm text-muted-foreground mt-1">Click any stage to explore its metrics</p>
         </div>
         <Dialog>
           <DialogTrigger asChild>
@@ -200,14 +178,12 @@ export function GrowthFlywheelVisualization({
                   <div
                     className={cn(
                       "w-8 h-8 rounded-full flex items-center justify-center shrink-0 text-sm font-bold text-white",
-                      step.color
+                      step.color,
                     )}
                   >
                     {step.number}
                   </div>
-                  <p className="text-sm text-foreground leading-relaxed pt-1">
-                    {step.text}
-                  </p>
+                  <p className="text-sm text-foreground leading-relaxed pt-1">{step.text}</p>
                 </motion.div>
               ))}
             </div>
@@ -240,38 +216,13 @@ export function GrowthFlywheelVisualization({
         {/* Main flywheel container */}
         <div className="relative" style={{ width: "900px", height: "650px" }}>
           {/* SVG for arrows */}
-          <svg
-            className="absolute inset-0 w-full h-full pointer-events-none"
-            style={{ overflow: "visible" }}
-          >
+          <svg className="absolute inset-0 w-full h-full pointer-events-none" style={{ overflow: "visible" }}>
             <defs>
-              <marker
-                id="arrow-primary"
-                markerWidth="8"
-                markerHeight="6"
-                refX="7"
-                refY="3"
-                orient="auto"
-              >
-                <polygon
-                  points="0 0, 8 3, 0 6"
-                  fill="hsl(var(--muted-foreground))"
-                  opacity="0.7"
-                />
+              <marker id="arrow-primary" markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto">
+                <polygon points="0 0, 8 3, 0 6" fill="hsl(var(--muted-foreground))" opacity="0.7" />
               </marker>
-              <marker
-                id="arrow-feedback"
-                markerWidth="8"
-                markerHeight="6"
-                refX="7"
-                refY="3"
-                orient="auto"
-              >
-                <polygon
-                  points="0 0, 8 3, 0 6"
-                  fill="hsl(var(--muted-foreground))"
-                  opacity="0.7"
-                />
+              <marker id="arrow-feedback" markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto">
+                <polygon points="0 0, 8 3, 0 6" fill="hsl(var(--muted-foreground))" opacity="0.7" />
               </marker>
             </defs>
 
@@ -297,7 +248,10 @@ export function GrowthFlywheelVisualization({
                 },
               }}
               style={{
-                opacity: selectedStage && selectedStage !== "higher-activation" && selectedStage !== "richer-ai-context" ? 0.2 : 0.6,
+                opacity:
+                  selectedStage && selectedStage !== "higher-activation" && selectedStage !== "richer-ai-context"
+                    ? 0.2
+                    : 0.6,
               }}
             />
 
@@ -323,7 +277,10 @@ export function GrowthFlywheelVisualization({
                 },
               }}
               style={{
-                opacity: selectedStage && selectedStage !== "integrations" && selectedStage !== "richer-ai-context" ? 0.2 : 0.6,
+                opacity:
+                  selectedStage && selectedStage !== "integrations" && selectedStage !== "richer-ai-context"
+                    ? 0.2
+                    : 0.6,
               }}
             />
 
@@ -349,7 +306,8 @@ export function GrowthFlywheelVisualization({
                 },
               }}
               style={{
-                opacity: selectedStage && selectedStage !== "richer-ai-context" && selectedStage !== "ai-model" ? 0.2 : 0.6,
+                opacity:
+                  selectedStage && selectedStage !== "richer-ai-context" && selectedStage !== "ai-model" ? 0.2 : 0.6,
               }}
             />
 
@@ -375,7 +333,8 @@ export function GrowthFlywheelVisualization({
                 },
               }}
               style={{
-                opacity: selectedStage && selectedStage !== "ai-model" && selectedStage !== "more-consumption" ? 0.2 : 0.6,
+                opacity:
+                  selectedStage && selectedStage !== "ai-model" && selectedStage !== "more-consumption" ? 0.2 : 0.6,
               }}
             />
 
@@ -401,7 +360,10 @@ export function GrowthFlywheelVisualization({
                 },
               }}
               style={{
-                opacity: selectedStage && selectedStage !== "more-consumption" && selectedStage !== "higher-activation" ? 0.2 : 0.6,
+                opacity:
+                  selectedStage && selectedStage !== "more-consumption" && selectedStage !== "higher-activation"
+                    ? 0.2
+                    : 0.6,
               }}
             />
 
@@ -427,7 +389,8 @@ export function GrowthFlywheelVisualization({
                 },
               }}
               style={{
-                opacity: selectedStage && selectedStage !== "more-consumption" && selectedStage !== "integrations" ? 0.2 : 0.6,
+                opacity:
+                  selectedStage && selectedStage !== "more-consumption" && selectedStage !== "integrations" ? 0.2 : 0.6,
               }}
             />
 
@@ -462,7 +425,7 @@ export function GrowthFlywheelVisualization({
             isSelected={selectedStage === "richer-ai-context"}
             isDimmed={!!selectedStage && selectedStage !== "richer-ai-context"}
             onClick={(loop) => handleStageClick("richer-ai-context", loop)}
-            style={{ position: "absolute", left: "50%", top: "30px", transform: "translateX(-50%)" }}
+            style={{ position: "absolute", left: "50%", top: "0px", transform: "translateX(-50%)", marginTop: "12px" }}
           />
 
           {/* Stage: Higher Activation (Left) */}
@@ -523,7 +486,7 @@ export function GrowthFlywheelVisualization({
             <motion.div
               className={cn(
                 "border-2 border-primary rounded-xl p-4 bg-primary/5 cursor-pointer transition-all duration-200 w-52",
-                "hover:bg-primary/10 hover:shadow-lg hover:shadow-primary/10"
+                "hover:bg-primary/10 hover:shadow-lg hover:shadow-primary/10",
               )}
               onClick={() => northStarMetric && onMetricSelect?.(northStarMetric)}
               whileHover={{ scale: 1.02 }}
@@ -533,9 +496,7 @@ export function GrowthFlywheelVisualization({
                 <div>
                   <h4 className="font-bold text-foreground">{northStarMetric.name}</h4>
                   {northStarMetric.description && (
-                    <p className="text-xs text-muted-foreground mt-1 line-clamp-2">
-                      {northStarMetric.description}
-                    </p>
+                    <p className="text-xs text-muted-foreground mt-1 line-clamp-2">{northStarMetric.description}</p>
                   )}
                 </div>
               ) : (
@@ -549,9 +510,7 @@ export function GrowthFlywheelVisualization({
             {/* Retention & Expansion Box */}
             <div className="border-2 border-emerald-500 rounded-xl p-4 bg-emerald-500/5 mt-3 w-52">
               <h4 className="font-semibold text-foreground text-sm">Retention & Expansion</h4>
-              <p className="text-xs text-muted-foreground mt-1">
-                (AI Credit Spend + Seat Expansion)
-              </p>
+              <p className="text-xs text-muted-foreground mt-1">(AI Credit Spend + Seat Expansion)</p>
             </div>
           </motion.div>
         </div>
@@ -578,7 +537,7 @@ export function GrowthFlywheelVisualization({
                           "px-2 py-0.5 rounded-full text-xs font-medium inline-block mb-2",
                           selectedStageData.momentum === "strong" && "bg-emerald-500/20 text-emerald-600",
                           selectedStageData.momentum === "medium" && "bg-amber-500/20 text-amber-600",
-                          selectedStageData.momentum === "weak" && "bg-red-500/20 text-red-600"
+                          selectedStageData.momentum === "weak" && "bg-red-500/20 text-red-600",
                         )}
                       >
                         {selectedStageData.momentum} momentum
@@ -622,13 +581,9 @@ export function GrowthFlywheelVisualization({
                         <div className="p-4 rounded-xl border-2 border-border bg-background hover:border-primary/50 hover:shadow-md transition-all duration-200">
                           <div className="flex items-start justify-between gap-3">
                             <div className="flex-1 min-w-0">
-                              <h4 className="font-semibold text-foreground truncate">
-                                {metric.name}
-                              </h4>
+                              <h4 className="font-semibold text-foreground truncate">{metric.name}</h4>
                               {metric.description && (
-                                <p className="text-sm text-muted-foreground mt-1 line-clamp-2">
-                                  {metric.description}
-                                </p>
+                                <p className="text-sm text-muted-foreground mt-1 line-clamp-2">{metric.description}</p>
                               )}
                               {metric.calculation && (
                                 <p className="text-xs text-primary/80 mt-2 font-mono bg-primary/5 px-2 py-1 rounded">
@@ -645,12 +600,10 @@ export function GrowthFlywheelVisualization({
                                   "w-2 h-2 rounded-full",
                                   metric.status === "healthy" && "bg-emerald-500",
                                   metric.status === "warning" && "bg-amber-500",
-                                  metric.status === "critical" && "bg-red-500"
+                                  metric.status === "critical" && "bg-red-500",
                                 )}
                               />
-                              <span className="text-xs text-muted-foreground capitalize">
-                                {metric.status}
-                              </span>
+                              <span className="text-xs text-muted-foreground capitalize">{metric.status}</span>
                             </div>
                           )}
                         </div>
@@ -678,22 +631,12 @@ export function GrowthFlywheelVisualization({
 }
 
 // Step badge component for numbered indicators
-function StepBadge({
-  number,
-  x,
-  y,
-  isFinal = false,
-}: {
-  number: number;
-  x: number;
-  y: number;
-  isFinal?: boolean;
-}) {
+function StepBadge({ number, x, y, isFinal = false }: { number: number; x: number; y: number; isFinal?: boolean }) {
   return (
     <motion.div
       className={cn(
         "absolute w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold text-white shadow-md z-30",
-        isFinal ? "bg-emerald-500" : "bg-primary"
+        isFinal ? "bg-emerald-500" : "bg-primary",
       )}
       style={{ left: x, top: y, transform: "translate(-50%, -50%)" }}
       initial={{ scale: 0, opacity: 0 }}
@@ -716,15 +659,7 @@ interface FlywheelStageNodeProps {
   style: React.CSSProperties;
 }
 
-function FlywheelStageNode({
-  stage,
-  loop,
-  isSelected,
-  isDimmed,
-  isCenter,
-  onClick,
-  style,
-}: FlywheelStageNodeProps) {
+function FlywheelStageNode({ stage, loop, isSelected, isDimmed, isCenter, onClick, style }: FlywheelStageNodeProps) {
   const metricsCount = loop?.metrics?.length || 0;
 
   return (
@@ -735,7 +670,7 @@ function FlywheelStageNode({
         isSelected && "ring-4 ring-primary/30 border-primary shadow-xl shadow-primary/20",
         isDimmed && "opacity-30",
         !isSelected && !isDimmed && "hover:border-primary/50 hover:shadow-lg",
-        "border-border"
+        "border-border",
       )}
       style={style}
       onClick={(e) => {
@@ -751,45 +686,25 @@ function FlywheelStageNode({
       initial={{ opacity: 0, scale: 0.9 }}
     >
       <div className={cn("p-4", isCenter && "p-5")}>
-        <h4
-          className={cn(
-            "font-bold text-foreground leading-tight",
-            isCenter ? "text-base" : "text-sm"
-          )}
-        >
+        <h4 className={cn("font-bold text-foreground leading-tight", isCenter ? "text-base" : "text-sm")}>
           {stage.label}
         </h4>
-        <p
-          className={cn(
-            "text-muted-foreground mt-2 leading-relaxed",
-            isCenter ? "text-xs" : "text-xs"
-          )}
-        >
+        <p className={cn("text-muted-foreground mt-2 leading-relaxed", isCenter ? "text-xs" : "text-xs")}>
           {stage.subtitle}
         </p>
 
         {/* Metrics count indicator */}
         <div className="mt-3 pt-3 border-t border-border/50 flex items-center justify-between">
           <div className="flex items-center gap-2">
-            <div
-              className={cn(
-                "w-2 h-2 rounded-full",
-                metricsCount > 0 ? "bg-primary" : "bg-muted-foreground/30"
-              )}
-            />
-            <span
-              className={cn(
-                "text-xs font-medium",
-                metricsCount > 0 ? "text-primary" : "text-muted-foreground"
-              )}
-            >
+            <div className={cn("w-2 h-2 rounded-full", metricsCount > 0 ? "bg-primary" : "bg-muted-foreground/30")} />
+            <span className={cn("text-xs font-medium", metricsCount > 0 ? "text-primary" : "text-muted-foreground")}>
               {metricsCount} metric{metricsCount !== 1 ? "s" : ""}
             </span>
           </div>
           <ChevronRight
             className={cn(
               "w-4 h-4 transition-transform",
-              isSelected ? "text-primary rotate-90" : "text-muted-foreground"
+              isSelected ? "text-primary rotate-90" : "text-muted-foreground",
             )}
           />
         </div>
