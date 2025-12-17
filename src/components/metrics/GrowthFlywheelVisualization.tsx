@@ -214,7 +214,7 @@ export function GrowthFlywheelVisualization({
         }}
       >
         {/* Main flywheel container */}
-        <div className="relative" style={{ width: "900px", height: "650px", transform: "translateX(-40px)" }}>
+        <div className="relative" style={{ width: "900px", height: "700px", transform: "translateX(-40px)" }}>
           {/* SVG for arrows */}
           <svg className="absolute inset-0 w-full h-full pointer-events-none" style={{ overflow: "visible" }}>
             <defs>
@@ -228,7 +228,7 @@ export function GrowthFlywheelVisualization({
 
             {/* Arrow: Higher Activation → Richer AI Context (curved left side) */}
             <motion.path
-              d="M 180 280 C 120 200, 200 100, 380 90"
+              d="M 180 280 C 100 180, 180 60, 330 50"
               fill="none"
               stroke="hsl(var(--muted-foreground))"
               strokeWidth="2"
@@ -257,7 +257,7 @@ export function GrowthFlywheelVisualization({
 
             {/* Arrow: Integrations → Richer AI Context (curved right side) */}
             <motion.path
-              d="M 720 280 C 780 200, 700 100, 520 90"
+              d="M 720 280 C 800 180, 720 60, 470 50"
               fill="none"
               stroke="hsl(var(--muted-foreground))"
               strokeWidth="2"
@@ -286,7 +286,7 @@ export function GrowthFlywheelVisualization({
 
             {/* Arrow: Richer AI Context → AI Model */}
             <motion.path
-              d="M 450 160 L 450 260"
+              d="M 400 130 L 400 230"
               fill="none"
               stroke="hsl(var(--muted-foreground))"
               strokeWidth="2"
@@ -313,7 +313,7 @@ export function GrowthFlywheelVisualization({
 
             {/* Arrow: AI Model → More Consumption */}
             <motion.path
-              d="M 450 380 L 450 460"
+              d="M 400 370 L 400 470"
               fill="none"
               stroke="hsl(var(--muted-foreground))"
               strokeWidth="2"
@@ -340,7 +340,7 @@ export function GrowthFlywheelVisualization({
 
             {/* Arrow: More Consumption → Higher Activation (feedback loop left) */}
             <motion.path
-              d="M 320 520 C 200 540, 120 450, 160 340"
+              d="M 280 560 C 150 600, 80 450, 160 340"
               fill="none"
               stroke="hsl(var(--muted-foreground))"
               strokeWidth="2"
@@ -369,7 +369,7 @@ export function GrowthFlywheelVisualization({
 
             {/* Arrow: More Consumption → Integrations (feedback loop right) */}
             <motion.path
-              d="M 580 520 C 700 540, 780 450, 740 340"
+              d="M 520 560 C 650 600, 820 450, 740 340"
               fill="none"
               stroke="hsl(var(--muted-foreground))"
               strokeWidth="2"
@@ -396,7 +396,7 @@ export function GrowthFlywheelVisualization({
 
             {/* Dotted line from More Consumption to North Star */}
             <motion.path
-              d="M 580 530 L 670 530"
+              d="M 520 530 L 620 530"
               fill="none"
               stroke="hsl(var(--muted-foreground))"
               strokeWidth="2"
@@ -412,20 +412,20 @@ export function GrowthFlywheelVisualization({
           </svg>
 
           {/* Step number badges on arrows */}
-          <StepBadge number={1} x={300} y={120} />
-          <StepBadge number={1} x={600} y={120} />
-          <StepBadge number={2} x={470} y={210} />
-          <StepBadge number={3} x={470} y={420} />
-          <StepBadge number={4} x={620} y={530} isFinal />
+          <StepBadge number={1} x={240} y={100} />
+          <StepBadge number={1} x={560} y={100} />
+          <StepBadge number={2} x={420} y={180} />
+          <StepBadge number={3} x={420} y={420} />
+          <StepBadge number={4} x={570} y={530} isFinal />
 
-          {/* Stage: Richer AI Context (Top Center) */}
+          {/* Stage: Richer AI Context (Top Center - shifted left) */}
           <FlywheelStageNode
             stage={flywheelStages[0]}
             loop={getLoopForStage("richer-ai-context") || loops[0]}
             isSelected={selectedStage === "richer-ai-context"}
             isDimmed={!!selectedStage && selectedStage !== "richer-ai-context"}
             onClick={(loop) => handleStageClick("richer-ai-context", loop)}
-            style={{ position: "absolute", left: "50%", top: "12px", transform: "translateX(-50%)" }}
+            style={{ position: "absolute", left: "280px", top: "0px" }}
           />
 
           {/* Stage: Higher Activation (Left) */}
@@ -448,7 +448,7 @@ export function GrowthFlywheelVisualization({
             style={{ position: "absolute", right: "30px", top: "250px" }}
           />
 
-          {/* Stage: AI Model (Center) */}
+          {/* Stage: AI Model (Center - top touches arrow at y=230) */}
           <FlywheelStageNode
             stage={flywheelStages[1]}
             loop={getLoopForStage("ai-model") || loops[1]}
@@ -456,23 +456,23 @@ export function GrowthFlywheelVisualization({
             isDimmed={!!selectedStage && selectedStage !== "ai-model"}
             onClick={(loop) => handleStageClick("ai-model", loop)}
             isCenter
-            style={{ position: "absolute", left: "50%", top: "270px", transform: "translateX(-50%)" }}
+            style={{ position: "absolute", left: "280px", top: "230px" }}
           />
 
-          {/* Stage: More Consumption (Bottom Center) */}
+          {/* Stage: More Consumption (Bottom - top touches arrow at y=470) */}
           <FlywheelStageNode
             stage={flywheelStages[2]}
             loop={getLoopForStage("more-consumption") || loops[2]}
             isSelected={selectedStage === "more-consumption"}
             isDimmed={!!selectedStage && selectedStage !== "more-consumption"}
             onClick={(loop) => handleStageClick("more-consumption", loop)}
-            style={{ position: "absolute", left: "50%", bottom: "80px", transform: "translateX(-50%)" }}
+            style={{ position: "absolute", left: "280px", top: "470px" }}
           />
 
           {/* North Star Section (Right Side) */}
           <motion.div
             className="absolute"
-            style={{ right: "-40px", top: "470px" }}
+            style={{ right: "-20px", top: "480px" }}
             initial={{ opacity: 0, x: 20 }}
             animate={{ opacity: 1, x: 0 }}
             transition={{ delay: 0.8 }}
