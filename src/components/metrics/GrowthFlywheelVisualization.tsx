@@ -214,7 +214,7 @@ export function GrowthFlywheelVisualization({
         }}
       >
         {/* Main flywheel container */}
-        <div className="relative" style={{ width: "900px", height: "650px",  transform: "translateX(-40px) }}>
+        <div className="relative" style={{ width: "900px", height: "650px", transform: "translateX(-40px)" }}>
           {/* SVG for arrows */}
           <svg className="absolute inset-0 w-full h-full pointer-events-none" style={{ overflow: "visible" }}>
             <defs>
