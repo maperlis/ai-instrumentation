@@ -360,6 +360,72 @@ function getFallbackMetrics() {
   ];
 }
 
+// Fallback events when AI is unavailable
+function getFallbackEvents(metricsToUse: string[]) {
+  return [
+    {
+      event_name: "page_viewed",
+      description: "User views a page in the application",
+      trigger_action: "view",
+      screen: "Any",
+      event_properties: ["page_name", "page_url", "referrer"],
+      owner: "Engineering",
+      notes: "Core pageview tracking for all screens",
+      confidence: 0.95
+    },
+    {
+      event_name: "user_session_started",
+      description: "User starts a new session",
+      trigger_action: "automatic",
+      screen: "App Entry",
+      event_properties: ["session_id", "device_type", "platform"],
+      owner: "Engineering",
+      notes: "Session tracking for MAU and retention calculations",
+      confidence: 0.95
+    },
+    {
+      event_name: "signup_started",
+      description: "User begins the signup process",
+      trigger_action: "click",
+      screen: "Landing Page",
+      event_properties: ["signup_method", "referral_source"],
+      owner: "Growth",
+      notes: "Track signup funnel entry",
+      confidence: 0.9
+    },
+    {
+      event_name: "signup_completed",
+      description: "User completes account creation",
+      trigger_action: "submit",
+      screen: "Signup Form",
+      event_properties: ["signup_method", "time_to_complete"],
+      owner: "Growth",
+      notes: "Track successful signups for conversion rate",
+      confidence: 0.95
+    },
+    {
+      event_name: "feature_used",
+      description: "User interacts with a key feature",
+      trigger_action: "click",
+      screen: "Main App",
+      event_properties: ["feature_name", "feature_category"],
+      owner: "Product",
+      notes: "Track feature adoption and usage patterns",
+      confidence: 0.85
+    },
+    {
+      event_name: "button_clicked",
+      description: "User clicks a CTA button",
+      trigger_action: "click",
+      screen: "Various",
+      event_properties: ["button_name", "button_location", "page_name"],
+      owner: "Product",
+      notes: "General button click tracking for UX analysis",
+      confidence: 0.8
+    }
+  ];
+}
+
 function generateSessionId(): string {
   return `session_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`;
 }
@@ -566,24 +632,53 @@ serve(async (req) => {
         throw new Error("No metrics provided for taxonomy generation");
       }
       
-      let customFieldsInstruction = '';
-      let customFieldsJson = '';
-      if (customFields && customFields.length > 0) {
-        customFieldsInstruction = `- Include these custom fields in each event: ${customFields.map((f: any) => f.name).join(', ')}`;
-        customFieldsJson = customFields.map((f: any) => {
-          const type = f.type === 'array' ? '["array"]' : f.type === 'number' ? '0' : '"string"';
-          return `"${f.id}": ${type}`;
-        }).join(',\n      ');
-        if (customFieldsJson) customFieldsJson = ',\n      ' + customFieldsJson;
+      // Check if we have any input data to work with
+      const hasInputData = inputData && (inputData.url || inputData.imageData || inputData.videoData || inputData.productDetails);
+      
+      let taxonomyResult;
+      
+      if (hasInputData) {
+        // We have input data, try AI generation
+        try {
+          let customFieldsInstruction = '';
+          let customFieldsJson = '';
+          if (customFields && customFields.length > 0) {
+            customFieldsInstruction = `- Include these custom fields in each event: ${customFields.map((f: any) => f.name).join(', ')}`;
+            customFieldsJson = customFields.map((f: any) => {
+              const type = f.type === 'array' ? '["array"]' : f.type === 'number' ? '0' : '"string"';
+              return `"${f.id}": ${type}`;
+            }).join(',\n      ');
+            if (customFieldsJson) customFieldsJson = ',\n      ' + customFieldsJson;
+          }
+
+          const architectPrompt = INSTRUMENTATION_ARCHITECT_PROMPT
+            .replace('{selectedMetrics}', metricsToUse.join(', '))
+            .replace('{customFieldsInstruction}', customFieldsInstruction)
+            .replace('{customFieldsJson}', customFieldsJson);
+
+          const userContent = buildUserContent(inputData, `Focus on events for: ${metricsToUse.join(', ')}`);
+          taxonomyResult = await callLovableAI(architectPrompt, userContent, LOVABLE_API_KEY);
+        } catch (err) {
+          if (err instanceof AICreditsError) {
+            console.info("AI credits exhausted during taxonomy generation. Using fallback events.");
+            taxonomyResult = {
+              events: getFallbackEvents(metricsToUse),
+              summary: "Using standard event templates. AI credits are currently unavailable.",
+              fallbackReason: "AI credits exhausted"
+            };
+          } else {
+            throw err;
+          }
+        }
+      } else {
+        // No input data (fallback mode) - use fallback events
+        console.info("No input data available. Using fallback events.");
+        taxonomyResult = {
+          events: getFallbackEvents(metricsToUse),
+          summary: "Generated standard event templates based on common analytics patterns.",
+          fallbackReason: "No input data available"
+        };
       }
-
-      const architectPrompt = INSTRUMENTATION_ARCHITECT_PROMPT
-        .replace('{selectedMetrics}', metricsToUse.join(', '))
-        .replace('{customFieldsInstruction}', customFieldsInstruction)
-        .replace('{customFieldsJson}', customFieldsJson);
-
-      const userContent = buildUserContent(inputData, `Focus on events for: ${metricsToUse.join(', ')}`);
-      const taxonomyResult = await callLovableAI(architectPrompt, userContent, LOVABLE_API_KEY);
 
       return new Response(JSON.stringify({
         sessionId: newSessionId,
@@ -592,6 +687,7 @@ serve(async (req) => {
         approvalType: 'taxonomy',
         events: taxonomyResult.events,
         summary: taxonomyResult.summary,
+        fallbackReason: taxonomyResult.fallbackReason,
         inputData,
         metrics: providedMetrics,
         conversationHistory: [
