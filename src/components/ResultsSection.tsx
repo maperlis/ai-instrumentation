@@ -71,6 +71,7 @@ export const ResultsSection = ({
     labels: "",
     priority: "Medium",
   });
+  const [ticketDestination, setTicketDestination] = useState<"jira" | "clickup">("jira");
   const [showAmplitudeDialog, setShowAmplitudeDialog] = useState(false);
   const [amplitudeCredentials, setAmplitudeCredentials] = useState({
     apiKey: "",
@@ -228,6 +229,70 @@ export const ResultsSection = ({
     } finally {
       setIsSubmitting(false);
     }
+  };
+
+  const handleSubmitToClickUp = async () => {
+    setIsSubmitting(true);
+    try {
+      const { data, error } = await supabase.functions.invoke("create-clickup-task", {
+        body: {
+          events,
+          selectedMetrics,
+          customTicket: {
+            title: editableTicket.title,
+            description: editableTicket.description,
+            tags: editableTicket.labels.split(",").map(l => l.trim()).filter(Boolean),
+            priority: mapPriorityToClickUp(editableTicket.priority),
+          },
+        },
+      });
+
+      if (error) throw error;
+
+      setShowEditDialog(false);
+      setTicketData({ ...data, isClickUp: true });
+      setShowTicketDialog(true);
+
+      if (data.clickupTask) {
+        toast({
+          title: "ClickUp Task Created",
+          description: `Task "${data.clickupTask.name}" has been created successfully.`,
+        });
+      } else {
+        toast({
+          title: "Ticket Generated",
+          description: "Copy the ticket details to your issue tracking platform.",
+        });
+      }
+    } catch (error) {
+      console.error("Error submitting to ClickUp:", error);
+      toast({
+        title: "Error",
+        description: "Failed to submit to ClickUp. Please try again.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  const handleSubmitTicket = () => {
+    if (ticketDestination === "clickup") {
+      handleSubmitToClickUp();
+    } else {
+      handleSubmitToJira();
+    }
+  };
+
+  const mapPriorityToClickUp = (priority: string): number => {
+    const priorityMap: Record<string, number> = {
+      'Urgent': 1,
+      'High': 2,
+      'Medium': 3,
+      'Normal': 3,
+      'Low': 4,
+    };
+    return priorityMap[priority] || 3;
   };
 
   const copyTicketToClipboard = () => {
@@ -611,11 +676,35 @@ export const ResultsSection = ({
           <DialogHeader>
             <DialogTitle>Edit Ticket Details</DialogTitle>
             <DialogDescription>
-              Review and edit the ticket details before submitting to JIRA.
+              Review and edit the ticket details before submitting.
             </DialogDescription>
           </DialogHeader>
 
           <div className="space-y-4">
+            <div className="space-y-2">
+              <Label>Destination</Label>
+              <div className="flex gap-2">
+                <Button
+                  type="button"
+                  variant={ticketDestination === "jira" ? "default" : "outline"}
+                  size="sm"
+                  onClick={() => setTicketDestination("jira")}
+                  className="flex-1"
+                >
+                  JIRA
+                </Button>
+                <Button
+                  type="button"
+                  variant={ticketDestination === "clickup" ? "default" : "outline"}
+                  size="sm"
+                  onClick={() => setTicketDestination("clickup")}
+                  className="flex-1"
+                >
+                  ClickUp
+                </Button>
+              </div>
+            </div>
+
             <div className="space-y-2">
               <Label htmlFor="title">Title</Label>
               <Input
@@ -638,7 +727,7 @@ export const ResultsSection = ({
 
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
-                <Label htmlFor="labels">Labels (comma-separated)</Label>
+                <Label htmlFor="labels">{ticketDestination === "clickup" ? "Tags" : "Labels"} (comma-separated)</Label>
                 <Input
                   id="labels"
                   value={editableTicket.labels}
@@ -649,11 +738,28 @@ export const ResultsSection = ({
 
               <div className="space-y-2">
                 <Label htmlFor="priority">Priority</Label>
-                <Input
-                  id="priority"
-                  value={editableTicket.priority}
-                  onChange={(e) => setEditableTicket({ ...editableTicket, priority: e.target.value })}
-                />
+                {ticketDestination === "clickup" ? (
+                  <Select
+                    value={editableTicket.priority}
+                    onValueChange={(value) => setEditableTicket({ ...editableTicket, priority: value })}
+                  >
+                    <SelectTrigger id="priority">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="Urgent">Urgent</SelectItem>
+                      <SelectItem value="High">High</SelectItem>
+                      <SelectItem value="Medium">Medium</SelectItem>
+                      <SelectItem value="Low">Low</SelectItem>
+                    </SelectContent>
+                  </Select>
+                ) : (
+                  <Input
+                    id="priority"
+                    value={editableTicket.priority}
+                    onChange={(e) => setEditableTicket({ ...editableTicket, priority: e.target.value })}
+                  />
+                )}
               </div>
             </div>
           </div>
@@ -662,9 +768,9 @@ export const ResultsSection = ({
             <Button variant="outline" onClick={() => setShowEditDialog(false)}>
               Cancel
             </Button>
-            <Button onClick={handleSubmitToJira} disabled={isSubmitting}>
+            <Button onClick={handleSubmitTicket} disabled={isSubmitting}>
               <Send className="w-4 h-4 mr-2" />
-              {isSubmitting ? "Submitting..." : "Submit to JIRA"}
+              {isSubmitting ? "Submitting..." : `Submit to ${ticketDestination === "clickup" ? "ClickUp" : "JIRA"}`}
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -674,12 +780,18 @@ export const ResultsSection = ({
         <DialogContent className="max-w-4xl max-h-[80vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>
-              {ticketData?.jiraTicket ? "JIRA Ticket Created" : "Implementation Ticket"}
+              {ticketData?.jiraTicket 
+                ? "JIRA Ticket Created" 
+                : ticketData?.clickupTask 
+                  ? "ClickUp Task Created" 
+                  : "Implementation Ticket"}
             </DialogTitle>
             <DialogDescription>
               {ticketData?.jiraTicket 
                 ? "Your JIRA ticket has been created successfully." 
-                : "Copy this ticket to your issue tracking platform."}
+                : ticketData?.clickupTask
+                  ? "Your ClickUp task has been created successfully."
+                  : "Copy this ticket to your issue tracking platform."}
             </DialogDescription>
           </DialogHeader>
 
@@ -703,6 +815,26 @@ export const ResultsSection = ({
             </div>
           )}
 
+          {ticketData?.clickupTask && (
+            <div className="flex items-center gap-2 p-4 bg-accent/10 rounded-lg">
+              <CheckCircle2 className="w-5 h-5 text-green-500" />
+              <div className="flex-1">
+                <p className="font-medium">{ticketData.clickupTask.name}</p>
+                <p className="text-sm text-muted-foreground">
+                  Task created in ClickUp
+                </p>
+              </div>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => window.open(ticketData.clickupTask.url, '_blank')}
+              >
+                <ExternalLink className="w-4 h-4 mr-2" />
+                View in ClickUp
+              </Button>
+            </div>
+          )}
+
           <div className="space-y-4">
             <div className="flex justify-between items-center">
               <h3 className="font-semibold">Ticket Details</h3>
@@ -721,11 +853,11 @@ export const ResultsSection = ({
               </div>
             </Card>
 
-            {!ticketData?.jiraTicket && (
+            {!ticketData?.jiraTicket && !ticketData?.clickupTask && (
               <div className="p-4 bg-accent/10 rounded-lg">
                 <p className="text-sm text-muted-foreground">
-                  <strong>Note:</strong> JIRA is not configured. To enable automatic ticket creation,
-                  configure your JIRA credentials in the settings.
+                  <strong>Note:</strong> No integration is configured. To enable automatic ticket creation,
+                  configure your JIRA or ClickUp credentials in the settings.
                 </p>
               </div>
             )}
