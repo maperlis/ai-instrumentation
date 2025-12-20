@@ -35,11 +35,23 @@ const eventSchema = z.object({
   confidence: z.number().min(0).max(1).optional(),
 }).passthrough();
 
+// Helper to handle optional URL (empty string should become undefined)
+const optionalUrl = z.string().max(2000).optional().transform(val => {
+  if (!val || val.trim() === '') return undefined;
+  // Validate URL format only if provided
+  try {
+    new URL(val);
+    return val;
+  } catch {
+    return undefined; // Invalid URLs become undefined
+  }
+});
+
 const requestSchema = z.object({
   sessionId: z.string().max(100).optional(),
-  url: z.string().url().max(2000).optional(),
-  imageData: z.string().max(15_000_000).optional(), // ~15MB base64
-  videoData: z.string().max(15_000_000).optional(), // ~15MB base64
+  url: optionalUrl,
+  imageData: z.string().max(15_000_000).optional(),
+  videoData: z.string().max(15_000_000).optional(),
   productDetails: z.string().max(10000).optional(),
   mode: z.enum(['metrics', 'taxonomy']).optional(),
   selectedMetrics: z.array(z.string().max(200)).max(50).optional(),
@@ -48,7 +60,7 @@ const requestSchema = z.object({
   action: z.enum(['start', 'continue', 'approve', 'reject']).optional(),
   approvalType: z.enum(['metrics', 'taxonomy']).optional(),
   inputData: z.object({
-    url: z.string().url().max(2000).optional(),
+    url: optionalUrl,
     imageData: z.string().max(15_000_000).optional(),
     videoData: z.string().max(15_000_000).optional(),
     productDetails: z.string().max(10000).optional(),
