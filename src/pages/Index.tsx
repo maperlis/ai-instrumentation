@@ -3,21 +3,25 @@ import { InputSection } from "@/components/InputSection";
 import { ResultsSection } from "@/components/ResultsSection";
 import { FrameworkQuestionsPage } from "@/components/FrameworkQuestionsPage";
 import { MetricsFrameworkView } from "@/components/metrics";
+import { ExistingMetricsStep, MetricsComparison } from "@/components/existing-metrics";
 import { TaxonomyEvent, Metric } from "@/types/taxonomy";
+import { ExistingMetric } from "@/types/existingMetrics";
 import { FrameworkType } from "@/types/metricsFramework";
 import { useOrchestration } from "@/hooks/useOrchestration";
 import { PageContainer } from "@/components/design-system";
 import { AppHeader } from "@/components/design-system/AppHeader";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { BarChart3, FileSpreadsheet, Sparkles, MessageSquare, LayoutDashboard } from "lucide-react";
+import { BarChart3, FileSpreadsheet, Sparkles, GitCompare } from "lucide-react";
 
-type WorkflowStep = 'input' | 'framework-questions' | 'visualization' | 'results';
+type WorkflowStep = 'existing-metrics' | 'input' | 'framework-questions' | 'visualization' | 'results';
 
 const Index = () => {
-  const [currentStep, setCurrentStep] = useState<WorkflowStep>('input');
+  const [currentStep, setCurrentStep] = useState<WorkflowStep>('existing-metrics');
+  const [existingMetrics, setExistingMetrics] = useState<ExistingMetric[]>([]);
   const [inputData, setInputData] = useState<{ url?: string; imageData?: string; videoData?: string; productDetails?: string } | null>(null);
   const [frameworkAnswers, setFrameworkAnswers] = useState<Record<string, string>>({});
   const [selectedFramework, setSelectedFramework] = useState<FrameworkType>('driver_tree');
+  const [showComparison, setShowComparison] = useState(false);
   
   const { state, isLoading, newMetricIds, startSession, sendMessage, approve, reset } = useOrchestration();
   const [selectedMetricIds, setSelectedMetricIds] = useState<string[]>([]);
@@ -47,6 +51,17 @@ const Index = () => {
     );
   };
 
+  // Handle existing metrics step completion
+  const handleExistingMetricsComplete = useCallback((metrics: ExistingMetric[]) => {
+    setExistingMetrics(metrics);
+    setCurrentStep('input');
+  }, []);
+
+  const handleSkipExistingMetrics = useCallback(() => {
+    setExistingMetrics([]);
+    setCurrentStep('input');
+  }, []);
+
   const handleStartAnalysis = useCallback(async (data: {
     url?: string;
     imageData?: string;
@@ -61,9 +76,14 @@ const Index = () => {
     setFrameworkAnswers(answers);
     setSelectedFramework(framework);
     
+    // Build existing metrics context for AI
+    const existingMetricsContext = existingMetrics.length > 0
+      ? `\n\nExisting Metrics the user already tracks:\n${existingMetrics.map(m => `- ${m.name}: ${m.definition}`).join('\n')}\n\nIMPORTANT: Consider these existing metrics when making recommendations. Reuse them where appropriate, identify gaps, and suggest improvements where needed.`
+      : '';
+    
     const enrichedProductDetails = inputData?.productDetails 
-      ? `${inputData.productDetails}\n\nUser Context:\n- Primary Goal: ${answers.primary_goal}\n- Product Stage: ${answers.product_stage}\n- Business Model: ${answers.business_model}\n- Key Actions: ${answers.key_actions || 'Not specified'}\n- North Star Focus: ${answers.north_star_focus}\n- Preferred Framework: ${framework}`
-      : `User Context:\n- Primary Goal: ${answers.primary_goal}\n- Product Stage: ${answers.product_stage}\n- Business Model: ${answers.business_model}\n- Key Actions: ${answers.key_actions || 'Not specified'}\n- North Star Focus: ${answers.north_star_focus}\n- Preferred Framework: ${framework}`;
+      ? `${inputData.productDetails}\n\nUser Context:\n- Primary Goal: ${answers.primary_goal}\n- Product Stage: ${answers.product_stage}\n- Business Model: ${answers.business_model}\n- Key Actions: ${answers.key_actions || 'Not specified'}\n- North Star Focus: ${answers.north_star_focus}\n- Preferred Framework: ${framework}${existingMetricsContext}`
+      : `User Context:\n- Primary Goal: ${answers.primary_goal}\n- Product Stage: ${answers.product_stage}\n- Business Model: ${answers.business_model}\n- Key Actions: ${answers.key_actions || 'Not specified'}\n- North Star Focus: ${answers.north_star_focus}\n- Preferred Framework: ${framework}${existingMetricsContext}`;
 
     const response = await startSession({
       ...inputData,
@@ -72,8 +92,12 @@ const Index = () => {
     
     if (response && response.status !== 'error') {
       setCurrentStep('visualization');
+      // Show comparison panel if user has existing metrics
+      if (existingMetrics.length > 0) {
+        setShowComparison(true);
+      }
     }
-  }, [inputData, startSession]);
+  }, [inputData, startSession, existingMetrics]);
 
   const handleApproveMetrics = useCallback(async () => {
     await approve('metrics', selectedMetricIds);
@@ -85,6 +109,16 @@ const Index = () => {
     setCurrentStep('input');
     setFrameworkAnswers({});
     setSelectedMetricIds([]);
+    setShowComparison(false);
+  }, [reset]);
+
+  const handleBackToExistingMetrics = useCallback(() => {
+    reset();
+    setCurrentStep('existing-metrics');
+    setInputData(null);
+    setFrameworkAnswers({});
+    setSelectedMetricIds([]);
+    setShowComparison(false);
   }, [reset]);
 
   const handleSendMessage = useCallback(async (message: string) => {
@@ -99,10 +133,27 @@ const Index = () => {
     setCurrentStep('results');
   }, []);
 
+  // Calculate step number based on whether user has existing metrics
+  const getStepNumber = (step: WorkflowStep): number => {
+    const steps: WorkflowStep[] = ['existing-metrics', 'input', 'framework-questions', 'visualization', 'results'];
+    return steps.indexOf(step) + 1;
+  };
+
+  const totalSteps = 5;
+
   return (
     <PageContainer>
       <AppHeader />
       
+      {/* Step 1: Import Existing Metrics */}
+      {currentStep === 'existing-metrics' && (
+        <ExistingMetricsStep
+          onComplete={handleExistingMetricsComplete}
+          onSkip={handleSkipExistingMetrics}
+        />
+      )}
+
+      {/* Step 2: Product Input */}
       {currentStep === 'input' && (
         <div className="min-h-[calc(100vh-4rem)] flex items-center justify-center py-12 bg-background">
           <div className="w-full max-w-2xl px-4">
@@ -114,13 +165,18 @@ const Index = () => {
               <p className="text-lg text-muted-foreground max-w-lg mx-auto">
                 Share a quick snapshot of what you're building, and I'll recommend the best metrics framework and ask tailored follow-up questions.
               </p>
+              {existingMetrics.length > 0 && (
+                <p className="text-sm text-primary mt-2">
+                  ✓ {existingMetrics.length} existing metric{existingMetrics.length !== 1 ? 's' : ''} imported
+                </p>
+              )}
             </div>
 
             {/* Progress indicator */}
             <div className="flex items-center justify-center gap-2 mb-8">
               <span className="inline-flex items-center gap-2 px-3 py-1.5 bg-primary/10 text-primary text-sm font-medium rounded-full border border-primary/20">
-                <span className="w-5 h-5 rounded-full bg-primary text-primary-foreground text-xs flex items-center justify-center font-semibold">1</span>
-                Step 1 of 4: Share your context
+                <span className="w-5 h-5 rounded-full bg-primary text-primary-foreground text-xs flex items-center justify-center font-semibold">2</span>
+                Step 2 of {totalSteps}: Share your context
               </span>
             </div>
 
@@ -159,19 +215,32 @@ const Index = () => {
                 </div>
               </div>
             </div>
+
+            {/* Back link */}
+            <div className="mt-4 text-center">
+              <button 
+                onClick={handleBackToExistingMetrics}
+                className="text-sm text-muted-foreground hover:text-foreground transition-colors"
+              >
+                ← Back to import existing metrics
+              </button>
+            </div>
           </div>
         </div>
       )}
 
+      {/* Step 3: Framework Questions */}
       {currentStep === 'framework-questions' && (
         <FrameworkQuestionsPage
           onBack={handleBackToInput}
           onComplete={handleFrameworkQuestionsComplete}
           isLoading={isLoading}
           inputData={inputData}
+          existingMetrics={existingMetrics}
         />
       )}
       
+      {/* Steps 4 & 5: Visualization and Results */}
       {(currentStep === 'visualization' || currentStep === 'results') && state.metrics.length > 0 && (
         <div className="min-h-[calc(100vh-4rem)]">
           {/* Progress indicator */}
@@ -179,9 +248,9 @@ const Index = () => {
             <div className="container mx-auto px-4 flex items-center justify-center">
               <span className="inline-flex items-center gap-2 px-3 py-1.5 bg-primary/10 text-primary text-sm font-medium rounded-full border border-primary/20">
                 <span className="w-5 h-5 rounded-full bg-primary text-primary-foreground text-xs flex items-center justify-center font-semibold">
-                  {currentStep === 'visualization' ? '3' : '4'}
+                  {currentStep === 'visualization' ? '4' : '5'}
                 </span>
-                Step {currentStep === 'visualization' ? '3' : '4'} of 4: {currentStep === 'visualization' ? 'Your metrics framework' : 'Your Instrumentation Plan'}
+                Step {currentStep === 'visualization' ? '4' : '5'} of {totalSteps}: {currentStep === 'visualization' ? 'Your metrics framework' : 'Your Instrumentation Plan'}
               </span>
             </div>
           </div>
@@ -215,6 +284,16 @@ const Index = () => {
                       </span>
                     )}
                   </TabsTrigger>
+                  {existingMetrics.length > 0 && (
+                    <TabsTrigger 
+                      value="comparison" 
+                      onClick={() => setShowComparison(!showComparison)}
+                      className="data-[state=active]:bg-primary/10 data-[state=active]:text-primary gap-2 px-4"
+                    >
+                      <GitCompare className="h-4 w-4" />
+                      Comparison
+                    </TabsTrigger>
+                  )}
                 </TabsList>
               </Tabs>
             </div>
@@ -222,18 +301,28 @@ const Index = () => {
 
           {/* Content */}
           {currentStep === 'visualization' && (
-            <div className="h-[calc(100vh-8rem)]">
-              <MetricsFrameworkView
-                metrics={state.metrics}
-                selectedMetricIds={selectedMetricIds}
-                onToggleMetric={toggleMetric}
-                onApprove={handleApproveMetrics}
-                isLoading={isLoading}
-                conversationHistory={state.conversationHistory}
-                onSendMessage={handleSendMessage}
-                newMetricIds={newMetricIds}
-                initialFramework={selectedFramework}
-              />
+            <div className="flex">
+              <div className={existingMetrics.length > 0 && showComparison ? "flex-1 h-[calc(100vh-8rem)]" : "w-full h-[calc(100vh-8rem)]"}>
+                <MetricsFrameworkView
+                  metrics={state.metrics}
+                  selectedMetricIds={selectedMetricIds}
+                  onToggleMetric={toggleMetric}
+                  onApprove={handleApproveMetrics}
+                  isLoading={isLoading}
+                  conversationHistory={state.conversationHistory}
+                  onSendMessage={handleSendMessage}
+                  newMetricIds={newMetricIds}
+                  initialFramework={selectedFramework}
+                />
+              </div>
+              {existingMetrics.length > 0 && showComparison && (
+                <div className="w-96 border-l border-border p-4 overflow-y-auto h-[calc(100vh-8rem)]">
+                  <MetricsComparison
+                    existingMetrics={existingMetrics}
+                    generatedMetrics={state.metrics}
+                  />
+                </div>
+              )}
             </div>
           )}
 
