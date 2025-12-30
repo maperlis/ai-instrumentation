@@ -1,10 +1,21 @@
 import "https://deno.land/x/xhr@0.1.0/mod.ts";
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
+import { z } from "https://deno.land/x/zod@v3.22.4/mod.ts";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
+
+// Input validation schema with reasonable limits
+const requestSchema = z.object({
+  url: z.string().url().max(2000).optional().nullable(),
+  imageData: z.string().max(15_000_000).optional().nullable(), // ~15MB for base64 images
+  productDetails: z.string().max(10000).optional().nullable(),
+}).refine(
+  (data) => data.url || data.imageData || data.productDetails,
+  { message: "At least one of url, imageData, or productDetails must be provided" }
+);
 
 serve(async (req) => {
   if (req.method === 'OPTIONS') {
@@ -12,14 +23,52 @@ serve(async (req) => {
   }
 
   try {
-    const { url, imageData, productDetails } = await req.json();
+    // Parse and validate request body
+    let rawBody: unknown;
+    try {
+      rawBody = await req.json();
+    } catch {
+      return new Response(
+        JSON.stringify({ 
+          error: 'Invalid JSON in request body',
+          questions: getFallbackQuestions(),
+          productInsights: null,
+          fallbackReason: "Invalid request format. Using defaults."
+        }),
+        { 
+          status: 200, 
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
+        }
+      );
+    }
+
+    // Validate input against schema
+    const validationResult = requestSchema.safeParse(rawBody);
+    if (!validationResult.success) {
+      console.error("Input validation failed:", validationResult.error.flatten().fieldErrors);
+      return new Response(
+        JSON.stringify({ 
+          error: 'Invalid request data',
+          details: validationResult.error.flatten().fieldErrors,
+          questions: getFallbackQuestions(),
+          productInsights: null,
+          fallbackReason: "Invalid input data. Using defaults."
+        }),
+        { 
+          status: 200, // Return 200 with fallback so user can proceed
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
+        }
+      );
+    }
+
+    const { url, imageData, productDetails } = validationResult.data;
     const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
     
     if (!LOVABLE_API_KEY) {
       throw new Error("LOVABLE_API_KEY is not configured");
     }
 
-    // Build context from input
+    // Build context from validated input
     let contextDescription = "Analyze this product/feature and generate tailored discovery questions:\n\n";
     
     if (url) {
@@ -95,6 +144,8 @@ CRITICAL: Each question in the "questions" array MUST have an "options" array wi
         content: contextDescription
       });
     }
+
+    console.log("Generating discovery questions with validated input");
 
     const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
       method: "POST",
