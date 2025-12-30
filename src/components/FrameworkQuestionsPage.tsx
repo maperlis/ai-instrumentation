@@ -74,9 +74,10 @@ interface FrameworkQuestionsPageProps {
     videoData?: string;
     productDetails?: string;
   } | null;
+  existingMetrics?: { id: string; name: string; definition: string; source: string }[];
 }
 
-export function FrameworkQuestionsPage({ onBack, onComplete, isLoading: externalLoading, inputData }: FrameworkQuestionsPageProps) {
+export function FrameworkQuestionsPage({ onBack, onComplete, isLoading: externalLoading, inputData, existingMetrics = [] }: FrameworkQuestionsPageProps) {
   const { toast } = useToast();
   const [questions, setQuestions] = useState<Question[]>([]);
   const [productInsights, setProductInsights] = useState<ProductInsights | null>(null);
