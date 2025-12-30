@@ -430,7 +430,7 @@ export function MetricsFrameworkView({
           <motion.div
             key="panel-open"
             initial={{ width: 0, opacity: 0 }}
-            animate={{ width: 280, opacity: 1 }}
+            animate={{ width: 360, opacity: 1 }}
             exit={{ width: 0, opacity: 0 }}
             transition={{ duration: 0.2 }}
             className="overflow-hidden"
@@ -440,9 +440,9 @@ export function MetricsFrameworkView({
               selectedMetric={selectedMetric}
               isLoading={isLoading}
               onClose={() => setIsInsightsPanelOpen(false)}
-          onMetricUpdate={(updated) => {
-            setSelectedMetric(updated);
-          }}
+              onMetricUpdate={(updated) => {
+                setSelectedMetric(updated);
+              }}
             />
           </motion.div>
         ) : (
