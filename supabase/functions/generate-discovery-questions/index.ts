@@ -3,22 +3,23 @@ import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { z } from "https://deno.land/x/zod@v3.22.4/mod.ts";
 
 const corsHeaders = {
-  'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+  "Access-Control-Allow-Origin": "*",
+  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
 
 // Input validation schema with reasonable limits
-const requestSchema = z.object({
-  url: z.string().url().max(2000).optional().nullable(),
-  imageData: z.string().max(15_000_000).optional().nullable(), // ~15MB for base64 images
-  productDetails: z.string().max(10000).optional().nullable(),
-}).refine(
-  (data) => data.url || data.imageData || data.productDetails,
-  { message: "At least one of url, imageData, or productDetails must be provided" }
-);
+const requestSchema = z
+  .object({
+    url: z.string().url().max(2000).optional().nullable(),
+    imageData: z.string().max(15_000_000).optional().nullable(), // ~15MB for base64 images
+    productDetails: z.string().max(10000).optional().nullable(),
+  })
+  .refine((data) => data.url || data.imageData || data.productDetails, {
+    message: "At least one of url, imageData, or productDetails must be provided",
+  });
 
 serve(async (req) => {
-  if (req.method === 'OPTIONS') {
+  if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
   }
 
@@ -29,16 +30,16 @@ serve(async (req) => {
       rawBody = await req.json();
     } catch {
       return new Response(
-        JSON.stringify({ 
-          error: 'Invalid JSON in request body',
+        JSON.stringify({
+          error: "Invalid JSON in request body",
           questions: getFallbackQuestions(),
           productInsights: null,
-          fallbackReason: "Invalid request format. Using defaults."
+          fallbackReason: "Invalid request format. Using defaults.",
         }),
-        { 
-          status: 200, 
-          headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
-        }
+        {
+          status: 200,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        },
       );
     }
 
@@ -47,34 +48,34 @@ serve(async (req) => {
     if (!validationResult.success) {
       console.error("Input validation failed:", validationResult.error.flatten().fieldErrors);
       return new Response(
-        JSON.stringify({ 
-          error: 'Invalid request data',
+        JSON.stringify({
+          error: "Invalid request data",
           details: validationResult.error.flatten().fieldErrors,
           questions: getFallbackQuestions(),
           productInsights: null,
-          fallbackReason: "Invalid input data. Using defaults."
+          fallbackReason: "Invalid input data. Using defaults.",
         }),
-        { 
+        {
           status: 200, // Return 200 with fallback so user can proceed
-          headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
-        }
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        },
       );
     }
 
     const { url, imageData, productDetails } = validationResult.data;
     const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
-    
+
     if (!LOVABLE_API_KEY) {
       throw new Error("LOVABLE_API_KEY is not configured");
     }
 
     // Build context from validated input
     let contextDescription = "Analyze this product/feature and generate tailored discovery questions:\n\n";
-    
+
     if (url) {
       contextDescription += `URL: ${url}\n`;
     }
-    
+
     if (productDetails) {
       contextDescription += `Product Description: ${productDetails}\n`;
     }
@@ -82,32 +83,40 @@ serve(async (req) => {
     const messages: any[] = [
       {
         role: "system",
-        content: `You are a product analytics expert. Based on the provided product context (URL, screenshot, and/or description), generate 5-6 highly specific discovery questions that will help determine:
-1. The user's primary business objectives for this specific product/feature
-2. What stage this product/feature is at (new, growing, mature)
-3. Key user actions and conversion points
-4. What metrics would be most valuable to track
-5. How users engage with the product
+        content: `1. The core user value this product delivers  
+2. The primary user journey and the most important actions within it  
+3. The key moments that signal success, activation, or conversion  
+4. The biggest friction points or drop-off risks  
+5. What the user (the PM) is trying to improve, diagnose, or understand  
+6. How existing metrics (if any were provided) relate to the product’s value
 
 IMPORTANT RULES:
-- Do NOT ask users which metrics framework they prefer or how they want to visualize metrics. We will determine the best framework based on their answers.
-- EVERY question MUST have exactly 3-4 options with a "value", "label", and "description" field.
-- Options should be specific, mutually exclusive choices that the user can select from.
-- Do NOT create open-ended questions without options.
+- Do NOT ask generic questions like “What stage is your product at?” or “What is your business model?”
+- Every question MUST be grounded in the product context you analyzed.
+- Every question MUST have exactly 3–4 options with a value, label, and description.
+- Options must be mutually exclusive and reflect real product behaviors.
+- Do NOT ask open-ended questions.
+- Do NOT ask about frameworks or visualization preferences.
+- Tailor questions to the product’s actual UI, flows, features, and value proposition.
 
-The questions should reference specific elements from the product context when possible.
+Examples of the types of questions you SHOULD ask:
+- “Which of these actions best represents your product’s primary value moment?”
+- “Which part of the user journey is most critical to improve right now?”
+- “Which user behavior is the strongest indicator of long-term retention?”
+- “Which friction point most affects your core conversion path?”
+- “Which type of user is most important for your product’s success?”
 
-Return a JSON object with this EXACT structure:
+Your output MUST follow this exact JSON structure:
 {
   "questions": [
     {
       "id": "unique_id",
-      "question": "The specific question text",
+      "question": "Specific question text",
       "description": "Why this question matters",
       "type": "single_choice",
       "category": "business|product|metrics",
       "options": [
-        { "value": "option_value_snake_case", "label": "Display Label", "description": "Brief description of this option" },
+        { "value": "option_value_snake_case", "label": "Display Label", "description": "Brief description" },
         { "value": "option_value_2", "label": "Label 2", "description": "Description 2" },
         { "value": "option_value_3", "label": "Label 3", "description": "Description 3" }
       ]
@@ -120,8 +129,11 @@ Return a JSON object with this EXACT structure:
   }
 }
 
-CRITICAL: Each question in the "questions" array MUST have an "options" array with at least 3 options. Never return a question without options.`
-      }
+CRITICAL:
+- Every question MUST have an options array with at least 3 options.
+- Every question MUST be specific to the product context.
+- Never return generic or boilerplate questions.`,
+      },
     ];
 
     // Add image if provided
@@ -130,18 +142,18 @@ CRITICAL: Each question in the "questions" array MUST have an "options" array wi
         role: "user",
         content: [
           { type: "text", text: contextDescription },
-          { 
-            type: "image_url", 
-            image_url: { 
-              url: imageData.startsWith('data:') ? imageData : `data:image/jpeg;base64,${imageData}` 
-            } 
-          }
-        ]
+          {
+            type: "image_url",
+            image_url: {
+              url: imageData.startsWith("data:") ? imageData : `data:image/jpeg;base64,${imageData}`,
+            },
+          },
+        ],
       });
     } else {
       messages.push({
         role: "user",
-        content: contextDescription
+        content: contextDescription,
       });
     }
 
@@ -156,56 +168,65 @@ CRITICAL: Each question in the "questions" array MUST have an "options" array wi
       body: JSON.stringify({
         model: "google/gemini-2.5-flash",
         messages,
-        response_format: { type: "json_object" }
+        response_format: { type: "json_object" },
       }),
     });
 
     if (!response.ok) {
       const errorText = await response.text();
       console.error("AI gateway error:", response.status, errorText);
-      
+
       // For 402 (payment required) and 429 (rate limit), return fallback with 200 so user can proceed
       if (response.status === 402 || response.status === 429) {
-        const errorMessage = response.status === 402 
-          ? "AI credits exhausted. Using default questions." 
-          : "Rate limit exceeded. Using default questions.";
+        const errorMessage =
+          response.status === 402
+            ? "AI credits exhausted. Using default questions."
+            : "Rate limit exceeded. Using default questions.";
         console.log(errorMessage, "Returning fallback questions.");
-        return new Response(JSON.stringify({ 
-          questions: getFallbackQuestions(),
-          productInsights: null,
-          fallbackReason: errorMessage
-        }), {
-          status: 200,
-          headers: { ...corsHeaders, "Content-Type": "application/json" },
-        });
+        return new Response(
+          JSON.stringify({
+            questions: getFallbackQuestions(),
+            productInsights: null,
+            fallbackReason: errorMessage,
+          }),
+          {
+            status: 200,
+            headers: { ...corsHeaders, "Content-Type": "application/json" },
+          },
+        );
       }
-      
+
       throw new Error(`AI gateway error: ${response.status}`);
     }
 
     const data = await response.json();
     let content = data.choices?.[0]?.message?.content || "";
-    
+
     // Strip markdown code fences if present
-    content = content.replace(/```json\n?/g, '').replace(/```\n?/g, '').trim();
-    
+    content = content
+      .replace(/```json\n?/g, "")
+      .replace(/```\n?/g, "")
+      .trim();
+
     const parsedResponse = JSON.parse(content);
 
     return new Response(JSON.stringify(parsedResponse), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
-
   } catch (error) {
     console.error("Error generating discovery questions:", error);
     // Return fallback questions with 200 status so user can still proceed
-    return new Response(JSON.stringify({ 
-      questions: getFallbackQuestions(),
-      productInsights: null,
-      fallbackReason: "Failed to generate tailored questions. Using defaults."
-    }), {
-      status: 200,
-      headers: { ...corsHeaders, "Content-Type": "application/json" },
-    });
+    return new Response(
+      JSON.stringify({
+        questions: getFallbackQuestions(),
+        productInsights: null,
+        fallbackReason: "Failed to generate tailored questions. Using defaults.",
+      }),
+      {
+        status: 200,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      },
+    );
   }
 });
 
