@@ -3,7 +3,7 @@ import { InputSection } from "@/components/InputSection";
 import { ResultsSection } from "@/components/ResultsSection";
 import { FrameworkQuestionsPage } from "@/components/FrameworkQuestionsPage";
 import { MetricsFrameworkView } from "@/components/metrics";
-import { ExistingMetricsStep, MetricsComparison } from "@/components/existing-metrics";
+import { ExistingMetricsStep } from "@/components/existing-metrics";
 import { TaxonomyEvent, Metric } from "@/types/taxonomy";
 import { ExistingMetric } from "@/types/existingMetrics";
 import { FrameworkType } from "@/types/metricsFramework";
@@ -11,7 +11,7 @@ import { useOrchestration } from "@/hooks/useOrchestration";
 import { PageContainer } from "@/components/design-system";
 import { AppHeader } from "@/components/design-system/AppHeader";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { BarChart3, FileSpreadsheet, Sparkles, GitCompare } from "lucide-react";
+import { BarChart3, FileSpreadsheet, Sparkles } from "lucide-react";
 
 type WorkflowStep = 'existing-metrics' | 'input' | 'framework-questions' | 'visualization' | 'results';
 
@@ -21,17 +21,21 @@ const Index = () => {
   const [inputData, setInputData] = useState<{ url?: string; imageData?: string; videoData?: string; productDetails?: string } | null>(null);
   const [frameworkAnswers, setFrameworkAnswers] = useState<Record<string, string>>({});
   const [selectedFramework, setSelectedFramework] = useState<FrameworkType>('driver_tree');
-  const [showComparison, setShowComparison] = useState(false);
   
   const { state, isLoading, newMetricIds, startSession, sendMessage, approve, reset } = useOrchestration();
   const [selectedMetricIds, setSelectedMetricIds] = useState<string[]>([]);
 
-  // Initialize selected metrics when metrics change
+  // Initialize selected metrics when metrics change (include both AI and existing metrics)
   useEffect(() => {
     if (state.metrics.length > 0 && selectedMetricIds.length === 0) {
-      setSelectedMetricIds(state.metrics.map(m => m.id));
+      // Start with all AI-generated metrics selected
+      const aiMetricIds = state.metrics.map(m => m.id);
+      // Also include existing metrics that weren't matched (they'll appear as "Imported" category)
+      const existingMetricIds = existingMetrics.map(m => m.id);
+      const allIds = [...new Set([...aiMetricIds, ...existingMetricIds])];
+      setSelectedMetricIds(allIds);
     }
-  }, [state.metrics]);
+  }, [state.metrics, existingMetrics]);
 
   // Add new metrics to selection automatically
   useEffect(() => {
@@ -92,10 +96,6 @@ const Index = () => {
     
     if (response && response.status !== 'error') {
       setCurrentStep('visualization');
-      // Show comparison panel if user has existing metrics
-      if (existingMetrics.length > 0) {
-        setShowComparison(true);
-      }
     }
   }, [inputData, startSession, existingMetrics]);
 
@@ -109,7 +109,6 @@ const Index = () => {
     setCurrentStep('input');
     setFrameworkAnswers({});
     setSelectedMetricIds([]);
-    setShowComparison(false);
   }, [reset]);
 
   const handleBackToExistingMetrics = useCallback(() => {
@@ -118,7 +117,6 @@ const Index = () => {
     setInputData(null);
     setFrameworkAnswers({});
     setSelectedMetricIds([]);
-    setShowComparison(false);
   }, [reset]);
 
   const handleSendMessage = useCallback(async (message: string) => {
@@ -284,16 +282,6 @@ const Index = () => {
                       </span>
                     )}
                   </TabsTrigger>
-                  {existingMetrics.length > 0 && (
-                    <TabsTrigger 
-                      value="comparison" 
-                      onClick={() => setShowComparison(!showComparison)}
-                      className="data-[state=active]:bg-primary/10 data-[state=active]:text-primary gap-2 px-4"
-                    >
-                      <GitCompare className="h-4 w-4" />
-                      Comparison
-                    </TabsTrigger>
-                  )}
                 </TabsList>
               </Tabs>
             </div>
@@ -301,28 +289,19 @@ const Index = () => {
 
           {/* Content */}
           {currentStep === 'visualization' && (
-            <div className="flex">
-              <div className={existingMetrics.length > 0 && showComparison ? "flex-1 h-[calc(100vh-8rem)]" : "w-full h-[calc(100vh-8rem)]"}>
-                <MetricsFrameworkView
-                  metrics={state.metrics}
-                  selectedMetricIds={selectedMetricIds}
-                  onToggleMetric={toggleMetric}
-                  onApprove={handleApproveMetrics}
-                  isLoading={isLoading}
-                  conversationHistory={state.conversationHistory}
-                  onSendMessage={handleSendMessage}
-                  newMetricIds={newMetricIds}
-                  initialFramework={selectedFramework}
-                />
-              </div>
-              {existingMetrics.length > 0 && showComparison && (
-                <div className="w-96 border-l border-border p-4 overflow-y-auto h-[calc(100vh-8rem)]">
-                  <MetricsComparison
-                    existingMetrics={existingMetrics}
-                    generatedMetrics={state.metrics}
-                  />
-                </div>
-              )}
+            <div className="w-full h-[calc(100vh-8rem)]">
+              <MetricsFrameworkView
+                metrics={state.metrics}
+                selectedMetricIds={selectedMetricIds}
+                onToggleMetric={toggleMetric}
+                onApprove={handleApproveMetrics}
+                isLoading={isLoading}
+                conversationHistory={state.conversationHistory}
+                onSendMessage={handleSendMessage}
+                newMetricIds={newMetricIds}
+                initialFramework={selectedFramework}
+                existingMetrics={existingMetrics}
+              />
             </div>
           )}
 

@@ -1,6 +1,6 @@
 import { useState, useCallback, useMemo, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Check, Eye, List, Star, PanelRightClose, PanelRightOpen, MousePointerClick } from "lucide-react";
+import { Check, Eye, List, Star, PanelRightOpen, MousePointerClick, CheckCircle2, PlusCircle, RefreshCw, HelpCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -8,6 +8,7 @@ import { Badge } from "@/components/ui/badge";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { FrameworkType, FrameworkData, MetricNode, MetricRelationship, FunnelStage, FlywheelLoop } from "@/types/metricsFramework";
 import { Metric } from "@/types/taxonomy";
+import { ExistingMetric } from "@/types/existingMetrics";
 import { FrameworkSelector } from "./FrameworkSelector";
 import { EditableDriverTree } from "./EditableDriverTree";
 import { ConversionFunnelVisualization } from "./ConversionFunnelVisualization";
@@ -15,6 +16,16 @@ import { GrowthFlywheelVisualization } from "./GrowthFlywheelVisualization";
 import { AINarrativePanel } from "./AINarrativePanel";
 import { AgentChat } from "@/components/AgentChat";
 import { ConversationMessage } from "@/types/orchestration";
+
+// Types for merged metrics with comparison status
+type MetricStatus = 'existing' | 'new' | 'needs_update';
+
+interface MergedMetric extends Metric {
+  status: MetricStatus;
+  originalDefinition?: string;
+  updateReason?: string;
+  isUserImported?: boolean;
+}
 
 interface MetricsFrameworkViewProps {
   metrics: Metric[];
@@ -26,6 +37,28 @@ interface MetricsFrameworkViewProps {
   onSendMessage: (message: string) => void;
   newMetricIds?: string[];
   initialFramework?: FrameworkType;
+  existingMetrics?: ExistingMetric[];
+}
+
+// Simple Levenshtein distance for string similarity
+function levenshteinDistance(str1: string, str2: string): number {
+  const m = str1.length;
+  const n = str2.length;
+  const dp: number[][] = Array(m + 1).fill(null).map(() => Array(n + 1).fill(0));
+
+  for (let i = 0; i <= m; i++) dp[i][0] = i;
+  for (let j = 0; j <= n; j++) dp[0][j] = j;
+
+  for (let i = 1; i <= m; i++) {
+    for (let j = 1; j <= n; j++) {
+      if (str1[i - 1] === str2[j - 1]) {
+        dp[i][j] = dp[i - 1][j - 1];
+      } else {
+        dp[i][j] = 1 + Math.min(dp[i - 1][j], dp[i][j - 1], dp[i - 1][j - 1]);
+      }
+    }
+  }
+  return dp[m][n];
 }
 
 export function MetricsFrameworkView({
@@ -38,6 +71,7 @@ export function MetricsFrameworkView({
   onSendMessage,
   newMetricIds = [],
   initialFramework = 'driver_tree',
+  existingMetrics = [],
 }: MetricsFrameworkViewProps) {
   const [selectedFramework, setSelectedFramework] = useState<FrameworkType>(initialFramework);
   const [selectedMetric, setSelectedMetric] = useState<MetricNode | null>(null);
@@ -56,9 +90,78 @@ export function MetricsFrameworkView({
     }
   }, [selectedMetric]);
 
-  // Convert Metric[] to MetricNode[] with 3-level hierarchy
+  // Merge existing metrics with AI-generated metrics and determine status
+  const mergedMetrics: MergedMetric[] = useMemo(() => {
+    const result: MergedMetric[] = [];
+    const matchedExistingIds = new Set<string>();
+
+    // First, process AI-generated metrics and match with existing
+    for (const generated of metrics) {
+      const normalizedGenName = generated.name.toLowerCase().replace(/[^a-z0-9]/g, '');
+      
+      // Find matching existing metric by name similarity
+      const matchingExisting = existingMetrics.find(existing => {
+        const normalizedExistName = existing.name.toLowerCase().replace(/[^a-z0-9]/g, '');
+        return normalizedGenName.includes(normalizedExistName) || 
+               normalizedExistName.includes(normalizedGenName) ||
+               levenshteinDistance(normalizedGenName, normalizedExistName) < 3;
+      });
+
+      if (matchingExisting) {
+        matchedExistingIds.add(matchingExisting.id);
+        
+        // Check if definitions differ significantly
+        const definitionsDiffer = matchingExisting.definition && generated.description &&
+          levenshteinDistance(
+            matchingExisting.definition.toLowerCase(),
+            generated.description.toLowerCase()
+          ) > Math.min(matchingExisting.definition.length, generated.description.length) * 0.3;
+
+        result.push({
+          ...generated,
+          status: definitionsDiffer ? 'needs_update' : 'existing',
+          originalDefinition: matchingExisting.definition,
+          updateReason: definitionsDiffer 
+            ? `AI suggests updated definition` 
+            : undefined,
+        });
+      } else {
+        result.push({
+          ...generated,
+          status: 'new',
+        });
+      }
+    }
+
+    // Add existing metrics that weren't matched (user-imported but not in AI recommendations)
+    for (const existing of existingMetrics) {
+      if (!matchedExistingIds.has(existing.id)) {
+        result.push({
+          id: existing.id,
+          name: existing.name,
+          description: existing.definition,
+          category: 'Imported',
+          example_events: [],
+          status: 'existing',
+          isUserImported: true,
+        });
+      }
+    }
+
+    return result;
+  }, [metrics, existingMetrics]);
+
+  // Stats for the summary
+  const metricStats = useMemo(() => {
+    const existing = mergedMetrics.filter(m => m.status === 'existing').length;
+    const newMetrics = mergedMetrics.filter(m => m.status === 'new').length;
+    const needsUpdate = mergedMetrics.filter(m => m.status === 'needs_update').length;
+    return { existing, newMetrics, needsUpdate, total: mergedMetrics.length };
+  }, [mergedMetrics]);
+
+  // Convert merged metrics to MetricNode[] with 3-level hierarchy (includes existing + AI metrics)
   const metricNodes: MetricNode[] = useMemo(() => {
-    const selectedMetrics = metrics.filter((m) => selectedMetricIds.includes(m.id));
+    const selectedMetrics = mergedMetrics.filter((m) => selectedMetricIds.includes(m.id));
     if (selectedMetrics.length === 0) return [];
 
     // Determine North Star (first metric or explicit northStarId)
@@ -120,7 +223,7 @@ export function MetricsFrameworkView({
         trendPercentage: Math.floor(Math.random() * 20) + 1,
       };
     });
-  }, [metrics, selectedMetricIds, northStarId]);
+  }, [mergedMetrics, selectedMetricIds, northStarId]);
 
   // Build relationships based on parent-child hierarchy
   const relationships: MetricRelationship[] = useMemo(() => {
@@ -317,14 +420,41 @@ export function MetricsFrameworkView({
           <TabsContent value="selection" className="flex-1 m-0 relative overflow-hidden">
             <div className="absolute inset-0 overflow-auto">
               <div className="p-6 space-y-4 pb-12">
+                {/* Summary Stats - only show if there are existing metrics */}
+                {existingMetrics.length > 0 && (
+                  <div className="grid grid-cols-3 gap-3 mb-6">
+                    <div className="flex items-center gap-2 p-3 bg-green-500/10 rounded-lg border border-green-500/20">
+                      <CheckCircle2 className="w-5 h-5 text-green-600" />
+                      <div>
+                        <p className="text-2xl font-bold text-green-600">{metricStats.existing}</p>
+                        <p className="text-xs text-muted-foreground">Existing</p>
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-2 p-3 bg-blue-500/10 rounded-lg border border-blue-500/20">
+                      <PlusCircle className="w-5 h-5 text-blue-600" />
+                      <div>
+                        <p className="text-2xl font-bold text-blue-600">{metricStats.newMetrics}</p>
+                        <p className="text-xs text-muted-foreground">New (AI)</p>
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-2 p-3 bg-amber-500/10 rounded-lg border border-amber-500/20">
+                      <RefreshCw className="w-5 h-5 text-amber-600" />
+                      <div>
+                        <p className="text-2xl font-bold text-amber-600">{metricStats.needsUpdate}</p>
+                        <p className="text-xs text-muted-foreground">Update</p>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
                 {/* Group metrics by category */}
                 {Object.entries(
-                  metrics.reduce((acc, metric) => {
+                  mergedMetrics.reduce((acc, metric) => {
                     const category = metric.category || 'Uncategorized';
                     if (!acc[category]) acc[category] = [];
                     acc[category].push(metric);
                     return acc;
-                  }, {} as Record<string, Metric[]>)
+                  }, {} as Record<string, MergedMetric[]>)
                 ).map(([category, categoryMetrics]) => (
                   <div key={category} className="space-y-2">
                     <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide">
@@ -333,8 +463,7 @@ export function MetricsFrameworkView({
                     <div className="grid gap-2">
                       {categoryMetrics.map((metric) => {
                         const isSelected = selectedMetricIds.includes(metric.id);
-                        const isNew = newMetricIds.includes(metric.id);
-                        const currentNorthStarId = northStarId || (selectedMetricIds.length > 0 ? metrics.find(m => selectedMetricIds.includes(m.id))?.id : null);
+                        const currentNorthStarId = northStarId || (selectedMetricIds.length > 0 ? mergedMetrics.find(m => selectedMetricIds.includes(m.id))?.id : null);
                         const isNorthStar = metric.id === currentNorthStarId;
                         
                         return (
@@ -346,7 +475,8 @@ export function MetricsFrameworkView({
                                 ? 'bg-primary/10 border-primary/50' 
                                 : 'bg-card hover:bg-accent/50 border-border'
                               }
-                              ${isNew ? 'ring-2 ring-primary/50 ring-offset-2' : ''}
+                              ${metric.status === 'new' ? 'ring-2 ring-blue-500/30' : ''}
+                              ${metric.status === 'needs_update' ? 'ring-2 ring-amber-500/30' : ''}
                               ${isNorthStar && isSelected ? 'ring-2 ring-amber-500/50' : ''}
                             `}
                           >
@@ -360,11 +490,48 @@ export function MetricsFrameworkView({
                                 className="flex-1 min-w-0 cursor-pointer"
                                 onClick={() => onToggleMetric(metric.id)}
                               >
-                                <div className="flex items-center gap-2">
+                                <div className="flex items-center gap-2 flex-wrap">
                                   <span className="font-medium">{metric.name}</span>
-                                  {isNew && (
-                                    <Badge variant="default" className="text-xs">New</Badge>
+                                  
+                                  {/* Status badges */}
+                                  {metric.status === 'existing' && existingMetrics.length > 0 && (
+                                    <Badge variant="outline" className="text-xs bg-green-500/10 text-green-600 border-green-500/20">
+                                      <CheckCircle2 className="w-3 h-3 mr-1" />
+                                      Existing
+                                    </Badge>
                                   )}
+                                  {metric.status === 'new' && (
+                                    <Badge variant="outline" className="text-xs bg-blue-500/10 text-blue-600 border-blue-500/20">
+                                      <PlusCircle className="w-3 h-3 mr-1" />
+                                      New (AI)
+                                    </Badge>
+                                  )}
+                                  {metric.status === 'needs_update' && (
+                                    <TooltipProvider>
+                                      <Tooltip>
+                                        <TooltipTrigger asChild>
+                                          <Badge variant="outline" className="text-xs bg-amber-500/10 text-amber-600 border-amber-500/20 cursor-help">
+                                            <RefreshCw className="w-3 h-3 mr-1" />
+                                            Update
+                                          </Badge>
+                                        </TooltipTrigger>
+                                        <TooltipContent className="max-w-xs">
+                                          <p className="text-sm font-medium mb-1">Definition update suggested</p>
+                                          {metric.originalDefinition && (
+                                            <p className="text-xs text-muted-foreground">
+                                              <strong>Original:</strong> {metric.originalDefinition}
+                                            </p>
+                                          )}
+                                        </TooltipContent>
+                                      </Tooltip>
+                                    </TooltipProvider>
+                                  )}
+                                  {metric.isUserImported && (
+                                    <Badge variant="outline" className="text-xs bg-purple-500/10 text-purple-600 border-purple-500/20">
+                                      Imported
+                                    </Badge>
+                                  )}
+                                  
                                   {isNorthStar && isSelected && (
                                     <Badge variant="outline" className="text-xs bg-amber-500/10 text-amber-600 border-amber-500/30">
                                       <Star className="w-3 h-3 mr-1 fill-amber-500" />
@@ -385,32 +552,56 @@ export function MetricsFrameworkView({
                                   </div>
                                 )}
                               </div>
-                              {isSelected && (
-                                <TooltipProvider>
-                                  <Tooltip>
-                                    <TooltipTrigger asChild>
-                                      <button
-                                        onClick={(e) => {
-                                          e.stopPropagation();
-                                          handleSetNorthStar(metric.id);
-                                        }}
-                                        className={`
-                                          p-1.5 rounded-md transition-all
-                                          ${isNorthStar 
-                                            ? 'text-amber-500 bg-amber-500/10' 
-                                            : 'text-muted-foreground hover:text-amber-500 hover:bg-amber-500/10'
-                                          }
-                                        `}
-                                      >
-                                        <Star className={`w-4 h-4 ${isNorthStar ? 'fill-amber-500' : ''}`} />
-                                      </button>
-                                    </TooltipTrigger>
-                                    <TooltipContent>
-                                      {isNorthStar ? 'Current North Star' : 'Set as North Star'}
-                                    </TooltipContent>
-                                  </Tooltip>
-                                </TooltipProvider>
-                              )}
+                              
+                              {/* North Star button + Question prompt for imported metrics */}
+                              <div className="flex items-center gap-1">
+                                {metric.isUserImported && !isNorthStar && (
+                                  <TooltipProvider>
+                                    <Tooltip>
+                                      <TooltipTrigger asChild>
+                                        <button
+                                          onClick={(e) => {
+                                            e.stopPropagation();
+                                            onSendMessage(`Should "${metric.name}" be considered a North Star metric or a core driver? Here's its definition: ${metric.description}`);
+                                          }}
+                                          className="p-1.5 rounded-md text-muted-foreground hover:text-primary hover:bg-primary/10 transition-all"
+                                        >
+                                          <HelpCircle className="w-4 h-4" />
+                                        </button>
+                                      </TooltipTrigger>
+                                      <TooltipContent>
+                                        Ask AI about this metric's role
+                                      </TooltipContent>
+                                    </Tooltip>
+                                  </TooltipProvider>
+                                )}
+                                {isSelected && (
+                                  <TooltipProvider>
+                                    <Tooltip>
+                                      <TooltipTrigger asChild>
+                                        <button
+                                          onClick={(e) => {
+                                            e.stopPropagation();
+                                            handleSetNorthStar(metric.id);
+                                          }}
+                                          className={`
+                                            p-1.5 rounded-md transition-all
+                                            ${isNorthStar 
+                                              ? 'text-amber-500 bg-amber-500/10' 
+                                              : 'text-muted-foreground hover:text-amber-500 hover:bg-amber-500/10'
+                                            }
+                                          `}
+                                        >
+                                          <Star className={`w-4 h-4 ${isNorthStar ? 'fill-amber-500' : ''}`} />
+                                        </button>
+                                      </TooltipTrigger>
+                                      <TooltipContent>
+                                        {isNorthStar ? 'Current North Star' : 'Set as North Star'}
+                                      </TooltipContent>
+                                    </Tooltip>
+                                  </TooltipProvider>
+                                )}
+                              </div>
                             </div>
                           </div>
                         );
