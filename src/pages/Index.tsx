@@ -80,18 +80,21 @@ const Index = () => {
     setFrameworkAnswers(answers);
     setSelectedFramework(framework);
     
-    // Build existing metrics context for AI
-    const existingMetricsContext = existingMetrics.length > 0
-      ? `\n\nExisting Metrics the user already tracks:\n${existingMetrics.map(m => `- ${m.name}: ${m.definition}`).join('\n')}\n\nIMPORTANT: Consider these existing metrics when making recommendations. Reuse them where appropriate, identify gaps, and suggest improvements where needed.`
-      : '';
-    
+    // Build product details with user context
     const enrichedProductDetails = inputData?.productDetails 
-      ? `${inputData.productDetails}\n\nUser Context:\n- Primary Goal: ${answers.primary_goal}\n- Product Stage: ${answers.product_stage}\n- Business Model: ${answers.business_model}\n- Key Actions: ${answers.key_actions || 'Not specified'}\n- North Star Focus: ${answers.north_star_focus}\n- Preferred Framework: ${framework}${existingMetricsContext}`
-      : `User Context:\n- Primary Goal: ${answers.primary_goal}\n- Product Stage: ${answers.product_stage}\n- Business Model: ${answers.business_model}\n- Key Actions: ${answers.key_actions || 'Not specified'}\n- North Star Focus: ${answers.north_star_focus}\n- Preferred Framework: ${framework}${existingMetricsContext}`;
+      ? `${inputData.productDetails}\n\nUser Context:\n- Primary Goal: ${answers.primary_goal}\n- Product Stage: ${answers.product_stage}\n- Business Model: ${answers.business_model}\n- Key Actions: ${answers.key_actions || 'Not specified'}\n- North Star Focus: ${answers.north_star_focus}\n- Preferred Framework: ${framework}`
+      : `User Context:\n- Primary Goal: ${answers.primary_goal}\n- Product Stage: ${answers.product_stage}\n- Business Model: ${answers.business_model}\n- Key Actions: ${answers.key_actions || 'Not specified'}\n- North Star Focus: ${answers.north_star_focus}\n- Preferred Framework: ${framework}`;
 
+    // Pass existing metrics to the orchestration
     const response = await startSession({
       ...inputData,
       productDetails: enrichedProductDetails,
+      existingMetrics: existingMetrics.map(m => ({
+        id: m.id,
+        name: m.name,
+        definition: m.definition,
+        source: m.source,
+      })),
     });
     
     if (response && response.status !== 'error') {
