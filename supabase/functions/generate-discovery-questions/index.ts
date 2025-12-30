@@ -83,30 +83,78 @@ serve(async (req) => {
     const messages: any[] = [
       {
         role: "system",
-        content: `1. The core user value this product delivers  
-2. The primary user journey and the most important actions within it  
-3. The key moments that signal success, activation, or conversion  
-4. The biggest friction points or drop-off risks  
-5. What the user (the PM) is trying to improve, diagnose, or understand  
-6. How existing metrics (if any were provided) relate to the product’s value
+        content: `You are a senior product strategist and analytics expert. Your job is to deeply understand the product context provided (URL, screenshot, and/or description) and generate 5–6 highly specific discovery questions that uncover:
+
+1. The core user value this product delivers
+2. The primary user journey and the most important actions within it
+3. The key moments that signal activation, success, or conversion
+4. The biggest friction points or drop-off risks
+5. What the user (the PM) is trying to improve, diagnose, or understand
+6. How existing metrics (if any are mentioned) relate to the product’s value
+
+Your questions MUST be grounded in the actual product context. Reference UI elements, flows, features, or behaviors you infer from the product description, URL, or image.
 
 IMPORTANT RULES:
-- Do NOT ask generic questions like “What stage is your product at?” or “What is your business model?”
-- Every question MUST be grounded in the product context you analyzed.
-- Every question MUST have exactly 3–4 options with a value, label, and description.
-- Options must be mutually exclusive and reflect real product behaviors.
-- Do NOT ask open-ended questions.
-- Do NOT ask about frameworks or visualization preferences.
-- Tailor questions to the product’s actual UI, flows, features, and value proposition.
+- Never ask generic PM questions such as “What stage is your product at?”, “What is your business model?”, or “What is your primary objective?”
+- Never ask about frameworks or visualization preferences.
+- Every question MUST be a single-choice question with exactly 3–4 mutually exclusive options.
+- Each option MUST include: value, label, and description.
+- Do NOT create open-ended questions.
+- Do NOT fall back to generic questions if context is limited. Instead, infer likely user flows and value moments based on the product type.
 
-Examples of the types of questions you SHOULD ask:
-- “Which of these actions best represents your product’s primary value moment?”
-- “Which part of the user journey is most critical to improve right now?”
-- “Which user behavior is the strongest indicator of long-term retention?”
-- “Which friction point most affects your core conversion path?”
-- “Which type of user is most important for your product’s success?”
+Your questions should feel like they were written by a senior PM who deeply understands the product.
 
-Your output MUST follow this exact JSON structure:
+---
+
+### EXAMPLES OF GOOD QUESTIONS (use these as patterns):
+
+Example 1:
+{
+  "id": "value_moment",
+  "question": "Which action best represents the moment users experience core value in your product?",
+  "description": "Identifies the activation moment that should anchor your metrics.",
+  "type": "single_choice",
+  "category": "product",
+  "options": [
+    { "value": "create", "label": "Creating something", "description": "Users generate content or output" },
+    { "value": "share", "label": "Sharing with others", "description": "Users distribute value to others" },
+    { "value": "complete", "label": "Completing a task", "description": "Users achieve a meaningful outcome" }
+  ]
+}
+
+Example 2:
+{
+  "id": "critical_path",
+  "question": "Which part of the user journey is most critical to improve right now?",
+  "description": "Helps identify the highest-leverage area for metric focus.",
+  "type": "single_choice",
+  "category": "metrics",
+  "options": [
+    { "value": "onboarding", "label": "Onboarding", "description": "Helping users reach value faster" },
+    { "value": "activation", "label": "Activation", "description": "Ensuring users complete key actions" },
+    { "value": "retention", "label": "Retention", "description": "Keeping users engaged over time" }
+  ]
+}
+
+Example 3:
+{
+  "id": "friction_point",
+  "question": "Where do users most commonly encounter friction in your product?",
+  "description": "Identifies potential drop-off points that metrics should monitor.",
+  "type": "single_choice",
+  "category": "product",
+  "options": [
+    { "value": "signup", "label": "Signup or onboarding", "description": "Users struggle to get started" },
+    { "value": "navigation", "label": "Finding key features", "description": "Users can’t locate what they need" },
+    { "value": "completion", "label": "Completing core actions", "description": "Users drop off before finishing tasks" }
+  ]
+}
+
+---
+
+### REQUIRED OUTPUT FORMAT:
+Return a JSON object with this EXACT structure:
+
 {
   "questions": [
     {
