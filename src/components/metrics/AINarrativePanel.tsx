@@ -62,7 +62,7 @@ export function AINarrativePanel({
   };
 
   return (
-    <div className="h-full flex flex-col bg-card border-l">
+    <div className="h-full flex flex-col bg-card border-l w-80 min-w-80 max-w-80">
       {/* Header */}
       <div className="p-4 border-b">
         <div className="flex items-center justify-between">
@@ -174,11 +174,11 @@ export function AINarrativePanel({
                     </div>
                   </div>
                 ) : (
-                  <div className="space-y-4">
+                  <div className="space-y-4 overflow-hidden">
                     {/* Metric Name & Tags */}
-                    <div className="p-3 bg-muted/50 rounded-lg">
-                      <div className="flex items-start justify-between gap-2">
-                        <h5 className="font-semibold text-base">{selectedMetric.name}</h5>
+                    <div className="p-3 bg-muted/50 rounded-lg overflow-hidden">
+                      <div className="flex items-start justify-between gap-2 min-w-0">
+                        <h5 className="font-semibold text-base break-words min-w-0">{selectedMetric.name}</h5>
                         {selectedMetric.isNorthStar && (
                           <Badge className="text-xs bg-primary/10 text-primary border-primary/30 shrink-0">
                             ⭐ North Star
@@ -218,14 +218,14 @@ export function AINarrativePanel({
 
                     {/* Calculation */}
                     {selectedMetric.calculation && (
-                      <div className="p-3 bg-muted/30 border border-border/50 rounded-lg">
+                      <div className="p-3 bg-muted/30 border border-border/50 rounded-lg overflow-hidden">
                         <div className="flex items-center gap-1.5 mb-1.5">
-                          <Calculator className="w-3.5 h-3.5 text-muted-foreground" />
+                          <Calculator className="w-3.5 h-3.5 text-muted-foreground shrink-0" />
                           <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
                             Calculation
                           </p>
                         </div>
-                        <p className="text-sm font-mono text-foreground">
+                        <p className="text-sm font-mono text-foreground break-all">
                           {selectedMetric.calculation}
                         </p>
                       </div>
@@ -249,9 +249,9 @@ export function AINarrativePanel({
                         <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide mb-2">
                           Related Events
                         </p>
-                        <div className="flex flex-wrap gap-1">
+                        <div className="flex flex-wrap gap-1.5">
                           {selectedMetric.example_events.map((event, i) => (
-                            <Badge key={i} variant="outline" className="text-xs font-mono">
+                            <Badge key={i} variant="outline" className="text-xs font-mono break-all max-w-full">
                               {event}
                             </Badge>
                           ))}
