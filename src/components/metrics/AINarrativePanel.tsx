@@ -62,7 +62,7 @@ export function AINarrativePanel({
   };
 
   return (
-    <div className="h-full flex flex-col bg-card border-l w-80 min-w-80 max-w-80">
+    <div className="h-full flex flex-col bg-card border-l w-full min-w-0">
       {/* Header */}
       <div className="p-4 border-b">
         <div className="flex items-center justify-between">
@@ -211,7 +211,7 @@ export function AINarrativePanel({
                       <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide mb-1.5">
                         Definition
                       </p>
-                      <p className="text-sm text-foreground leading-relaxed">
+                      <p className="text-sm text-foreground leading-relaxed break-words">
                         {selectedMetric.description}
                       </p>
                     </div>
