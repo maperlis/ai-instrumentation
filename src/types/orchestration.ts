@@ -11,6 +11,13 @@ export type OrchestrationStatus = 'idle' | 'processing' | 'waiting_approval' | '
 export type ApprovalType = 'metrics' | 'taxonomy';
 export type ActionType = 'start' | 'continue' | 'approve' | 'reject' | 'answer_questions';
 
+export interface ExistingMetricInput {
+  id: string;
+  name: string;
+  definition?: string;
+  source?: 'csv' | 'pasted' | 'manual';
+}
+
 export interface OrchestrationRequest {
   sessionId?: string;
   url?: string;
@@ -25,6 +32,7 @@ export interface OrchestrationRequest {
   approvalType?: ApprovalType;
   clarifyingAnswers?: Record<string, string>;
   selectedFramework?: FrameworkType;
+  existingMetrics?: ExistingMetricInput[];
   // For stateless operation - client sends back context
   inputData?: {
     url?: string;

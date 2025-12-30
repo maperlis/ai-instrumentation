@@ -47,6 +47,14 @@ const optionalUrl = z.string().max(2000).optional().transform(val => {
   }
 });
 
+// Schema for existing metrics from user imports
+const existingMetricSchema = z.object({
+  id: z.string().max(100),
+  name: z.string().max(200),
+  definition: z.string().max(1000).optional(),
+  source: z.enum(['csv', 'pasted', 'manual']).optional(),
+}).passthrough();
+
 const requestSchema = z.object({
   sessionId: z.string().max(100).optional(),
   url: optionalUrl,
@@ -67,6 +75,7 @@ const requestSchema = z.object({
   }).optional(),
   metrics: z.array(metricSchema).max(50).optional(),
   events: z.array(eventSchema).max(200).optional(),
+  existingMetrics: z.array(existingMetricSchema).max(100).optional(),
 });
 
 // Agent prompts
@@ -96,45 +105,70 @@ Return ONLY a valid JSON object with this structure:
   ]
 }`;
 
-const PRODUCT_ANALYST_PROMPT = `You are a Product Analytics Specialist. Analyze the product and recommend 5-8 key metrics that should be measured.
+const PRODUCT_ANALYST_PROMPT = `You are a senior Product Analytics Specialist. Your role is to analyze the product context and existing metrics to recommend a tailored metrics framework.
 
-Consider the recommended framework: {framework}
-User's clarifying answers: {clarifyingAnswers}
+## Your Context
+- Recommended framework: {framework}
+- User's answers: {clarifyingAnswers}
+- Existing metrics user tracks: {existingMetrics}
+- Content context: {contentContext}
 
-Group metrics by category (Acquisition, Engagement, Retention, Monetization, Product Usage).
+## Your Approach
 
-For each metric, include:
-- A "level" (0 for North Star, 1 for primary drivers, 2 for secondary/operational metrics)
-- An "influenceDescription" explaining how this metric drives the metrics above it
-- A "calculation" formula showing how the metric is computed (e.g., "signup_completed_count / page_viewed_count * 100")
-- 3-4 "businessQuestions" that can be answered by analyzing this metric
-- "example_events": CRITICAL - these MUST be the exact events referenced in the calculation formula. Use snake_case event names that match what's in the calculation.
+**Context-Aware Analysis:**
+1. Study the existing metrics the user uploaded. Identify what they're already measuring well.
+2. Use the content (URL, image, video, product description) to understand their product deeply.
+3. Identify gaps between what they measure and what they NEED to measure for their stated goals.
+4. Reuse existing metrics where they align with best practices. Don't reinvent the wheel.
 
-IMPORTANT: The example_events array must contain ONLY the events that are used to compute the calculation. For example:
-- If calculation is "signup_completed_count / landing_page_viewed_count * 100", then example_events should be ["signup_completed", "landing_page_viewed"]
-- If calculation is "returning_users_count / total_users_count * 100", then example_events should be ["user_session_started"] (the event used to identify users)
+**Metric Recommendations:**
+For each metric, determine its status:
+- "existing" - The user already tracks this (match by name or definition similarity)
+- "new" - A gap the user should start tracking
+- "needs_update" - An existing metric that needs refinement (better definition, calculation, etc.)
 
-Return ONLY a valid JSON object with this exact structure:
+## Output Format
+
+Return ONLY a valid JSON object:
 {
   "metrics": [
     {
-      "id": "signup_conversion_rate",
-      "name": "Signup Conversion Rate",
-      "description": "Percentage of landing page visitors who complete signup",
-      "category": "Acquisition",
-      "example_events": ["signup_completed", "landing_page_viewed"],
-      "level": 1,
-      "influenceDescription": "Higher signup conversion directly increases active user count",
-      "calculation": "signup_completed_count / landing_page_viewed_count * 100",
+      "id": "metric_id_snake_case",
+      "name": "Metric Name",
+      "description": "Clear, actionable description",
+      "category": "Acquisition|Engagement|Retention|Monetization|Product Usage",
+      "status": "existing|new|needs_update",
+      "matchedExistingMetric": "Name of matched existing metric (if status is existing or needs_update)",
+      "updateReason": "Why this metric needs refinement (if status is needs_update)",
+      "example_events": ["event_from_calculation_1", "event_from_calculation_2"],
+      "level": 0|1|2,
+      "influenceDescription": "How this metric drives metrics above it",
+      "calculation": "formula showing how metric is computed",
       "businessQuestions": [
-        "Which traffic sources have the highest signup conversion?",
-        "How does signup conversion vary by device type?",
-        "What is the impact of form changes on conversion?",
-        "At which step do most users drop off?"
+        "What business question can this answer?",
+        "How does this vary across segments?",
+        "What factors influence this?"
       ]
     }
   ],
-  "analysis": "Brief analysis of the product and why these metrics matter. Be conversational, mention the framework choice, and explain the metric relationships. ✨ Add a touch of personality."
+  "executiveSummary": [
+    "**Key Finding 1:** Brief insight about their measurement maturity",
+    "**Key Finding 2:** Most critical gap identified",
+    "**Key Finding 3:** Quick win opportunity",
+    "**Recommendation:** Overall strategic direction"
+  ],
+  "existingMetricsInsights": "Analysis of their current metrics: what's strong, what's missing, what needs work",
+  "recommendedInstrumentationPlan": [
+    "**Phase 1:** Immediate quick wins (1-2 weeks)",
+    "**Phase 2:** Core instrumentation (2-4 weeks)", 
+    "**Phase 3:** Advanced analytics (4-8 weeks)"
+  ],
+  "nextSteps": [
+    "First concrete action item",
+    "Second concrete action item",
+    "Third concrete action item"
+  ],
+  "analysis": "Brief, executive-friendly analysis (3-4 sentences max). Mention the framework choice and key relationships."
 }`;
 
 const INSTRUMENTATION_ARCHITECT_PROMPT = `You are an Instrumentation Architect. Generate a comprehensive event taxonomy optimized for measuring these metrics: {selectedMetrics}.
@@ -469,9 +503,10 @@ serve(async (req) => {
       inputData: providedInputData,
       metrics: providedMetrics,
       events: providedEvents,
+      existingMetrics: providedExistingMetrics,
     } = validationResult.data;
 
-    console.log("Mode:", mode, "Action:", action, "Session:", sessionId);
+    console.log("Mode:", mode, "Action:", action, "Session:", sessionId, "ExistingMetrics:", providedExistingMetrics?.length || 0);
 
     const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
     if (!LOVABLE_API_KEY) {
@@ -530,16 +565,52 @@ serve(async (req) => {
       
       const userContent = buildUserContent(inputData);
       
+      // Build existing metrics context string
+      const existingMetricsStr = providedExistingMetrics && providedExistingMetrics.length > 0
+        ? providedExistingMetrics.map((m: any) => `- ${m.name}: ${m.definition || 'No definition provided'}`).join('\n')
+        : 'None provided - user is starting fresh';
+      
+      // Build content context string
+      const contentContextParts: string[] = [];
+      if (inputData.url) contentContextParts.push(`URL analyzed: ${inputData.url}`);
+      if (inputData.imageData) contentContextParts.push('Product screenshot/mockup provided');
+      if (inputData.videoData) contentContextParts.push('Product video frame provided');
+      if (inputData.productDetails) contentContextParts.push(`Product description: ${inputData.productDetails.substring(0, 500)}...`);
+      const contentContext = contentContextParts.length > 0 
+        ? contentContextParts.join('\n') 
+        : 'Limited context provided';
+      
       // First, get framework recommendation
       const frameworkResult = await callLovableAI(FRAMEWORK_RECOMMENDATION_PROMPT, userContent, LOVABLE_API_KEY);
       console.log("Framework recommendation:", frameworkResult.recommendedFramework);
       
-      // Then get metrics with framework context
+      // Then get metrics with full context
       const metricsPrompt = PRODUCT_ANALYST_PROMPT
         .replace('{framework}', frameworkResult.recommendedFramework || 'driver_tree')
-        .replace('{clarifyingAnswers}', 'None yet');
+        .replace('{clarifyingAnswers}', 'Extracted from product context')
+        .replace('{existingMetrics}', existingMetricsStr)
+        .replace('{contentContext}', contentContext);
       
       const metricsResult = await callLovableAI(metricsPrompt, userContent, LOVABLE_API_KEY);
+      
+      // Build executive summary for chat display
+      const executiveSummary = metricsResult.executiveSummary 
+        ? `**Executive Summary**\n${metricsResult.executiveSummary.map((s: string) => `• ${s}`).join('\n')}`
+        : '';
+      
+      const existingInsights = metricsResult.existingMetricsInsights
+        ? `\n\n**Insights Based on Your Existing Metrics**\n${metricsResult.existingMetricsInsights}`
+        : '';
+        
+      const instrumentationPlan = metricsResult.recommendedInstrumentationPlan
+        ? `\n\n**Recommended Instrumentation Plan**\n${metricsResult.recommendedInstrumentationPlan.map((p: string) => `• ${p}`).join('\n')}`
+        : '';
+        
+      const nextSteps = metricsResult.nextSteps
+        ? `\n\n**Next Steps**\n${metricsResult.nextSteps.map((s: string) => `• ${s}`).join('\n')}`
+        : '';
+      
+      const fullAnalysis = `${executiveSummary}${existingInsights}${instrumentationPlan}${nextSteps}`.trim() || metricsResult.analysis || 'Here are the key metrics I recommend tracking.';
 
       return new Response(JSON.stringify({
         sessionId: newSessionId,
@@ -548,6 +619,10 @@ serve(async (req) => {
         approvalType: 'metrics',
         metrics: metricsResult.metrics,
         analysis: metricsResult.analysis,
+        executiveSummary: metricsResult.executiveSummary,
+        existingMetricsInsights: metricsResult.existingMetricsInsights,
+        recommendedInstrumentationPlan: metricsResult.recommendedInstrumentationPlan,
+        nextSteps: metricsResult.nextSteps,
         inputData,
         frameworkRecommendation: {
           recommendedFramework: frameworkResult.recommendedFramework,
@@ -557,7 +632,7 @@ serve(async (req) => {
         clarifyingQuestions: frameworkResult.clarifyingQuestions || [],
         conversationHistory: [
           { role: 'assistant', agent: 'Product Analyst', content: frameworkResult.reasoning || 'I have analyzed your product.' },
-          { role: 'assistant', agent: 'Product Analyst', content: metricsResult.analysis || 'Here are the key metrics I recommend tracking.' }
+          { role: 'assistant', agent: 'Product Analyst', content: fullAnalysis }
         ]
       }), {
         headers: { ...corsHeaders, "Content-Type": "application/json" },

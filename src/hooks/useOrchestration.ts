@@ -87,9 +87,12 @@ export function useOrchestration() {
     imageData?: string;
     videoData?: string;
     productDetails?: string;
+    existingMetrics?: { id: string; name: string; definition?: string; source?: 'csv' | 'pasted' | 'manual' }[];
   }) => {
+    const { existingMetrics, ...rest } = inputData;
     const response = await invokeOrchestration({
-      ...inputData,
+      ...rest,
+      existingMetrics,
       action: 'start',
       mode: 'metrics',
     });
