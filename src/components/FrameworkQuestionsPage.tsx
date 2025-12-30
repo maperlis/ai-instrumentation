@@ -271,6 +271,37 @@ export function FrameworkQuestionsPage({ onBack, onComplete, isLoading: external
 
   return (
     <div className="min-h-[calc(100vh-4rem)] bg-gradient-to-b from-background to-muted/30">
+      {/* Full-screen loading overlay when generating metrics */}
+      <AnimatePresence>
+        {externalLoading && showFrameworkSelection && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-50 flex items-center justify-center bg-background/80 backdrop-blur-sm"
+          >
+            <Card className="p-8 max-w-md text-center bg-card/90 backdrop-blur-sm shadow-2xl border-primary/20">
+              <div className="w-16 h-16 rounded-full bg-primary/10 flex items-center justify-center mx-auto mb-4">
+                <motion.div
+                  animate={{ rotate: 360 }}
+                  transition={{ duration: 2, repeat: Infinity, ease: "linear" }}
+                >
+                  <Sparkles className="w-8 h-8 text-primary" />
+                </motion.div>
+              </div>
+              <h3 className="text-xl font-semibold mb-2">Generating Your Metrics Framework</h3>
+              <p className="text-muted-foreground">
+                Building a personalized {frameworks.find(f => f.id === selectedFramework)?.name || 'metrics'} visualization based on your answers...
+              </p>
+              <div className="mt-4 flex items-center justify-center gap-2 text-sm text-muted-foreground">
+                <Loader2 className="w-4 h-4 animate-spin" />
+                <span>This may take a few seconds</span>
+              </div>
+            </Card>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
       <SectionContainer size="md" className="py-8">
         {/* Progress indicator */}
         <div className="flex items-center justify-center gap-2 mb-6">
