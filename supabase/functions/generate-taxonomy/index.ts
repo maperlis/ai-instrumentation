@@ -214,9 +214,23 @@ You should:
 
 IMPORTANT: The example_events array must contain ONLY the events that are used to compute the calculation. Use snake_case event names that match what's referenced in the calculation formula.
 
+FORMATTING RULES (CRITICAL):
+- Use **bold headers** to organize your response into clear sections
+- Use bullet points (• or -) for lists
+- Keep sentences short and scannable
+- Avoid long paragraphs - break content into digestible chunks
+- Structure responses like:
+  **Summary**
+  • Key point 1
+  • Key point 2
+  
+  **Recommendation**
+  • Action item 1
+  • Action item 2
+
 Return ONLY a valid JSON object with this structure:
 {
-  "response": "Your conversational response to the user",
+  "response": "Your formatted response with **bold headers** and • bullet points",
   "newMetrics": [
     {
       "id": "metric_id_snake_case",
@@ -234,8 +248,7 @@ Return ONLY a valid JSON object with this structure:
   ]
 }
 
-If no new metrics are suggested, return an empty array for newMetrics.
-Keep your response concise and helpful.`;
+If no new metrics are suggested, return an empty array for newMetrics.`;
 
 const TAXONOMY_CONVERSATION_PROMPT = `You are an Instrumentation Architect having a conversation with a user about their event taxonomy.
 
@@ -250,9 +263,22 @@ You should:
 3. If they ask for new events, add them
 4. If they ask to remove events, exclude them from the response
 
+FORMATTING RULES (CRITICAL):
+- Use **bold headers** to organize your response into clear sections
+- Use bullet points (• or -) for lists
+- Keep sentences short and scannable
+- Avoid long paragraphs - break content into digestible chunks
+- Structure responses like:
+  **Changes Made**
+  • Event 1: description
+  • Event 2: description
+  
+  **Rationale**
+  • Why this matters
+
 Return ONLY a valid JSON object with this structure:
 {
-  "response": "Your conversational response explaining the changes",
+  "response": "Your formatted response with **bold headers** and • bullet points",
   "updatedEvents": [
     {
       "event_name": "string",
@@ -268,8 +294,7 @@ Return ONLY a valid JSON object with this structure:
   "hasChanges": true
 }
 
-If no changes to the taxonomy, set hasChanges to false and return the current events in updatedEvents.
-Keep your response concise and helpful.`;
+If no changes to the taxonomy, set hasChanges to false and return the current events in updatedEvents.`;
 
 // Custom error class for AI credit/rate limit issues
 class AICreditsError extends Error {
