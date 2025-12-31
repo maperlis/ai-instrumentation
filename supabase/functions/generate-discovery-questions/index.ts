@@ -214,7 +214,7 @@ CRITICAL:
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
-        model: "google/gemini-2.5-flash",
+        model: "google/gemini-3-pro-preview",
         messages,
         response_format: { type: "json_object" },
       }),
@@ -278,58 +278,59 @@ CRITICAL:
   }
 });
 
+// Fallback questions - ONLY used when AI credits are exhausted or rate limited
+// These are intentionally product-focused (not generic PM questions) to align with the system prompt
 function getFallbackQuestions() {
   return [
     {
-      id: "primary_goal",
-      question: "What is your primary business objective?",
-      description: "This helps us recommend metrics aligned with your goals",
-      type: "single_choice",
-      category: "business",
-      options: [
-        { value: "growth", label: "User Growth", description: "Acquiring new users" },
-        { value: "engagement", label: "User Engagement", description: "Increasing active usage" },
-        { value: "monetization", label: "Revenue", description: "Converting to paying customers" },
-        { value: "retention", label: "Retention", description: "Keeping users coming back" },
-      ],
-    },
-    {
-      id: "product_stage",
-      question: "What stage is your product at?",
-      description: "Different stages require different metric focuses",
+      id: "value_moment",
+      question: "Which action best represents the moment users experience core value in your product?",
+      description: "Identifies the activation moment that should anchor your metrics.",
       type: "single_choice",
       category: "product",
       options: [
-        { value: "pre_launch", label: "Pre-launch / MVP", description: "Building and validating" },
-        { value: "early_growth", label: "Early Growth", description: "Finding product-market fit" },
-        { value: "scaling", label: "Scaling", description: "Rapid growth phase" },
-        { value: "mature", label: "Mature", description: "Established, optimizing" },
+        { value: "create", label: "Creating something", description: "Users generate content or output" },
+        { value: "share", label: "Sharing with others", description: "Users distribute value to others" },
+        { value: "complete", label: "Completing a task", description: "Users achieve a meaningful outcome" },
+        { value: "connect", label: "Connecting with others", description: "Users interact with other users" },
       ],
     },
     {
-      id: "business_model",
-      question: "What is your business model?",
-      description: "This determines which metrics matter most",
-      type: "single_choice",
-      category: "business",
-      options: [
-        { value: "subscription", label: "Subscription (SaaS)", description: "Recurring revenue" },
-        { value: "marketplace", label: "Marketplace", description: "Connecting buyers and sellers" },
-        { value: "ecommerce", label: "E-commerce", description: "Selling products" },
-        { value: "freemium", label: "Freemium", description: "Free with paid upgrades" },
-      ],
-    },
-    {
-      id: "key_action",
-      question: "What is the most important action users take in your product?",
-      description: "This helps identify your core conversion metric",
+      id: "critical_path",
+      question: "Which part of the user journey is most critical to improve right now?",
+      description: "Helps identify the highest-leverage area for metric focus.",
       type: "single_choice",
       category: "metrics",
       options: [
-        { value: "purchase", label: "Making a Purchase", description: "Completing a transaction" },
-        { value: "signup", label: "Signing Up", description: "Creating an account" },
-        { value: "engagement", label: "Engaging with Content", description: "Consuming or creating content" },
-        { value: "connection", label: "Connecting with Others", description: "Social or marketplace interactions" },
+        { value: "onboarding", label: "Onboarding", description: "Helping users reach value faster" },
+        { value: "activation", label: "Activation", description: "Ensuring users complete key actions" },
+        { value: "retention", label: "Retention", description: "Keeping users engaged over time" },
+        { value: "monetization", label: "Monetization", description: "Converting users to revenue" },
+      ],
+    },
+    {
+      id: "friction_point",
+      question: "Where do users most commonly encounter friction in your product?",
+      description: "Identifies potential drop-off points that metrics should monitor.",
+      type: "single_choice",
+      category: "product",
+      options: [
+        { value: "signup", label: "Signup or onboarding", description: "Users struggle to get started" },
+        { value: "navigation", label: "Finding key features", description: "Users can't locate what they need" },
+        { value: "completion", label: "Completing core actions", description: "Users drop off before finishing tasks" },
+      ],
+    },
+    {
+      id: "success_signal",
+      question: "What signals that a user has become successful with your product?",
+      description: "Defines the outcome that indicates product-market fit for a user.",
+      type: "single_choice",
+      category: "metrics",
+      options: [
+        { value: "frequency", label: "Regular usage", description: "Users return frequently" },
+        { value: "depth", label: "Deep engagement", description: "Users explore advanced features" },
+        { value: "output", label: "Valuable output", description: "Users create meaningful results" },
+        { value: "referral", label: "Referring others", description: "Users recommend to peers" },
       ],
     },
   ];
