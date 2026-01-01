@@ -127,6 +127,13 @@ For each metric, determine its status:
 - "new" - A gap the user should start tracking
 - "needs_update" - An existing metric that needs refinement (better definition, calculation, etc.)
 
+FORMATTING RULES (CRITICAL):
+All text fields in the output must use proper formatting:
+- Use **bold headers** to organize sections
+- Use bullet points (• or -) for lists
+- Keep sentences short and scannable
+- Avoid long paragraphs - break into digestible chunks
+
 ## Output Format
 
 Return ONLY a valid JSON object:
@@ -157,18 +164,18 @@ Return ONLY a valid JSON object:
     "**Key Finding 3:** Quick win opportunity",
     "**Recommendation:** Overall strategic direction"
   ],
-  "existingMetricsInsights": "Analysis of their current metrics: what's strong, what's missing, what needs work",
+  "existingMetricsInsights": "**Current State**\n• What's strong\n• What's missing\n• What needs work",
   "recommendedInstrumentationPlan": [
     "**Phase 1:** Immediate quick wins (1-2 weeks)",
     "**Phase 2:** Core instrumentation (2-4 weeks)", 
     "**Phase 3:** Advanced analytics (4-8 weeks)"
   ],
   "nextSteps": [
-    "First concrete action item",
-    "Second concrete action item",
-    "Third concrete action item"
+    "• First concrete action item",
+    "• Second concrete action item",
+    "• Third concrete action item"
   ],
-  "analysis": "Brief, executive-friendly analysis (3-4 sentences max). Mention the framework choice and key relationships."
+  "analysis": "**Summary**\n• Key insight 1\n• Key insight 2\n• Framework recommendation"
 }`;
 
 const INSTRUMENTATION_ARCHITECT_PROMPT = `You are an Instrumentation Architect. Generate a comprehensive event taxonomy optimized for measuring these metrics: {selectedMetrics}.
@@ -181,6 +188,20 @@ Follow these principles:
 - Assign confidence scores based on clarity of the UI element
 - Assign owners based on product area
 {customFieldsInstruction}
+
+FORMATTING RULES (CRITICAL):
+When generating the summary, use proper formatting:
+- Use **bold headers** to organize sections
+- Use bullet points (• or -) for lists
+- Keep sentences short and scannable
+- Structure like:
+  **Instrumentation Overview**
+  • Key approach point 1
+  • Key approach point 2
+  
+  **Coverage**
+  • What metrics are covered
+  • What user journeys are tracked
 
 Return ONLY a valid JSON object with this exact structure:
 {
@@ -197,7 +218,7 @@ Return ONLY a valid JSON object with this exact structure:
       {customFieldsJson}
     }
   ],
-  "summary": "Brief summary of the instrumentation approach"
+  "summary": "Formatted summary with **bold headers** and • bullet points"
 }`;
 
 const CONVERSATION_PROMPT = `You are a Product Analytics Specialist having a conversation with a user about metrics for their product.
