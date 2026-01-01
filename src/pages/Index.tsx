@@ -1,9 +1,8 @@
 import { useState, useCallback, useEffect } from "react";
-import { InputSection } from "@/components/InputSection";
 import { ResultsSection } from "@/components/ResultsSection";
 import { FrameworkQuestionsPage } from "@/components/FrameworkQuestionsPage";
 import { MetricsFrameworkView } from "@/components/metrics";
-import { ExistingMetricsStep } from "@/components/existing-metrics";
+import { ProductContextStep } from "@/components/ProductContextStep";
 import { TaxonomyEvent, Metric } from "@/types/taxonomy";
 import { ExistingMetric } from "@/types/existingMetrics";
 import { FrameworkType } from "@/types/metricsFramework";
@@ -11,12 +10,12 @@ import { useOrchestration } from "@/hooks/useOrchestration";
 import { PageContainer } from "@/components/design-system";
 import { AppHeader } from "@/components/design-system/AppHeader";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { BarChart3, FileSpreadsheet, Sparkles } from "lucide-react";
+import { BarChart3, FileSpreadsheet } from "lucide-react";
 
-type WorkflowStep = 'existing-metrics' | 'input' | 'framework-questions' | 'visualization' | 'results';
+type WorkflowStep = 'input' | 'framework-questions' | 'visualization' | 'results';
 
 const Index = () => {
-  const [currentStep, setCurrentStep] = useState<WorkflowStep>('existing-metrics');
+  const [currentStep, setCurrentStep] = useState<WorkflowStep>('input');
   const [existingMetrics, setExistingMetrics] = useState<ExistingMetric[]>([]);
   const [inputData, setInputData] = useState<{ url?: string; imageData?: string; videoData?: string; productDetails?: string } | null>(null);
   const [frameworkAnswers, setFrameworkAnswers] = useState<Record<string, string>>({});
@@ -55,24 +54,21 @@ const Index = () => {
     );
   };
 
-  // Handle existing metrics step completion
-  const handleExistingMetricsComplete = useCallback((metrics: ExistingMetric[]) => {
-    setExistingMetrics(metrics);
-    setCurrentStep('input');
-  }, []);
-
-  const handleSkipExistingMetrics = useCallback(() => {
-    setExistingMetrics([]);
-    setCurrentStep('input');
-  }, []);
-
-  const handleStartAnalysis = useCallback(async (data: {
+  // Handle consolidated product context step completion
+  const handleProductContextComplete = useCallback((data: {
+    existingMetrics: ExistingMetric[];
     url?: string;
     imageData?: string;
     videoData?: string;
     productDetails?: string;
   }) => {
-    setInputData(data);
+    setExistingMetrics(data.existingMetrics);
+    setInputData({
+      url: data.url,
+      imageData: data.imageData,
+      videoData: data.videoData,
+      productDetails: data.productDetails,
+    });
     setCurrentStep('framework-questions');
   }, []);
 
@@ -114,14 +110,6 @@ const Index = () => {
     setSelectedMetricIds([]);
   }, [reset]);
 
-  const handleBackToExistingMetrics = useCallback(() => {
-    reset();
-    setCurrentStep('existing-metrics');
-    setInputData(null);
-    setFrameworkAnswers({});
-    setSelectedMetricIds([]);
-  }, [reset]);
-
   const handleSendMessage = useCallback(async (message: string) => {
     await sendMessage(message);
   }, [sendMessage]);
@@ -134,103 +122,21 @@ const Index = () => {
     setCurrentStep('results');
   }, []);
 
-  // Calculate step number based on whether user has existing metrics
-  const getStepNumber = (step: WorkflowStep): number => {
-    const steps: WorkflowStep[] = ['existing-metrics', 'input', 'framework-questions', 'visualization', 'results'];
-    return steps.indexOf(step) + 1;
-  };
-
-  const totalSteps = 5;
+  const totalSteps = 4;
 
   return (
     <PageContainer>
       <AppHeader />
       
-      {/* Step 1: Import Existing Metrics */}
-      {currentStep === 'existing-metrics' && (
-        <ExistingMetricsStep
-          onComplete={handleExistingMetricsComplete}
-          onSkip={handleSkipExistingMetrics}
+      {/* Step 1: Product Context (consolidated input + existing metrics) */}
+      {currentStep === 'input' && (
+        <ProductContextStep
+          onComplete={handleProductContextComplete}
+          isLoading={isLoading}
         />
       )}
 
-      {/* Step 2: Product Input */}
-      {currentStep === 'input' && (
-        <div className="min-h-[calc(100vh-4rem)] flex items-center justify-center py-12 bg-background">
-          <div className="w-full max-w-2xl px-4">
-            {/* Welcoming intro */}
-            <div className="text-center mb-8">
-              <h1 className="text-3xl md:text-4xl font-bold text-foreground mb-3">
-                Let's understand your product
-              </h1>
-              <p className="text-lg text-muted-foreground max-w-lg mx-auto">
-                Share a quick snapshot of what you're building, and I'll recommend the best metrics framework and ask tailored follow-up questions.
-              </p>
-              {existingMetrics.length > 0 && (
-                <p className="text-sm text-primary mt-2">
-                  ✓ {existingMetrics.length} existing metric{existingMetrics.length !== 1 ? 's' : ''} imported
-                </p>
-              )}
-            </div>
-
-            {/* Progress indicator */}
-            <div className="flex items-center justify-center gap-2 mb-8">
-              <span className="inline-flex items-center gap-2 px-3 py-1.5 bg-primary/10 text-primary text-sm font-medium rounded-full border border-primary/20">
-                <span className="w-5 h-5 rounded-full bg-primary text-primary-foreground text-xs flex items-center justify-center font-semibold">2</span>
-                Step 2 of {totalSteps}: Share your context
-              </span>
-            </div>
-
-            {/* Input form */}
-            <InputSection 
-              onMetricsGenerated={handleMetricsGenerated}
-              onTaxonomyGenerated={handleTaxonomyGenerated}
-              isLoading={isLoading}
-              setIsLoading={() => {}}
-              inputData={inputData}
-              onStartOrchestration={handleStartAnalysis}
-            />
-
-            {/* What happens next */}
-            <div className="mt-8 p-6 bg-muted/50 rounded-xl border border-border">
-              <h3 className="font-semibold text-foreground mb-4 flex items-center gap-2">
-                <Sparkles className="w-4 h-4 text-primary" />
-                What happens next?
-              </h3>
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-                <div className="flex items-start gap-3">
-                  <div className="w-6 h-6 rounded-full bg-primary/10 text-primary text-xs flex items-center justify-center font-semibold shrink-0">1</div>
-                  <p className="text-sm text-muted-foreground">I'll analyze your product context</p>
-                </div>
-                <div className="flex items-start gap-3">
-                  <div className="w-6 h-6 rounded-full bg-primary/10 text-primary text-xs flex items-center justify-center font-semibold shrink-0">2</div>
-                  <p className="text-sm text-muted-foreground">You'll answer a few quick questions</p>
-                </div>
-                <div className="flex items-start gap-3">
-                  <div className="w-6 h-6 rounded-full bg-primary/10 text-primary text-xs flex items-center justify-center font-semibold shrink-0">3</div>
-                  <p className="text-sm text-muted-foreground">Get your personalized metrics framework</p>
-                </div>
-                <div className="flex items-start gap-3">
-                  <div className="w-6 h-6 rounded-full bg-primary/10 text-primary text-xs flex items-center justify-center font-semibold shrink-0">4</div>
-                  <p className="text-sm text-muted-foreground">Get your Instrumentation Plan</p>
-                </div>
-              </div>
-            </div>
-
-            {/* Back link */}
-            <div className="mt-4 text-center">
-              <button 
-                onClick={handleBackToExistingMetrics}
-                className="text-sm text-muted-foreground hover:text-foreground transition-colors"
-              >
-                ← Back to import existing metrics
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Step 3: Framework Questions */}
+      {/* Step 2: Framework Questions */}
       {currentStep === 'framework-questions' && (
         <FrameworkQuestionsPage
           onBack={handleBackToInput}
@@ -241,7 +147,7 @@ const Index = () => {
         />
       )}
       
-      {/* Steps 4 & 5: Visualization and Results */}
+      {/* Steps 3 & 4: Visualization and Results */}
       {(currentStep === 'visualization' || currentStep === 'results') && state.metrics.length > 0 && (
         <div className="min-h-[calc(100vh-4rem)]">
           {/* Progress indicator */}
@@ -249,9 +155,9 @@ const Index = () => {
             <div className="container mx-auto px-4 flex items-center justify-center">
               <span className="inline-flex items-center gap-2 px-3 py-1.5 bg-primary/10 text-primary text-sm font-medium rounded-full border border-primary/20">
                 <span className="w-5 h-5 rounded-full bg-primary text-primary-foreground text-xs flex items-center justify-center font-semibold">
-                  {currentStep === 'visualization' ? '4' : '5'}
+                  {currentStep === 'visualization' ? '3' : '4'}
                 </span>
-                Step {currentStep === 'visualization' ? '4' : '5'} of {totalSteps}: {currentStep === 'visualization' ? 'Your metrics framework' : 'Your Instrumentation Plan'}
+                Step {currentStep === 'visualization' ? '3' : '4'} of {totalSteps}: {currentStep === 'visualization' ? 'Your metrics framework' : 'Your Instrumentation Plan'}
               </span>
             </div>
           </div>
