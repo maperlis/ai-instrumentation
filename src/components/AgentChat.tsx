@@ -8,7 +8,9 @@ import { ConversationMessage } from "@/types/orchestration";
 
 // Simple markdown renderer for bold, italic, and bullet points
 function renderMarkdown(text: string): React.ReactNode[] {
-  const lines = text.split('\n');
+  // Handle both actual newlines and escaped newlines
+  const normalizedText = text.replace(/\\n/g, '\n');
+  const lines = normalizedText.split('\n');
   const elements: React.ReactNode[] = [];
 
   lines.forEach((line, lineIndex) => {
