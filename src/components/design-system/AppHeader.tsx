@@ -1,4 +1,6 @@
 import { Link } from "react-router-dom";
+import { FolderOpen } from "lucide-react";
+import { Button } from "@/components/ui/button";
 import { UserMenu } from "@/components/UserMenu";
 
 interface AppHeaderProps {
@@ -17,7 +19,15 @@ export const AppHeader = ({ showUserMenu = true }: AppHeaderProps) => {
           metrIQ AI
         </Link>
         
-        {showUserMenu && <UserMenu />}
+        <div className="flex items-center gap-2">
+          <Button variant="ghost" size="sm" asChild className="gap-2 text-muted-foreground hover:text-foreground">
+            <Link to="/sessions">
+              <FolderOpen className="w-4 h-4" />
+              My Sessions
+            </Link>
+          </Button>
+          {showUserMenu && <UserMenu />}
+        </div>
       </div>
     </header>
   );
