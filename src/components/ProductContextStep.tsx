@@ -27,9 +27,12 @@ interface ProductContextStepProps {
     productDetails?: string;
   }) => void;
   isLoading: boolean;
+  onSave?: () => void;
+  isSaving?: boolean;
+  canSave?: boolean;
 }
 
-export function ProductContextStep({ onComplete, isLoading }: ProductContextStepProps) {
+export function ProductContextStep({ onComplete, isLoading, onSave, isSaving, canSave }: ProductContextStepProps) {
   const { toast } = useToast();
   
   // Existing metrics state
@@ -703,7 +706,7 @@ export function ProductContextStep({ onComplete, isLoading }: ProductContextStep
         </Collapsible>
 
         {/* Submit Button */}
-        <div className="space-y-2">
+        <div className="space-y-3">
           <Button
             onClick={handleSubmit}
             disabled={isLoading}
@@ -722,6 +725,26 @@ export function ProductContextStep({ onComplete, isLoading }: ProductContextStep
               </>
             )}
           </Button>
+          
+          {onSave && (
+            <Button
+              variant="outline"
+              onClick={onSave}
+              disabled={isSaving || !canSave}
+              className="w-full"
+              size="sm"
+            >
+              {isSaving ? (
+                <>
+                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                  Saving...
+                </>
+              ) : (
+                "Save for Later"
+              )}
+            </Button>
+          )}
+          
           <p className="text-xs text-muted-foreground text-center">I'll analyze this and ask tailored follow-up questions next</p>
         </div>
 

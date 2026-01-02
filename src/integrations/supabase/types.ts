@@ -47,6 +47,69 @@ export type Database = {
         }
         Relationships: []
       }
+      user_sessions: {
+        Row: {
+          conversation_history: Json | null
+          created_at: string
+          current_step: string
+          existing_metrics: Json | null
+          framework_answers: Json | null
+          generated_events: Json | null
+          generated_metrics: Json | null
+          id: string
+          name: string
+          orchestration_session_id: string | null
+          product_details: string | null
+          product_image_data: string | null
+          product_url: string | null
+          product_video_data: string | null
+          selected_framework: string | null
+          status: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          conversation_history?: Json | null
+          created_at?: string
+          current_step?: string
+          existing_metrics?: Json | null
+          framework_answers?: Json | null
+          generated_events?: Json | null
+          generated_metrics?: Json | null
+          id?: string
+          name?: string
+          orchestration_session_id?: string | null
+          product_details?: string | null
+          product_image_data?: string | null
+          product_url?: string | null
+          product_video_data?: string | null
+          selected_framework?: string | null
+          status?: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          conversation_history?: Json | null
+          created_at?: string
+          current_step?: string
+          existing_metrics?: Json | null
+          framework_answers?: Json | null
+          generated_events?: Json | null
+          generated_metrics?: Json | null
+          id?: string
+          name?: string
+          orchestration_session_id?: string | null
+          product_details?: string | null
+          product_image_data?: string | null
+          product_url?: string | null
+          product_video_data?: string | null
+          selected_framework?: string | null
+          status?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never

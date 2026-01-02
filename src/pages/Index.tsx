@@ -1,4 +1,5 @@
 import { useState, useCallback, useEffect } from "react";
+import { useSearchParams } from "react-router-dom";
 import { ResultsSection } from "@/components/ResultsSection";
 import { FrameworkQuestionsPage } from "@/components/FrameworkQuestionsPage";
 import { MetricsFrameworkView } from "@/components/metrics";
@@ -7,22 +8,59 @@ import { TaxonomyEvent, Metric } from "@/types/taxonomy";
 import { ExistingMetric } from "@/types/existingMetrics";
 import { FrameworkType } from "@/types/metricsFramework";
 import { useOrchestration } from "@/hooks/useOrchestration";
+import { useUserSessions } from "@/hooks/useUserSessions";
 import { PageContainer } from "@/components/design-system";
 import { AppHeader } from "@/components/design-system/AppHeader";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { BarChart3, FileSpreadsheet } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { BarChart3, FileSpreadsheet, Save, Loader2 } from "lucide-react";
+import { useToast } from "@/hooks/use-toast";
 
 type WorkflowStep = 'input' | 'framework-questions' | 'visualization' | 'results';
 
 const Index = () => {
+  const [searchParams] = useSearchParams();
+  const sessionIdFromUrl = searchParams.get('session');
+  const { toast } = useToast();
+  
   const [currentStep, setCurrentStep] = useState<WorkflowStep>('input');
   const [existingMetrics, setExistingMetrics] = useState<ExistingMetric[]>([]);
   const [inputData, setInputData] = useState<{ url?: string; imageData?: string; videoData?: string; productDetails?: string } | null>(null);
   const [frameworkAnswers, setFrameworkAnswers] = useState<Record<string, string>>({});
   const [selectedFramework, setSelectedFramework] = useState<FrameworkType>('driver_tree');
+  const [currentSessionId, setCurrentSessionId] = useState<string | null>(null);
+  const [isSaving, setIsSaving] = useState(false);
   
   const { state, isLoading, newMetricIds, startSession, sendMessage, approve, reset } = useOrchestration();
+  const { saveSession, loadSession } = useUserSessions();
   const [selectedMetricIds, setSelectedMetricIds] = useState<string[]>([]);
+
+  // Load session from URL if present
+  useEffect(() => {
+    if (sessionIdFromUrl && !currentSessionId) {
+      loadSession(sessionIdFromUrl).then(session => {
+        if (session) {
+          setCurrentSessionId(session.id);
+          setCurrentStep(session.current_step as WorkflowStep);
+          setExistingMetrics(session.existing_metrics);
+          setInputData({
+            url: session.product_url || undefined,
+            imageData: session.product_image_data || undefined,
+            videoData: session.product_video_data || undefined,
+            productDetails: session.product_details || undefined,
+          });
+          setFrameworkAnswers(session.framework_answers);
+          if (session.selected_framework) {
+            setSelectedFramework(session.selected_framework);
+          }
+          toast({
+            title: "Session loaded",
+            description: "Continuing from where you left off",
+          });
+        }
+      });
+    }
+  }, [sessionIdFromUrl, currentSessionId, loadSession, toast]);
 
   // Initialize selected metrics when metrics change (include both AI and existing metrics)
   useEffect(() => {
@@ -108,6 +146,7 @@ const Index = () => {
     setCurrentStep('input');
     setFrameworkAnswers({});
     setSelectedMetricIds([]);
+    setCurrentSessionId(null);
   }, [reset]);
 
   const handleSendMessage = useCallback(async (message: string) => {
@@ -122,7 +161,41 @@ const Index = () => {
     setCurrentStep('results');
   }, []);
 
+  // Save session handler
+  const handleSaveSession = useCallback(async () => {
+    setIsSaving(true);
+    try {
+      const sessionData = {
+        name: inputData?.productDetails?.slice(0, 50) || 'Untitled Session',
+        status: currentStep === 'results' ? 'completed' as const : 'in_progress' as const,
+        current_step: currentStep,
+        product_url: inputData?.url || null,
+        product_image_data: inputData?.imageData || null,
+        product_video_data: inputData?.videoData || null,
+        product_details: inputData?.productDetails || null,
+        existing_metrics: existingMetrics,
+        framework_answers: frameworkAnswers,
+        selected_framework: selectedFramework,
+        generated_metrics: state.metrics,
+        generated_events: state.events,
+        conversation_history: state.conversationHistory,
+        orchestration_session_id: state.sessionId,
+      };
+
+      const savedId = await saveSession(sessionData, currentSessionId || undefined);
+      if (savedId && !currentSessionId) {
+        setCurrentSessionId(savedId);
+      }
+    } finally {
+      setIsSaving(false);
+    }
+  }, [
+    currentStep, inputData, existingMetrics, frameworkAnswers, 
+    selectedFramework, state, currentSessionId, saveSession
+  ]);
+
   const totalSteps = 4;
+  const canSave = currentStep !== 'input' || (inputData && (inputData.url || inputData.imageData || inputData.videoData));
 
   return (
     <PageContainer>
@@ -133,6 +206,9 @@ const Index = () => {
         <ProductContextStep
           onComplete={handleProductContextComplete}
           isLoading={isLoading}
+          onSave={handleSaveSession}
+          isSaving={isSaving}
+          canSave={!!canSave}
         />
       )}
 
