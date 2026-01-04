@@ -86,15 +86,17 @@ export function useUserSessions() {
     }
   }, [toast]);
 
-  const saveSession = useCallback(async (data: SaveSessionData, sessionId?: string): Promise<string | null> => {
+  const saveSession = useCallback(async (data: SaveSessionData, sessionId?: string, silent: boolean = false): Promise<string | null> => {
     try {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) {
-        toast({
-          title: "Not authenticated",
-          description: "Please log in to save your session",
-          variant: "destructive",
-        });
+        if (!silent) {
+          toast({
+            title: "Not authenticated",
+            description: "Please log in to save your session",
+            variant: "destructive",
+          });
+        }
         return null;
       }
 
@@ -126,10 +128,12 @@ export function useUserSessions() {
 
         if (error) throw error;
         
-        toast({
-          title: "Session saved",
-          description: "Your progress has been saved",
-        });
+        if (!silent) {
+          toast({
+            title: "Session saved",
+            description: "Your progress has been saved",
+          });
+        }
         
         return sessionId;
       } else {
@@ -142,20 +146,24 @@ export function useUserSessions() {
 
         if (error) throw error;
         
-        toast({
-          title: "Session created",
-          description: "Your session has been saved",
-        });
+        if (!silent) {
+          toast({
+            title: "Session created",
+            description: "Your session has been saved",
+          });
+        }
         
         return newSession.id;
       }
     } catch (error: any) {
       console.error("Failed to save session:", error);
-      toast({
-        title: "Save failed",
-        description: error.message || "Failed to save session",
-        variant: "destructive",
-      });
+      if (!silent) {
+        toast({
+          title: "Save failed",
+          description: error.message || "Failed to save session",
+          variant: "destructive",
+        });
+      }
       return null;
     }
   }, [toast]);

@@ -84,6 +84,9 @@ const Index = () => {
     }
   }, [newMetricIds]);
 
+  // Track previous step for auto-save on step change
+  const [prevStep, setPrevStep] = useState<WorkflowStep>('input');
+
   const toggleMetric = (metricId: string) => {
     setSelectedMetricIds(prev =>
       prev.includes(metricId)
@@ -91,6 +94,44 @@ const Index = () => {
         : [...prev, metricId]
     );
   };
+
+  // Auto-save when navigating between steps (after initial input)
+  const autoSaveSession = useCallback(async (newStep: WorkflowStep) => {
+    // Only auto-save if we have some data to save
+    if (!inputData || (!inputData.url && !inputData.imageData && !inputData.videoData && !inputData.productDetails)) {
+      return;
+    }
+
+    const sessionData = {
+      name: inputData?.productDetails?.slice(0, 50) || 'Untitled Session',
+      status: newStep === 'results' ? 'completed' as const : 'in_progress' as const,
+      current_step: newStep,
+      product_url: inputData?.url || null,
+      product_image_data: inputData?.imageData || null,
+      product_video_data: inputData?.videoData || null,
+      product_details: inputData?.productDetails || null,
+      existing_metrics: existingMetrics,
+      framework_answers: frameworkAnswers,
+      selected_framework: selectedFramework,
+      generated_metrics: state.metrics,
+      generated_events: state.events,
+      conversation_history: state.conversationHistory,
+      orchestration_session_id: state.sessionId,
+    };
+
+    const savedId = await saveSession(sessionData, currentSessionId || undefined, true);
+    if (savedId && !currentSessionId) {
+      setCurrentSessionId(savedId);
+    }
+  }, [inputData, existingMetrics, frameworkAnswers, selectedFramework, state, currentSessionId, saveSession]);
+
+  // Auto-save when step changes (but not on initial load or when going back to input)
+  useEffect(() => {
+    if (prevStep !== currentStep && currentStep !== 'input' && prevStep !== 'input') {
+      autoSaveSession(currentStep);
+    }
+    setPrevStep(currentStep);
+  }, [currentStep, prevStep, autoSaveSession]);
 
   // Handle consolidated product context step completion
   const handleProductContextComplete = useCallback((data: {
@@ -108,7 +149,11 @@ const Index = () => {
       productDetails: data.productDetails,
     });
     setCurrentStep('framework-questions');
-  }, []);
+    // Auto-save after completing the first step
+    setTimeout(() => {
+      autoSaveSession('framework-questions');
+    }, 100);
+  }, [autoSaveSession]);
 
   const handleFrameworkQuestionsComplete = useCallback(async (answers: Record<string, string>, framework: FrameworkType) => {
     setFrameworkAnswers(answers);
